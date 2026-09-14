@@ -315,7 +315,7 @@ body.menu-open .mega { pointer-events: auto; }
 @media (max-width: 799px) {
   .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
   .keepup__body {
-    font-size: 27px !important; line-height: 38px !important;
+    font-size: 19px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
   }
 }
@@ -363,16 +363,19 @@ body.menu-open .mega { pointer-events: auto; }
    are two different sizes in Figma, not one shared size — the .hot
    span gets its own, slightly larger clamp. */
 .hs__intro-head { font-size: clamp(28px, 4.2vw, 76px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
-.hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; }
+.hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; line-height: .85; display: block; }
 
-.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -.048em; line-height: .84; margin: 0 0 18px; }
+.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 18px; }
+/* the "150+" figure was measured with noticeably less negative tracking
+   than the other two stats — not an oversight, Figma has it that way */
+.mfig--wide { letter-spacing: -1px; }
 .mfig .unit { font-size: .4em; font-weight: 800; }
 .mcap {
   margin: 0 0 clamp(14px, 1.4vw, 20px); color: var(--flare); font-weight: 600; letter-spacing: 0;
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
   line-height: 1.2; max-width: 20ch;
 }
-.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; max-width: 22ch; }
+.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
 .hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 22px; }
 .hs__panel--stat { align-items: center; text-align: center; }
 .hs__panel--stat .hs__rule { align-self: flex-start; }
@@ -449,16 +452,20 @@ body.menu-open .mega { pointer-events: auto; }
   display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center;
   gap: clamp(16px, 2vw, 28px); margin-bottom: clamp(40px, 5.5vw, 84px);
 }
-#who .sec__head { max-width: 18ch; }
-.who__top p { margin: 0; font-size: clamp(16px, 1.5vw, 23px); line-height: 1.45; max-width: 48ch; font-weight: 300; opacity: .75; }
+#who .sec__head { margin: 0; max-width: 18ch; }
+.who__top p { margin: 0; padding: 4px; font-size: clamp(16px, 1.5vw, 23px); line-height: 1.45; max-width: 48ch; font-weight: 300; opacity: .75; }
+.who__gap { height: clamp(14px, 1.8vw, 26px); }
 
 /* ============================================================
    WINDOW SECTIONS
    ============================================================ */
 .win { background: var(--surf-1); padding: 0; }
 .win__frame { position: relative; overflow: hidden; margin: 0; width: 100%; height: clamp(420px, 88svh, 940px); background: var(--surf-2); }
-.win--flat .win__frame { background: var(--olive); }
-.win--flat .win__copy { color: var(--charcoal); }
+/* only WindowA uses the "flat" variant — its own azure/cream pairing
+   (not the shared --olive/--charcoal default) lives here rather than
+   as an inline style */
+.win--flat .win__frame { background: var(--azure); }
+.win--flat .win__copy { color: var(--cream); }
 .win__copy {
   position: absolute; inset: 0; z-index: 3; color: var(--win-fg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -468,16 +475,30 @@ body.menu-open .mega { pointer-events: auto; }
 }
 .win__copy h2 { margin: 0; font-size: clamp(32px, 5.4vw, 88px); font-weight: 300; line-height: 1.0; letter-spacing: -.038em; max-width: 19ch; text-wrap: balance; }
 .win--flat .win__copy { align-items: flex-start; text-align: left; }
+.win__partnering-head { font-size: clamp(40px, 9.4vw, 120px); }
+.win__partnering-head .bd { color: #FFA235; letter-spacing: 0; }
 @media (max-width: 799px) {
   .win--flat .win__copy { align-items: center; text-align: center; }
   .win__partnering-head { font-size: 36px !important; line-height: 1.06; letter-spacing: -.04em; }
 }
 
+/* ============================================================
+   WINDOW B — "WHATEVER YOU'VE GOT" ROSE ARCH
+   ============================================================ */
+.wev { background: var(--cream); overflow: hidden; padding: clamp(24px, 3vw, 48px) 0 0; }
+.archB {
+  width: 100%; aspect-ratio: 2 / 1; border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: var(--rose); display: flex; align-items: center; justify-content: center;
+}
+.wev__inner { color: var(--cream); text-align: center; padding: 0 clamp(32px, 10vw, 160px); }
+.wev__head { margin: 0; color: var(--cream); letter-spacing: -.025em; line-height: 1.04; }
+.wev__lead { display: block; font-weight: 300; letter-spacing: -.02em; font-size: clamp(38px, 5.6vw, 88px); }
+.wev__bold { display: block; font-weight: 800; letter-spacing: -.03em; line-height: 1.0; font-size: clamp(52px, 8.1vw, 128px); }
 @media (max-width: 799px) {
   .wev__head { margin-top: 18px !important; }
   .archB { width: 152% !important; margin-left: -26% !important; aspect-ratio: 2 / 1 !important; }
   .wev__lead { font-size: 20px !important; }
-  .wev__head span:last-child { font-size: 28px !important; line-height: 1.05 !important; }
+  .wev__bold { font-size: 28px !important; line-height: 1.05 !important; }
 }
 
 /* ============================================================

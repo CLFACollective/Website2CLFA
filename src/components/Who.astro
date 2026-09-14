@@ -5,11 +5,11 @@ import LogoScroller from "./LogoScroller.astro";
 <section class="sec sec--slate" id="who">
   <div class="sec__inner">
     <div class="who__top">
-      <h2 class="sec__head reveal" style="margin:0">
-        <span style="color:#BE7837;font-family:'Lora',Georgia,serif;font-style:italic">Who</span>
-        <span style="color:var(--charcoal)">tags us in.</span>
+      <h2 class="sec__head reveal">
+        <span class="hot">Who</span>
+        <span>tags us in.</span>
       </h2>
-      <p class="reveal" style="transition-delay:.12s;padding:4px">
+      <p class="reveal">
         They&rsquo;re healthcare and tech marketing. Equity-backed.
         Some are pre-launch. Some are post-acquisition.
         <span class="bd">All of them are moving fast.</span>
@@ -17,7 +17,7 @@ import LogoScroller from "./LogoScroller.astro";
     </div>
 
     <LogoScroller speed={42} />
-    <div style="height:clamp(14px,1.8vw,26px)"></div>
+    <div class="who__gap"></div>
     <LogoScroller speed={52} reverse />
   </div>
 </section>

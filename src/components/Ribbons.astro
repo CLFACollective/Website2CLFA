@@ -17,7 +17,7 @@ const ANGLE = -3.4;
 const CROSS_ANGLE = 3.4;
 ---
 
-<div class="rib" style="background:#FFFAF5" aria-hidden="true">
+<div class="rib" aria-hidden="true">
   <div class="rib__stack" style={`transform:rotate(${ANGLE}deg)`}>
     {STACK.map((b, i) => (
       <div class="rib__band" style={`background:${b.bg};color:${b.fg};${i === 1 ? "margin-top:120px" : ""}`}>
@@ -55,7 +55,7 @@ const CROSS_ANGLE = 3.4;
 </script>
 
 <style>
-  .rib { position: relative; overflow: hidden; padding: clamp(78px, 11vw, 165px) 0; }
+  .rib { position: relative; overflow: hidden; padding: clamp(78px, 11vw, 165px) 0; background: var(--cream); }
   .rib__stack { transform-origin: 50% 50%; }
   .rib__cross {
     position: absolute; left: 0; right: 0; top: 50%;

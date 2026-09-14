@@ -36,7 +36,7 @@
   --hairline: rgba(35, 35, 35, .16); --hairline-2: rgba(35, 35, 35, .28);
   --nav-fg: var(--charcoal);
   --win-fg: var(--charcoal);
-  --foot-bg: var(--azure); --foot-fg: var(--cream);
+  --foot-bg: var(--charcoal); --foot-fg: var(--cream);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -201,7 +201,9 @@ body.menu-open .mega { pointer-events: auto; }
 
 .sec { padding: clamp(72px, 10vw, 170px) var(--gut); position: relative; overflow: hidden; }
 .sec__inner { max-width: var(--maxw); margin: 0 auto; position: relative; z-index: 2; }
-.sec--forest { background: var(--surf-2); --copper: #FFA235; --flare: #FFA235; }
+/* only KeepUp uses this variant — its own background/text colour (not
+   --surf-2/the default fg) live here rather than as an inline style. */
+.sec--forest { background: #344338; color: var(--cream); --copper: #FFA235; --flare: #FFA235; }
 .sec--slate { background: var(--surf-3); }
 
 .sec__head {
@@ -224,6 +226,11 @@ body.menu-open .mega { pointer-events: auto; }
   padding: clamp(72px, 10vw, 170px) var(--gut); box-sizing: border-box;
 }
 .pinday__stage .sec__inner { width: 100%; }
+/* Lora's italic face is only loaded up to weight 700 (see the @import
+   at the top of this file) — .hot's default 400 read too light here,
+   but the Figma-specified 900 silently clamped to nothing. 600 is the
+   heaviest that actually renders as intended. */
+.pinday .sec__head .hot { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   .pinday { height: auto; }
   .pinday__stage { position: static; min-height: 0; }
@@ -239,6 +246,11 @@ body.menu-open .mega { pointer-events: auto; }
   background: var(--pink);
 }
 .rail__stop { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: transparent; border: 1.5px solid var(--pink); transition: background .4s var(--ease), border-color .4s var(--ease); }
+/* three evenly-spaced stops along the rail — sixths, not exact thirds,
+   to match where the section's three beats actually land */
+.rail__stop:nth-of-type(1) { left: 16.6%; }
+.rail__stop:nth-of-type(2) { left: 50%; }
+.rail__stop:nth-of-type(3) { left: 83.3%; }
 .rail__stop.is-past { background: var(--pink); border-color: var(--pink); }
 /* the pulsing halo: a ring that expands and fades while the dark pink
    core underneath stays put. --halo-s/--halo-o are driven by GSAP
@@ -292,16 +304,18 @@ body.menu-open .mega { pointer-events: auto; }
    AND AFTER DAY ONE — WE DON'T LET UP
    ============================================================ */
 .keepup {
-  color: var(--charcoal); min-height: 100svh; display: flex; align-items: center;
+  min-height: 100svh; display: flex; align-items: center;
   padding-top: clamp(96px, 13vw, 210px); padding-bottom: clamp(96px, 13vw, 210px);
 }
 .keepup .sec__inner { width: 100%; }
 .keepup__big { font-size: clamp(46px, 10.6vw, 196px); line-height: .9; letter-spacing: -.045em; margin: 0 0 clamp(34px, 5vw, 74px); max-width: 13ch; font-weight: 300; }
-.keepup__body { margin: 0; max-width: 52ch; font-size: clamp(19px, 1.7vw, 26px); line-height: 1.45; font-weight: 300; opacity: .72; }
+.keepup__big .bd { letter-spacing: 0; color: var(--flare); }
+.keepup__body { margin: 0; max-width: 52ch; font-size: 48px; line-height: 55px; letter-spacing: -1.568px; font-weight: 300; opacity: 1; }
+.keepup__body strong { font-weight: 600; font-style: italic; }
 @media (max-width: 799px) {
   .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
   .keepup__body {
-    font-size: 16px !important; line-height: 19px !important;
+    font-size: 27px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
   }
 }
@@ -474,6 +488,7 @@ body.menu-open .mega { pointer-events: auto; }
 .foot__top { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: clamp(30px, 4vw, 72px); align-items: start; padding-bottom: clamp(44px, 6vw, 92px); }
 .foot__logo { width: clamp(110px, 10vw, 168px); margin-bottom: 26px; }
 .foot__go { margin: 0 0 22px; font-size: clamp(24px, 2.8vw, 44px); font-weight: 300; letter-spacing: -.03em; line-height: 1.05; max-width: 14ch; }
+.foot__go-em { color: var(--pink); font-weight: 800; }
 .foot__nav, .foot__contact { display: grid; gap: 11px; align-content: start; }
 /* the footer's own eyebrow treatment — smaller, tracked, uppercase —
    differs from the shared .eyebrow used elsewhere (nav, Window A, Who),

@@ -271,15 +271,15 @@ body.menu-open .mega { pointer-events: auto; }
 }
 
 .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 3vw, 54px); }
-.col h3 { font-size: clamp(20px, 2vw, 32px); font-weight: 800; letter-spacing: -.025em; margin: 0 0 10px; line-height: 1.08; transition: color .6s var(--ease); }
-.col p { margin: 0; font-size: 16px; line-height: 1.5; max-width: 32ch; font-weight: 300; opacity: 1; color: var(--charcoal); }
+.col h3 { font-size: clamp(22px, 2.6vw, 40px); font-weight: 800; letter-spacing: -.025em; margin: 0 0 10px; line-height: 1.08; transition: color .6s var(--ease); }
+.col p { margin: 0; font-size: clamp(16px, 1.4vw, 20px); line-height: 1.5; max-width: 32ch; font-weight: 400; opacity: 1; color: var(--charcoal); }
 .col.on h3 { color: var(--pink); }
 .col p.revealed { opacity: 1 !important; transform: none !important; }
 @media (prefers-reduced-motion: reduce) { .col { opacity: 1; transform: none; } .col p { opacity: 1; transform: none; } }
 
 /* Phones: the three columns become a vertical timeline — a single line down
    the left with a dot per step, the reached/active step filling pink. */
-@media (max-width: 880px) {
+@media (max-width: 799px) {
   .pinday .rail { display: none; }
   #dayone.cols3 { display: block; margin: clamp(24px, 7vw, 44px) 0 0 clamp(4px, 2vw, 10px); }
   #dayone .col {
@@ -294,9 +294,9 @@ body.menu-open .mega { pointer-events: auto; }
   }
   #dayone .col.is-rev::before { background: var(--pink); }
   #dayone .col.on::before { background: var(--pink); box-shadow: 0 0 0 7px rgba(240, 105, 150, .18); }
-  #dayone .col h3 { font-size: clamp(20px, 6vw, 28px); margin-bottom: clamp(10px, 2.6vw, 14px); }
-  #dayone .col p { font-size: clamp(16px, 4.4vw, 19px); max-width: 34ch; }
-  .pinday .sec__head { font-size: clamp(40px, 11vw, 64px); }
+  #dayone .col h3 { font-size: 26px; margin-bottom: clamp(10px, 2.6vw, 14px); }
+  #dayone .col p { font-size: 14px; line-height: 1.4; max-width: 34ch; }
+  .pinday .sec__head { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; }
 }
 
 /* ============================================================
@@ -309,19 +309,11 @@ body.menu-open .mega { pointer-events: auto; }
 .keepup .sec__inner { width: 100%; }
 .keepup__big { font-size: clamp(46px, 10.6vw, 196px); line-height: .9; letter-spacing: -.045em; margin: 0 0 clamp(34px, 5vw, 74px); max-width: 13ch; font-weight: 300; }
 .keepup__body { margin: 0; max-width: 52ch; font-size: clamp(19px, 1.7vw, 26px); line-height: 1.45; font-weight: 300; opacity: .72; }
-@media (max-width: 760px) {
-  .keepup__big { text-align: center; margin-left: auto; margin-right: auto; }
-  .keepup__body {
-    font-size: 26px !important; line-height: 34px !important;
-    text-align: center; margin-left: auto; margin-right: auto;
-    padding-left: 10px; padding-right: 10px;
-  }
-}
 @media (max-width: 799px) {
-  .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; }
+  .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
   .keepup__body {
     font-size: 16px !important; line-height: 19px !important;
-    letter-spacing: 0; max-width: 340px; padding-left: 0; padding-right: 0;
+    letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
   }
 }
 
@@ -352,9 +344,60 @@ body.menu-open .mega { pointer-events: auto; }
   content: ""; position: absolute; left: 0; top: 60px; bottom: 60px; width: 1px;
   background: var(--hairline);
 }
-@media (max-width: 760px) {
-  .hs__panel + .hs__panel::before { top: 30%; bottom: 30%; }
+
+.hs__spine {
+  position: absolute; right: calc(var(--gut) * .18); top: 0; bottom: 0; z-index: 3;
+  display: grid; place-items: center end; pointer-events: none;
 }
+.hs__spine span {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-weight: 900; line-height: 1; white-space: nowrap;
+  font-size: clamp(64px, 14.2vh, 210px); letter-spacing: .012em;
+  color: transparent; -webkit-text-stroke: 2.5px currentColor; opacity: .45;
+}
+
+/* "Measurable" (line 1) and "momentum." (line 2, Lora italic via .hot)
+   are two different sizes in Figma, not one shared size — the .hot
+   span gets its own, slightly larger clamp. */
+.hs__intro-head { font-size: clamp(28px, 4.2vw, 76px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
+.hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; }
+
+.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -.048em; line-height: .84; margin: 0 0 18px; }
+.mfig .unit { font-size: .4em; font-weight: 800; }
+.mcap {
+  margin: 0 0 clamp(14px, 1.4vw, 20px); color: var(--flare); font-weight: 600; letter-spacing: 0;
+  font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
+  line-height: 1.2; max-width: 20ch;
+}
+.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; max-width: 22ch; }
+.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 22px; }
+.hs__panel--stat { align-items: center; text-align: center; }
+.hs__panel--stat .hs__rule { align-self: flex-start; }
+.hs__panel--stat .mcap, .hs__panel--stat h4 { margin-left: auto; margin-right: auto; }
+
+.hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
+.mquote__wrap { position: relative; width: max-content; max-width: 100%; }
+.mquote__badge {
+  position: absolute; top: 0; right: 0;
+  transform: translate(calc(34% + 40px), calc(-100% - 20px));
+  width: clamp(74px, 6vw, 112px); height: auto; display: block; pointer-events: none;
+}
+.mquote__badge svg { display: block; width: 100%; height: auto; }
+/* Two of the three quote lines are plain sans (SemiBold, upright) —
+   only the middle line is Lora italic/copper. The base rule covers
+   the sans majority; .mquote__l2 overrides to the italic treatment. */
+.mquote {
+  margin: 0; font-weight: 600; font-family: var(--sans); font-style: normal;
+  font-size: clamp(38px, 6.2vw, 96px); line-height: 1.0; letter-spacing: -.03em;
+}
+.mquote span { display: block; }
+.mquote__l1, .mquote__l3 { color: var(--charcoal); }
+.mquote__l2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
+.mquote__by {
+  margin-top: clamp(14px, 1.6vw, 26px); font-weight: 600;
+  font-size: clamp(18px, 1.8vw, 26px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
+}
+
 /* Below 800px the section stops pinning/hijacking scroll entirely —
    it's a normal in-flow block, and the panel track becomes a plain
    horizontally-swipeable strip (native overflow-x, no JS transform).
@@ -376,65 +419,24 @@ body.menu-open .mega { pointer-events: auto; }
     scroll-snap-type: x proximity;
   }
   .hs__panel { width: min(272px, 78vw); scroll-snap-align: start; }
+  .hs__panel + .hs__panel::before { top: 30%; bottom: 30%; }
+  .hs__spine { display: none; }
 
   .hs__intro-head { font-size: 36px; line-height: 1.06; }
   /* "momentum" reverts to plain sans on mobile — only the trailing
      dot keeps the Lora italic copper treatment (see Momentum.astro). */
   .hs__intro-head .hot {
     font-family: var(--sans); font-style: normal; font-weight: 300; color: var(--charcoal);
+    font-size: 1em;
   }
   .hs__intro-head .hs__dot {
     font-family: var(--hc-serif, "Lora", Georgia, serif); font-style: italic;
     font-weight: 600; color: var(--flare);
   }
-}
 
-.hs__spine {
-  position: absolute; right: calc(var(--gut) * .18); top: 0; bottom: 0; z-index: 3;
-  display: grid; place-items: center end; pointer-events: none;
-}
-.hs__spine span {
-  writing-mode: vertical-rl; transform: rotate(180deg);
-  font-weight: 900; line-height: 1; white-space: nowrap;
-  font-size: clamp(64px, 14.2vh, 210px); letter-spacing: .012em;
-  color: transparent; -webkit-text-stroke: 2.5px currentColor; opacity: .45;
-}
-@media (max-width: 760px) { .hs__spine { display: none; } }
-
-.hs__intro-head { font-size: clamp(32px, 5.4vw, 86px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
-
-.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -.048em; line-height: .84; margin: 0 0 18px; }
-.mfig .unit { font-size: .4em; font-weight: 800; }
-.mcap {
-  margin: 0 0 clamp(14px, 1.4vw, 20px); color: var(--flare); font-weight: 400; letter-spacing: 0;
-  font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(19px, 1.6vw, 26px);
-  line-height: 1.2; max-width: 20ch;
-}
-.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; max-width: 22ch; }
-.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 22px; }
-.hs__panel--stat { align-items: center; text-align: center; }
-.hs__panel--stat .hs__rule { align-self: flex-start; }
-.hs__panel--stat .mcap, .hs__panel--stat h4 { margin-left: auto; margin-right: auto; }
-
-.hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
-.mquote__wrap { position: relative; width: max-content; max-width: 100%; }
-.mquote__badge {
-  position: absolute; top: 0; right: 0;
-  transform: translate(calc(34% + 40px), calc(-100% - 20px));
-  width: clamp(74px, 6vw, 112px); height: auto; display: block; pointer-events: none;
-}
-.mquote__badge svg { display: block; width: 100%; height: auto; }
-.mquote {
-  margin: 0; font-weight: 400;
-  font-size: clamp(38px, 6.2vw, 96px); line-height: 1.0; letter-spacing: 0;
-  font-family: "Lora", Georgia, serif; font-style: italic;
-}
-.mquote span { display: block; }
-.mquote__l1, .mquote__l3 { color: var(--charcoal); font-family: "Lora", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
-.mquote__l2 { color: var(--copper); font-weight: 400; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
-.mquote__by {
-  margin-top: clamp(14px, 1.6vw, 26px); font-weight: 400;
-  font-size: clamp(18px, 1.8vw, 26px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
+  .mfig { font-size: 88px; }
+  .mcap { font-size: 16px; }
+  .mquote { font-size: 46px; }
 }
 
 /* ============================================================
@@ -463,18 +465,16 @@ body.menu-open .mega { pointer-events: auto; }
 }
 .win__copy h2 { margin: 0; font-size: clamp(32px, 5.4vw, 88px); font-weight: 300; line-height: 1.0; letter-spacing: -.038em; max-width: 19ch; text-wrap: balance; }
 .win--flat .win__copy { align-items: flex-start; text-align: left; }
-@media (max-width: 760px) {
-  .win--flat .win__copy { align-items: center; text-align: center; }
-}
 @media (max-width: 799px) {
+  .win--flat .win__copy { align-items: center; text-align: center; }
   .win__partnering-head { font-size: 36px !important; line-height: 1.06; letter-spacing: -.04em; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 799px) {
   .wev__head { margin-top: 18px !important; }
   .archB { width: 152% !important; margin-left: -26% !important; aspect-ratio: 2 / 1 !important; }
-  .wev__lead { font-size: 24px !important; }
-  .wev__head span:last-child { font-size: 34px !important; line-height: 1.05 !important; }
+  .wev__lead { font-size: 20px !important; }
+  .wev__head span:last-child { font-size: 28px !important; line-height: 1.05 !important; }
 }
 
 /* ============================================================

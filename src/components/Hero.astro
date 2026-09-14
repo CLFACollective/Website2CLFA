@@ -214,8 +214,8 @@ const ROSE = "#F06496";
     position: relative; z-index: 5; margin: 0;
     max-width: min(24ch, 84vw); text-align: center;
     color: var(--CHARCOAL);
-    font-weight: 300; letter-spacing: -.02em; line-height: 1.26;
-    font-size: var(--hc-lead);
+    font-weight: 300; letter-spacing: -.02em; line-height: 1.4;
+    font-size: clamp(16px, calc(9px + 1.45vw), 32px);
     opacity: var(--copy);
     transform: translateY(calc((1 - var(--copy)) * 30px));
   }
@@ -236,7 +236,7 @@ const ROSE = "#F06496";
     100% { transform: scaleY(0); transform-origin: bottom; }
   }
 
-  @media (max-width: 760px) {
+  @media (max-width: 799px) {
     .hcb__lockup { padding: 0 32px; }
     .hcb__solve { font-size: var(--solve-fit, 34vw); }
     .hcb__closing { max-width: min(20ch, 86vw); }

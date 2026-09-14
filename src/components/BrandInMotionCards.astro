@@ -80,12 +80,15 @@ const CARDS: Card[] = [
 
   .bmc__q {
     margin: 0; flex: 0 1 auto;
-    font-weight: 300; letter-spacing: -.038em; line-height: .997; text-align: left;
-    font-size: clamp(34px, 5.4vw, 98px);
+    font-weight: 400; letter-spacing: -.038em; line-height: .997; text-align: left;
+    font-size: clamp(30px, 4.4vw, 80px);
     color: #252525;
     opacity: 0; transform: translateY(18px);
   }
-  .bmc__q b { display: block; font-weight: 800; color: #BE7A3A; }
+  .bmc__q b {
+    display: block; font-family: var(--hc-serif, "Lora", Georgia, serif); font-style: italic;
+    font-weight: 600; color: #BE7A3A; font-size: clamp(34px, 5vw, 90px);
+  }
 
   .bmc__top {
     flex: 0 0 auto;
@@ -136,7 +139,7 @@ const CARDS: Card[] = [
 
   .bmc__copy {
     margin: 0; font-weight: 300; letter-spacing: -.02em; line-height: 1.14;
-    font-size: clamp(14px, 1.72vw, 29px);
+    font-size: clamp(16px, 2.1vw, 36px);
   }
   .bmc__copy em {
     font-family: var(--hc-serif, "Lora", Georgia, serif);

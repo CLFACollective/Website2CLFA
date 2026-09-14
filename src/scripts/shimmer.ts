@@ -1,7 +1,7 @@
 /**
  * The faint twinkling dust that drifts over a pinned section — Day One
  * and Momentum each get their own instance, contained the same way
- * BlingField is (position:absolute inside that section's own sticky
+ * ShineField is (position:absolute inside that section's own sticky
  * stage), not one global overlay spanning the whole page. A one-time
  * DOM seed of ~22 dots per instance; the twinkle itself is a CSS
  * @keyframes loop (see .shimmer i in global.css) — cheap enough at this

@@ -2,8 +2,8 @@
  * GridField — the graph ground used behind "Window A". Draws the grid
  * itself and lights one domino under the cursor (the cell you're over
  * plus one diagonal neighbour), which moves cell-to-cell rather than
- * leaving a trail. A per-pixel canvas job like BlingField, so it stays
- * a plain rAF loop rather than a GSAP tween.
+ * leaving a trail. A per-pixel canvas job, so it stays a plain rAF loop
+ * rather than a GSAP tween.
  *
  * Ported from the React GridField component.
  */

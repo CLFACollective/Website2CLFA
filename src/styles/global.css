@@ -66,7 +66,7 @@ a { color: inherit; }
   .mobile-br { display: inline; }
 }
 
-/* Contained the same way BlingField is: position:absolute filling its
+/* Contained the same way ShineField is: position:absolute filling its
    own section's sticky stage, not one sticky overlay spanning the
    whole page (that reads across every section, wanted or not — Day
    One and Momentum are the only two that mount one, see shimmer.ts). */

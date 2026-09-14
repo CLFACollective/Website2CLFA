@@ -1,0 +1,36 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import BrandInMotionCards from "../components/BrandInMotionCards.astro";
+import Ribbons from "../components/Ribbons.astro";
+import WindowA from "../components/WindowA.astro";
+import DayOne from "../components/DayOne.astro";
+import KeepUp from "../components/KeepUp.astro";
+import Momentum from "../components/Momentum.astro";
+import Who from "../components/Who.astro";
+import WindowB from "../components/WindowB.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Layout title="CLFA Collective — We are the solve for brands in motion">
+  <Nav />
+
+  <Hero />
+
+  <div class="act">
+    <BrandInMotionCards />
+    <Ribbons />
+    <WindowA />
+    <DayOne />
+    <KeepUp />
+    <Momentum />
+    <Who />
+    <WindowB />
+    <Footer />
+  </div>
+
+  <script>
+    import "../scripts/main";
+  </script>
+</Layout>

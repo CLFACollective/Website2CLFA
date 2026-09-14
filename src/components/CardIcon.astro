@@ -1,0 +1,66 @@
+---
+// CardIcon — one of the five outline glyphs used on the "brand in motion"
+// cards. Each path is stroked along its own contour (pathLength="1" makes
+// every path exactly one dash-unit long, so a single dasharray works
+// across icons of very different sizes), then the neutral fill inks in
+// behind the stroke. The draw itself is driven by GSAP once the card
+// becomes the lead card — see cardsFan.ts.
+import { ICONS, type IconName } from "../lib/cardIcons";
+
+interface Props {
+  name: IconName;
+  class?: string;
+}
+const { name, class: className } = Astro.props;
+const d = ICONS[name];
+---
+
+<svg
+  viewBox={d.vb}
+  class:list={["ci", `ci--${name}`, className]}
+  style={`--ci-sw:${d.sw}`}
+  aria-hidden="true"
+  data-stagger={d.stagger}
+>
+  {d.paths.map((p, i) => <g class="ci__p" set:html={p} />)}
+</svg>
+
+<style>
+  .ci {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .ci :global(path) {
+    fill: currentColor;
+    fill-opacity: 0;
+    stroke: currentColor;
+    stroke-opacity: 0.6;
+    stroke-width: var(--ci-sw, 2);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  /* idle motion, once the draw-in has finished (class added by cardsFan.ts) */
+  .ci--launch.is-drawn { animation: ciSpin 26s linear infinite; }
+  .ci--merge.is-drawn { animation: ciFloat 6s ease-in-out infinite; }
+  .ci--acquired.is-drawn { animation: ciBreathe 7s ease-in-out infinite; }
+  .ci--speed.is-drawn { animation: ciBreathe 9s ease-in-out infinite; }
+  .ci--pivot { opacity: 0.5; }
+
+  @keyframes ciSpin { to { transform: rotate(360deg); } }
+  @keyframes ciFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes ciBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ci { animation: none !important; }
+    .ci :global(path) {
+      animation: none !important;
+      stroke-dashoffset: 0;
+      fill-opacity: 1;
+    }
+  }
+</style>

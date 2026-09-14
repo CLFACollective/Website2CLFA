@@ -1,0 +1,75 @@
+---
+// Ribbons — three angled bands crossing over the "dark act" background.
+// Copper and azure share one angle and stack; sage crosses the other
+// way, laid over the top. Each band scrolls at its own speed via GSAP
+// (src/scripts/marquee.ts) rather than a CSS @keyframes loop, so every
+// looping band on the page shares one consistent animation engine.
+const PHRASES = ["Ready to launch?", "Mid-merger?", "Pivoting?", "Just acquired?", "Complex, inherited brand?"];
+
+type Band = { bg: string; fg: string; seconds: number; reverse?: boolean };
+const STACK: Band[] = [
+  { bg: "#BE7837", fg: "#FFFCF5", seconds: 34 },
+  { bg: "#344338", fg: "#FFFCF5", seconds: 30 },
+];
+const CROSS: Band = { bg: "#BACDDC", fg: "#252525", seconds: 26, reverse: true };
+
+const ANGLE = -3.4;
+const CROSS_ANGLE = 3.4;
+---
+
+<div class="rib" style="background:#FFFAF5" aria-hidden="true">
+  <div class="rib__stack" style={`transform:rotate(${ANGLE}deg)`}>
+    {STACK.map((b, i) => (
+      <div class="rib__band" style={`background:${b.bg};color:${b.fg};${i === 1 ? "margin-top:120px" : ""}`}>
+        <div class="rib__track" data-seconds={b.seconds} data-reverse={b.reverse ? "true" : "false"}>
+          {[0, 1].map(() => (
+            <span class="rib__half">
+              {PHRASES.map((p) => (
+                <span class="rib__item">{p}<i class="rib__dot"></i></span>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="rib__cross" style={`transform:translateY(-50%) rotate(${CROSS_ANGLE}deg)`}>
+    <div class="rib__band" style={`background:${CROSS.bg};color:${CROSS.fg}`}>
+      <div class="rib__track" data-seconds={CROSS.seconds} data-reverse={CROSS.reverse ? "true" : "false"}>
+        {[0, 1].map(() => (
+          <span class="rib__half">
+            {PHRASES.map((p) => (
+              <span class="rib__item">{p}<i class="rib__dot"></i></span>
+            ))}
+          </span>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { setupMarquees } from "../scripts/marquee";
+  setupMarquees(".rib__track");
+</script>
+
+<style>
+  .rib { position: relative; overflow: hidden; padding: clamp(78px, 11vw, 165px) 0; }
+  .rib__stack { transform-origin: 50% 50%; }
+  .rib__cross {
+    position: absolute; left: 0; right: 0; top: 50%;
+    transform-origin: 50% 50%; z-index: 3;
+  }
+  .rib__band { width: 126%; margin-left: -13%; overflow: hidden; padding: clamp(9px, 1.1vw, 17px) 0; }
+  .rib__stack .rib__band + .rib__band { margin-top: clamp(10px, 1.4vw, 22px); }
+  .rib__track { display: flex; width: max-content; }
+  .rib__half { display: flex; }
+  .rib__item {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    font-weight: 800; letter-spacing: -.012em; line-height: 1.15;
+    font-size: clamp(19px, 2.5vw, 42px);
+    padding: 0 .34em;
+  }
+  .rib__dot { width: .19em; height: .19em; border-radius: 50%; background: currentColor; display: inline-block; margin-left: .7em; }
+</style>

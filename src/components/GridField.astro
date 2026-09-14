@@ -1,0 +1,29 @@
+---
+// GridField — the interactive graph-paper ground. See src/scripts/gridField.ts.
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<canvas class:list={["grid-field", className]} aria-hidden="true"></canvas>
+
+<style>
+  .grid-field {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+</style>
+
+<script>
+  import { mountGridField } from "../scripts/gridField";
+
+  document.querySelectorAll<HTMLCanvasElement>(".grid-field:not([data-mounted])").forEach((canvas) => {
+    canvas.dataset.mounted = "true";
+    mountGridField(canvas);
+  });
+</script>

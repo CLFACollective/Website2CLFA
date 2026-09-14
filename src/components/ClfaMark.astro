@@ -1,0 +1,20 @@
+---
+// ClfaMark — the CLFA Collective glyph mark, standalone (no wordmark).
+// color sets the glyphs (currentColor); --clfa-dot sets the circle in
+// the A — cream by default, set it to whatever the mark sits on.
+import { CLFA_MARK_PATHS } from "../lib/clfaMark";
+
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<svg
+  class:list={[className]}
+  viewBox="0 0 262 123"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="CLFA Collective"
+  set:html={CLFA_MARK_PATHS}
+/>

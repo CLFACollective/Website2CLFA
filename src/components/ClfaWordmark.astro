@@ -1,0 +1,13 @@
+---
+// ClfaWordmark — the "CLFA COLLECTIVE" lockup, inlined directly (no
+// <symbol>/<use>) so GSAP and CSS can both reach .dot/.m without
+// crossing a shadow-tree boundary. See src/lib/clfaLogo.ts.
+import { CLFA_LOGO_PATHS } from "../lib/clfaLogo";
+
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<svg class:list={["clfa", className]} viewBox="0 0 184 86" set:html={CLFA_LOGO_PATHS} />

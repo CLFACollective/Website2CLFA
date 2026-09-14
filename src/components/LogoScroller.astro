@@ -1,0 +1,57 @@
+---
+// LogoScroller — the client-name marquee. Uppercase, heavy, in the
+// section's own text colour, with a rose dot between every name. The
+// set renders twice; the track loops via GSAP (src/scripts/marquee.ts).
+const CLFA_CLIENTS = ["Lux Infusion", "Rancho Biosciences", "Johnson & Johnson", "Endpoint", "Konovo", "Pfizer", "Insmed", "Novartis"];
+
+interface Props {
+  speed?: number;
+  reverse?: boolean;
+}
+const { speed = 40, reverse = false } = Astro.props;
+---
+
+<div class="lsc">
+  <div class="lsc__track" data-seconds={speed} data-reverse={reverse ? "true" : "false"}>
+    {[0, 1].map((set) => (
+      <div class="lsc__set" aria-hidden={set === 1}>
+        {CLFA_CLIENTS.map((name) => (
+          <span class="lsc__item">
+            <span class="lsc__name">{name}</span>
+            <i class="lsc__dot" aria-hidden="true"></i>
+          </span>
+        ))}
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  import { setupMarquees } from "../scripts/marquee";
+  setupMarquees(".lsc__track", { pauseOnHover: true });
+</script>
+
+<style>
+  .lsc {
+    position: relative; overflow: hidden; width: 100%;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  }
+  .lsc__track { display: flex; width: max-content; }
+  .lsc__set { display: flex; align-items: center; }
+  .lsc__item { display: inline-flex; align-items: center; white-space: nowrap; }
+  .lsc__name {
+    text-transform: uppercase;
+    font-weight: 800; letter-spacing: -.005em;
+    font-size: clamp(17px, 1.9vw, 30px);
+    transition: opacity .3s var(--ease);
+  }
+  .lsc__dot {
+    width: .42em; height: .42em; border-radius: 50%;
+    background: var(--pink, #F06496);
+    display: inline-block; margin: 0 clamp(20px, 2.6vw, 44px);
+    flex: 0 0 auto;
+  }
+  .lsc:hover .lsc__name { opacity: .4; }
+  .lsc__item:hover .lsc__name { opacity: 1; }
+</style>

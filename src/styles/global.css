@@ -1,0 +1,522 @@
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@300..900&family=Lora:ital,wght@1,400..700&display=swap");
+
+/* ============================================================
+   CLFA COLLECTIVE — DESIGN TOKENS + GLOBAL STYLES
+
+   TYPE    Figtree 300–900 (stand-in for Liebling), Lora italic for
+           editorial accents.
+   COLOUR  copper = editorial highlight, inside copy.
+           pink   = the live/interactive colour — logo, buttons,
+                    progress markers, hover states.
+           Neutral is cream on light, charcoal on dark.
+   CURSOR  the system cursor is hidden on fine-pointer devices;
+           PinkCursor.astro paints the dot that replaces it.
+   ============================================================ */
+
+@media (pointer: fine) {
+  *, *::before, *::after { cursor: none !important; }
+}
+
+:root {
+  /* PALETTE */
+  --cream: #FFFAF5; --charcoal: #232323; --copper: #BE7837; --rose: #F06496;
+  --azure: #506E78; --olive: #A0A073;
+  --ink: var(--charcoal);
+  --pink: var(--rose); --flare: var(--copper);
+
+  --sans: "Figtree", "Helvetica Neue", Arial, sans-serif;
+  --hc-serif: "Lora", Georgia, serif;
+  --gut: clamp(20px, 5vw, 78px);
+  --maxw: 1560px;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+
+  /* THEME */
+  --fg: var(--charcoal);
+  --surf-1: var(--cream); --surf-2: var(--olive); --surf-3: var(--cream);
+  --hairline: rgba(35, 35, 35, .16); --hairline-2: rgba(35, 35, 35, .28);
+  --nav-fg: var(--charcoal);
+  --win-fg: var(--charcoal);
+  --foot-bg: var(--azure); --foot-fg: var(--cream);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--surf-1); color: var(--fg);
+  font-family: var(--sans); font-size: 17px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+body.menu-open { overflow: hidden; }
+a { color: inherit; }
+
+/* ============================================================
+   LOGO
+   ============================================================ */
+.clfa { display: block; height: auto; fill: currentColor; }
+/* `.m` paths (the letterforms) inherit currentColor from whatever
+   colour context the mark sits in; `.dot` carries its own pink fill,
+   tweened directly by GSAP (see src/scripts/navTint.ts) when the mark
+   sits on a ground pink can't be seen against. */
+
+/* a line break that only exists below 800px — for copy that wraps
+   naturally everywhere else but needs a specific, designed break on a
+   true phone screen (see Figma's mobile frames). */
+.mobile-br { display: none; }
+@media (max-width: 799px) {
+  .mobile-br { display: inline; }
+}
+
+/* Contained the same way BlingField is: position:absolute filling its
+   own section's sticky stage, not one sticky overlay spanning the
+   whole page (that reads across every section, wanted or not — Day
+   One and Momentum are the only two that mount one, see shimmer.ts). */
+.shimmer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.shimmer i {
+  position: absolute; display: block; width: 2.5px; height: 2.5px; border-radius: 50%;
+  background: currentColor; opacity: 0; animation: twinkle 5.5s var(--ease) infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0; transform: scale(.6); }
+  45% { opacity: .5; transform: scale(1); }
+}
+
+/* ============================================================
+   TYPE HELPERS
+   ============================================================ */
+.eyebrow { font-size: 15px; line-height: 22.5px; font-weight: 600; letter-spacing: 0; margin: 0; color: inherit; }
+.bd { font-weight: 800; }
+.hot { color: var(--flare); font-family: "Lora", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
+
+/* ============================================================
+   NAV + MEGA MENU
+   ============================================================ */
+.nav {
+  position: fixed; inset: 0 0 auto 0; z-index: 80;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px var(--gut);
+  color: var(--nav-fg);
+  transition: color .5s var(--ease);
+}
+/* the azure "partnering" window and the forest "don't let up" section
+   — see navTint.ts, which toggles this while either is centred */
+.nav.nav--tinted { color: var(--cream); }
+.nav__logo {
+  display: block; text-decoration: none; position: relative; z-index: 2;
+  transition: opacity .45s var(--ease);
+}
+.nav__logo.is-gone { opacity: 0; pointer-events: none; }
+body.menu-open .nav__logo.is-gone { opacity: 1; pointer-events: auto; }
+.nav__logo .clfa { width: clamp(84px, 7vw, 118px); }
+
+/* Burger only — a word label lives for a11y, hidden visually. */
+.menu-btn {
+  display: inline-flex; align-items: center; background: none; border: 0;
+  cursor: pointer; padding: 0; position: relative; z-index: 2; color: inherit;
+}
+.menu-btn__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.menu-btn__bars {
+  display: grid; gap: 5px; width: 24px; box-sizing: content-box;
+  padding: 15px 18px; border-radius: 100px;
+  background: #EAF0F5; color: var(--charcoal);
+  transition: background .4s var(--ease);
+}
+.menu-btn__bars i { height: 2px; background: currentColor; display: block; transition: transform .4s var(--ease), opacity .3s var(--ease); }
+.menu-btn__bars i:nth-child(2) { width: 60%; margin-left: auto; background: var(--pink); }
+body.menu-open .menu-btn__bars { background: var(--cream); color: var(--charcoal); }
+body.menu-open .menu-btn__bars i:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+body.menu-open .menu-btn__bars i:nth-child(2) { opacity: 0; }
+body.menu-open .menu-btn__bars i:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+body.menu-open .nav { color: var(--cream); }
+
+.mega {
+  position: fixed; inset: 0; z-index: 75;
+  background: var(--ink); color: var(--cream);
+  padding: calc(20px + clamp(60px, 10vh, 110px)) var(--gut) var(--gut);
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(24px, 5vw, 90px);
+  align-content: center;
+  /* open/close (opacity, clip-path) is driven entirely by the GSAP
+     timeline in nav.ts, not a CSS transition — see gsap.set below. */
+  pointer-events: none;
+}
+body.menu-open .mega { pointer-events: auto; }
+.mega__list { list-style: none; margin: 0; padding: 0; }
+.mega__list li {
+  /* stagger-in handled by GSAP (nav.ts); only the resting look lives here */
+  border-top: 1px solid rgba(248, 244, 238, .16);
+}
+.mega__list li:last-child { border-bottom: 1px solid rgba(248, 244, 238, .16); }
+.mega__link {
+  display: flex; align-items: baseline; gap: clamp(14px, 2vw, 34px);
+  text-decoration: none; padding: clamp(10px, 1.6vh, 22px) 0;
+  font-size: clamp(30px, 5.4vw, 80px); font-weight: 900; letter-spacing: -.04em; line-height: 1;
+  transition: color .3s var(--ease), transform .4s var(--ease);
+}
+/* transform, not padding-left: a padding shift eats into the link's own
+   content width, which at some breakpoints was just enough to wrap
+   "Meet the collective" onto a second line the instant you hovered it.
+   A transform nudges the whole box without touching its layout. */
+.mega__link:hover { color: var(--flare); transform: translateX(18px); }
+.mega__link .no { font-size: 12px; font-weight: 700; letter-spacing: .2em; color: var(--pink); flex: 0 0 auto; }
+.mega__aside { align-self: end; display: grid; gap: 26px; }
+.mega__aside .eyebrow { margin-bottom: 8px; }
+.mega__aside p { margin: 0; font-size: clamp(15px, 1.3vw, 19px); font-weight: 300; line-height: 1.45; opacity: .8; }
+.mega__aside a.plain { text-decoration: none; border-bottom: 1px solid rgba(248, 244, 238, .35); }
+.mega__aside a.plain:hover { color: var(--pink); border-color: var(--pink); }
+@media (max-width: 900px) {
+  .mega { grid-template-columns: 1fr; align-content: start; overflow-y: auto; }
+}
+
+/* ============================================================
+   BUTTONS + STICKY CTA  (pink = interactive)
+   ============================================================ */
+.kickoff {
+  position: fixed; right: var(--gut); bottom: 26px; z-index: 70;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 24px; border-radius: 100px;
+  background: var(--pink); color: var(--charcoal);
+  font-size: 18px; font-weight: 500; font-style: normal; letter-spacing: 0; text-decoration: none;
+  box-shadow: 0 10px 12px rgba(0, 0, 0, .15);
+  opacity: 0; visibility: hidden; transform: translateY(14px);
+  transition: background .3s var(--ease);
+}
+.kickoff:hover { background: var(--flare); color: var(--ink); }
+/* the "Don't let up" section, the azure "partnering" window, and the
+   hero's pink bloom all swap the pill's fill to cream — see
+   kickoff.ts, which crossfades on entering/leaving each zone.
+   Typography is identical in both states; only the fill changes. */
+.kickoff--alt { background: var(--cream); }
+.kickoff--alt:hover { background: var(--flare); color: var(--cream); }
+
+.btn, .btn--fill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 46px; padding: 12px 34px; border-radius: 100px;
+  border: 1px solid currentColor; background: none; color: inherit;
+  cursor: pointer; font-family: var(--sans);
+  font-size: 15px; font-weight: 500; letter-spacing: .005em;
+  text-decoration: none;
+  transition: background .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease);
+}
+.btn:hover, .btn--fill:hover { background: var(--pink); border-color: var(--pink); color: var(--cream); }
+
+/* ============================================================
+   PIN SCAFFOLD
+   ============================================================ */
+.pin { position: relative; }
+.pin__stage { position: sticky; top: 0; height: 100svh; overflow: hidden; display: grid; place-items: center; }
+
+/* ============================================================
+   DARK ACT — everything below the hero
+   ============================================================ */
+.act { background: var(--surf-3); color: var(--fg); position: relative; }
+.act > * { position: relative; z-index: 0; }
+
+.sec { padding: clamp(72px, 10vw, 170px) var(--gut); position: relative; overflow: hidden; }
+.sec__inner { max-width: var(--maxw); margin: 0 auto; position: relative; z-index: 2; }
+.sec--forest { background: var(--surf-2); --copper: #FFA235; --flare: #FFA235; }
+.sec--slate { background: var(--surf-3); }
+
+.sec__head {
+  font-size: clamp(32px, 5.4vw, 86px); line-height: 1.0; letter-spacing: -.038em;
+  margin: 0 0 clamp(30px, 4vw, 66px); max-width: 20ch; text-wrap: balance; font-weight: 300;
+}
+/* Resting (pre-reveal) state only — the fade/rise-up itself is a GSAP
+   tween fired by IntersectionObserver, see src/scripts/reveals.ts. */
+.reveal { opacity: 0; transform: translateY(30px); }
+/* Window B arch rises up from the bottom of the frame as it enters view */
+.archB { transform-origin: 50% 100%; transform: translateY(38%); }
+
+/* ============================================================
+   DAY ONE — rail, ball anchors each column
+   ============================================================ */
+.pinday { padding: 0; height: 230vh; overflow: visible; }
+.pinday__stage {
+  position: sticky; top: 0; min-height: 100svh;
+  display: flex; align-items: center; overflow: hidden;
+  padding: clamp(72px, 10vw, 170px) var(--gut); box-sizing: border-box;
+}
+.pinday__stage .sec__inner { width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .pinday { height: auto; }
+  .pinday__stage { position: static; min-height: 0; }
+}
+
+.rail { position: relative; height: 2px; background: var(--hairline); margin: 0 0 clamp(34px, 5vw, 62px); }
+/* the track itself always stays grey — only the ball and the stops
+   (the actual "indicators") go pink as they're reached. */
+.rail__fill { display: none; }
+.rail__ball {
+  position: absolute; top: 50%; left: calc(var(--rp, 0) * 100%);
+  width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+  background: var(--pink);
+}
+.rail__stop { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: transparent; border: 1.5px solid var(--pink); transition: background .4s var(--ease), border-color .4s var(--ease); }
+.rail__stop.is-past { background: var(--pink); border-color: var(--pink); }
+/* the pulsing halo: a ring that expands and fades while the dark pink
+   core underneath stays put. --halo-s/--halo-o are driven by GSAP
+   (src/scripts/dayOne.ts) — the core dot never animates, only this
+   pseudo-element layered behind it. */
+.rail__ball::after,
+.rail__stop.is-past::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: var(--pink);
+  opacity: var(--halo-o, 0);
+  transform: scale(var(--halo-s, 1));
+  pointer-events: none;
+  z-index: -1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail__ball::after, .rail__stop.is-past::after { display: none; }
+}
+
+.cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 3vw, 54px); }
+.col h3 { font-size: clamp(20px, 2vw, 32px); font-weight: 800; letter-spacing: -.025em; margin: 0 0 10px; line-height: 1.08; transition: color .6s var(--ease); }
+.col p { margin: 0; font-size: 16px; line-height: 1.5; max-width: 32ch; font-weight: 300; opacity: 1; color: var(--charcoal); }
+.col.on h3 { color: var(--pink); }
+.col p.revealed { opacity: 1 !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .col { opacity: 1; transform: none; } .col p { opacity: 1; transform: none; } }
+
+/* Phones: the three columns become a vertical timeline — a single line down
+   the left with a dot per step, the reached/active step filling pink. */
+@media (max-width: 880px) {
+  .pinday .rail { display: none; }
+  #dayone.cols3 { display: block; margin: clamp(24px, 7vw, 44px) 0 0 clamp(4px, 2vw, 10px); }
+  #dayone .col {
+    position: relative; border-left: 2px solid var(--hairline);
+    padding: 0 0 clamp(34px, 9vw, 56px) clamp(28px, 7vw, 40px);
+  }
+  #dayone .col:last-child { padding-bottom: clamp(6px, 2vw, 12px); }
+  #dayone .col::before {
+    content: ""; position: absolute; left: -12px; top: 2px; box-sizing: border-box;
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--pink); background: transparent;
+  }
+  #dayone .col.is-rev::before { background: var(--pink); }
+  #dayone .col.on::before { background: var(--pink); box-shadow: 0 0 0 7px rgba(240, 105, 150, .18); }
+  #dayone .col h3 { font-size: clamp(20px, 6vw, 28px); margin-bottom: clamp(10px, 2.6vw, 14px); }
+  #dayone .col p { font-size: clamp(16px, 4.4vw, 19px); max-width: 34ch; }
+  .pinday .sec__head { font-size: clamp(40px, 11vw, 64px); }
+}
+
+/* ============================================================
+   AND AFTER DAY ONE — WE DON'T LET UP
+   ============================================================ */
+.keepup {
+  color: var(--charcoal); min-height: 100svh; display: flex; align-items: center;
+  padding-top: clamp(96px, 13vw, 210px); padding-bottom: clamp(96px, 13vw, 210px);
+}
+.keepup .sec__inner { width: 100%; }
+.keepup__big { font-size: clamp(46px, 10.6vw, 196px); line-height: .9; letter-spacing: -.045em; margin: 0 0 clamp(34px, 5vw, 74px); max-width: 13ch; font-weight: 300; }
+.keepup__body { margin: 0; max-width: 52ch; font-size: clamp(19px, 1.7vw, 26px); line-height: 1.45; font-weight: 300; opacity: .72; }
+@media (max-width: 760px) {
+  .keepup__big { text-align: center; margin-left: auto; margin-right: auto; }
+  .keepup__body {
+    font-size: 26px !important; line-height: 34px !important;
+    text-align: center; margin-left: auto; margin-right: auto;
+    padding-left: 10px; padding-right: 10px;
+  }
+}
+@media (max-width: 799px) {
+  .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; }
+  .keepup__body {
+    font-size: 16px !important; line-height: 19px !important;
+    letter-spacing: 0; max-width: 340px; padding-left: 0; padding-right: 0;
+  }
+}
+
+/* ============================================================
+   MOMENTUM — horizontal scroll
+   ============================================================ */
+#momentum { height: 360vh; }
+#momentum .pin__stage {
+  background: var(--surf-1);
+  display: flex; flex-direction: column;
+  align-items: stretch;
+}
+.hs__head {
+  flex: 0 0 auto; position: relative; z-index: 4; text-align: left;
+  padding: clamp(74px, 11vh, 150px) var(--gut) clamp(20px, 3.5vh, 44px)
+           calc(var(--gut) + clamp(24px, 4vw, 80px));
+  max-width: min(52ch, 62vw);
+}
+.hs__head .hs__intro-head { margin-bottom: 16px; }
+.hs__track { display: flex; align-items: stretch; flex: 1 1 auto; min-height: 0; width: max-content; will-change: transform; padding-left: var(--gut); padding-right: clamp(90px, 11vw, 200px); }
+.hs__panel {
+  flex: 0 0 auto; height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 60px clamp(24px, 4vw, 80px);
+  width: clamp(300px, 46vw, 620px); position: relative;
+}
+.hs__panel + .hs__panel::before {
+  content: ""; position: absolute; left: 0; top: 60px; bottom: 60px; width: 1px;
+  background: var(--hairline);
+}
+@media (max-width: 760px) {
+  .hs__panel + .hs__panel::before { top: 30%; bottom: 30%; }
+}
+/* Below 800px the section stops pinning/hijacking scroll entirely —
+   it's a normal in-flow block, and the panel track becomes a plain
+   horizontally-swipeable strip (native overflow-x, no JS transform).
+   See momentum.ts, which skips its ScrollTrigger/pin setup at this
+   width the same way cardsFan.ts skips its own positioning math. */
+@media (max-width: 799px) {
+  #momentum { height: auto; }
+  #momentum .pin__stage { position: static; height: auto; padding-bottom: 48px; }
+  .hs__head { padding: clamp(60px, 8vh, 84px) var(--gut) 24px; max-width: none; }
+  .hs__track {
+    /* width:max-content (the desktop value) sizes the box to its own
+       content, so it never "overflows itself" — overflow-x:auto had
+       nothing to scroll and the whole page just grew wide instead.
+       Pinning the box to the viewport width is what actually makes it
+       a scroll container. */
+    width: 100%;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    transform: none !important; padding-right: var(--gut);
+    scroll-snap-type: x proximity;
+  }
+  .hs__panel { width: min(272px, 78vw); scroll-snap-align: start; }
+
+  .hs__intro-head { font-size: 36px; line-height: 1.06; }
+  /* "momentum" reverts to plain sans on mobile — only the trailing
+     dot keeps the Lora italic copper treatment (see Momentum.astro). */
+  .hs__intro-head .hot {
+    font-family: var(--sans); font-style: normal; font-weight: 300; color: var(--charcoal);
+  }
+  .hs__intro-head .hs__dot {
+    font-family: var(--hc-serif, "Lora", Georgia, serif); font-style: italic;
+    font-weight: 600; color: var(--flare);
+  }
+}
+
+.hs__spine {
+  position: absolute; right: calc(var(--gut) * .18); top: 0; bottom: 0; z-index: 3;
+  display: grid; place-items: center end; pointer-events: none;
+}
+.hs__spine span {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-weight: 900; line-height: 1; white-space: nowrap;
+  font-size: clamp(64px, 14.2vh, 210px); letter-spacing: .012em;
+  color: transparent; -webkit-text-stroke: 2.5px currentColor; opacity: .45;
+}
+@media (max-width: 760px) { .hs__spine { display: none; } }
+
+.hs__intro-head { font-size: clamp(32px, 5.4vw, 86px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
+
+.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -.048em; line-height: .84; margin: 0 0 18px; }
+.mfig .unit { font-size: .4em; font-weight: 800; }
+.mcap {
+  margin: 0 0 clamp(14px, 1.4vw, 20px); color: var(--flare); font-weight: 400; letter-spacing: 0;
+  font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(19px, 1.6vw, 26px);
+  line-height: 1.2; max-width: 20ch;
+}
+.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; max-width: 22ch; }
+.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 22px; }
+.hs__panel--stat { align-items: center; text-align: center; }
+.hs__panel--stat .hs__rule { align-self: flex-start; }
+.hs__panel--stat .mcap, .hs__panel--stat h4 { margin-left: auto; margin-right: auto; }
+
+.hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
+.mquote__wrap { position: relative; width: max-content; max-width: 100%; }
+.mquote__badge {
+  position: absolute; top: 0; right: 0;
+  transform: translate(calc(34% + 40px), calc(-100% - 20px));
+  width: clamp(74px, 6vw, 112px); height: auto; display: block; pointer-events: none;
+}
+.mquote__badge svg { display: block; width: 100%; height: auto; }
+.mquote {
+  margin: 0; font-weight: 400;
+  font-size: clamp(38px, 6.2vw, 96px); line-height: 1.0; letter-spacing: 0;
+  font-family: "Lora", Georgia, serif; font-style: italic;
+}
+.mquote span { display: block; }
+.mquote__l1, .mquote__l3 { color: var(--charcoal); font-family: "Lora", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
+.mquote__l2 { color: var(--copper); font-weight: 400; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
+.mquote__by {
+  margin-top: clamp(14px, 1.6vw, 26px); font-weight: 400;
+  font-size: clamp(18px, 1.8vw, 26px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
+}
+
+/* ============================================================
+   WHO TAGS US IN
+   ============================================================ */
+.who__top {
+  display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center;
+  gap: clamp(16px, 2vw, 28px); margin-bottom: clamp(40px, 5.5vw, 84px);
+}
+#who .sec__head { max-width: 18ch; }
+.who__top p { margin: 0; font-size: clamp(16px, 1.5vw, 23px); line-height: 1.45; max-width: 48ch; font-weight: 300; opacity: .75; }
+
+/* ============================================================
+   WINDOW SECTIONS
+   ============================================================ */
+.win { background: var(--surf-1); padding: 0; }
+.win__frame { position: relative; overflow: hidden; margin: 0; width: 100%; height: clamp(420px, 88svh, 940px); background: var(--surf-2); }
+.win--flat .win__frame { background: var(--olive); }
+.win--flat .win__copy { color: var(--charcoal); }
+.win__copy {
+  position: absolute; inset: 0; z-index: 3; color: var(--win-fg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 0 clamp(26px, 6vw, 120px);
+  /* --pv: -1..1, set by windowParallax.ts as the frame crosses the viewport */
+  transform: translate3d(0, calc(var(--pv, 0) * -2.6rem), 0);
+}
+.win__copy h2 { margin: 0; font-size: clamp(32px, 5.4vw, 88px); font-weight: 300; line-height: 1.0; letter-spacing: -.038em; max-width: 19ch; text-wrap: balance; }
+.win--flat .win__copy { align-items: flex-start; text-align: left; }
+@media (max-width: 760px) {
+  .win--flat .win__copy { align-items: center; text-align: center; }
+}
+@media (max-width: 799px) {
+  .win__partnering-head { font-size: 36px !important; line-height: 1.06; letter-spacing: -.04em; }
+}
+
+@media (max-width: 640px) {
+  .wev__head { margin-top: 18px !important; }
+  .archB { width: 152% !important; margin-left: -26% !important; aspect-ratio: 2 / 1 !important; }
+  .wev__lead { font-size: 24px !important; }
+  .wev__head span:last-child { font-size: 34px !important; line-height: 1.05 !important; }
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.foot { background: var(--foot-bg); color: var(--foot-fg); padding: clamp(58px, 8vw, 124px) var(--gut) 30px; position: relative; overflow: hidden; }
+.foot__inner { max-width: var(--maxw); margin: 0 auto; position: relative; z-index: 2; }
+.foot__top { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: clamp(30px, 4vw, 72px); align-items: start; padding-bottom: clamp(44px, 6vw, 92px); }
+.foot__logo { width: clamp(110px, 10vw, 168px); margin-bottom: 26px; }
+.foot__go { margin: 0 0 22px; font-size: clamp(24px, 2.8vw, 44px); font-weight: 300; letter-spacing: -.03em; line-height: 1.05; max-width: 14ch; }
+.foot__nav, .foot__contact { display: grid; gap: 11px; align-content: start; }
+/* the footer's own eyebrow treatment — smaller, tracked, uppercase —
+   differs from the shared .eyebrow used elsewhere (nav, Window A, Who),
+   so it's scoped here rather than changed globally. */
+.foot__nav .eyebrow, .foot__contact .eyebrow {
+  margin-bottom: 6px;
+  font-size: 12px; line-height: 18px; letter-spacing: .24em; text-transform: uppercase;
+}
+.foot__nav a, .foot__contact a {
+  text-decoration: none; font-size: clamp(15px, 1.2vw, 18px); font-weight: 300; opacity: .82;
+  width: fit-content; border-bottom: 1px solid transparent;
+  transition: opacity .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease);
+}
+.foot__nav a:hover, .foot__contact a:hover { opacity: 1; color: var(--pink); border-color: var(--pink); }
+.foot__row { display: flex; justify-content: space-between; align-items: flex-end; gap: 22px; flex-wrap: wrap; border-top: 1px solid var(--hairline-2); padding-top: 22px; }
+.foot__row p { margin: 0; font-size: 12px; letter-spacing: .06em; opacity: .55; }
+@media (max-width: 820px) { .foot__top { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .pin { height: auto !important; }
+  .pin__stage { position: static; height: auto; padding: 12vh 0; overflow: visible; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  .shimmer { display: none; }
+  #momentum .pin__stage { background: var(--surf-3); }
+  .hs__track { transform: none !important; width: auto; flex-wrap: wrap; height: auto; }
+  .hs__panel { width: 100%; height: auto; padding: 40px var(--gut); border-left: 0 !important; }
+  .hs__head { max-width: none; }
+  .hs__spine { display: none; }
+  .rail__ball { display: none; }
+  .mega { transition: none; }
+}

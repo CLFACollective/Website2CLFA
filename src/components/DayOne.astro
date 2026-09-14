@@ -1,0 +1,43 @@
+---
+import BlingField from "./BlingField.astro";
+---
+
+<section class="sec sec--slate pinday" id="partnering">
+  <div class="pinday__stage">
+    <BlingField parallax={150} shape="square" />
+    <div class="shimmer" aria-hidden="true"></div>
+    <div class="sec__inner">
+      <h2 class="sec__head reveal" style="max-width:15ch">
+        <span class="bd">Day one.</span> And the training wheels are <span class="bd hot" style="font-weight:900">already off.</span>
+      </h2>
+
+      <div class="rail" id="rail">
+        <span class="rail__fill"></span>
+        <i class="rail__stop" style="left:16.6%"></i>
+        <i class="rail__stop" style="left:50%"></i>
+        <i class="rail__stop" style="left:83.3%"></i>
+        <i class="rail__ball"></i>
+      </div>
+
+      <div class="cols3" id="dayone">
+        <div class="col">
+          <h3>Fast starts</h3>
+          <p>Quality deliverables in days, not weeks. We&rsquo;re moving before the ink on the SOW dries.</p>
+        </div>
+        <div class="col">
+          <h3>No hand-holding required</h3>
+          <p>Our team has seen it all. We orient ourselves.</p>
+        </div>
+        <div class="col">
+          <h3>Strategy baked in from day one</h3>
+          <p>We don&rsquo;t execute first and think later.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { setupDayOne } from "../scripts/dayOne";
+  setupDayOne();
+</script>

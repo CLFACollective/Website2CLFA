@@ -1,0 +1,51 @@
+---
+// Nav — the fixed top bar, the full-screen mega menu it opens, and the
+// sticky "kick off" CTA. Open/close and the CTA's show/hide are both
+// driven by GSAP — see src/scripts/nav.ts and src/scripts/kickoff.ts.
+import ClfaWordmark from "./ClfaWordmark.astro";
+---
+
+<nav class="nav" id="nav">
+  <a class="nav__logo" href="/" aria-label="CLFA Collective home">
+    <ClfaWordmark />
+  </a>
+  <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="mega" aria-label="Menu">
+    <span class="menu-btn__label">Menu</span>
+    <span class="menu-btn__bars" aria-hidden="true">
+      <i></i><i></i><i></i>
+    </span>
+  </button>
+</nav>
+
+<div class="mega" id="mega">
+  <ul class="mega__list">
+    <li><a class="mega__link" href="#motion"><span class="no">01</span> What we do</a></li>
+    <li><a class="mega__link" href="#partnering"><span class="no">02</span> Meet the collective</a></li>
+    <li><a class="mega__link" href="#who"><span class="no">03</span> FAQs</a></li>
+    <li><a class="mega__link" href="#contact"><span class="no">04</span> Let&rsquo;s go</a></li>
+  </ul>
+  <div class="mega__aside">
+    <div>
+      <p class="eyebrow">Is it go time?</p>
+      <p>Give us all the details, or just enough to get started. Either way, we&rsquo;ll take it from here.</p>
+    </div>
+    <div>
+      <p class="eyebrow">Direct</p>
+      <p>
+        <a class="plain" href="mailto:hello@clfacollective.com">hello@clfacollective.com</a><br />
+        <a class="plain" href="#contact">LinkedIn</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<a class="kickoff" href="#contact" id="kickoff">Is it go time?</a>
+
+<script>
+  import { setupNav } from "../scripts/nav";
+  import { setupKickoffCta } from "../scripts/kickoff";
+  import { setupNavTint } from "../scripts/navTint";
+  setupNav();
+  setupKickoffCta();
+  setupNavTint();
+</script>

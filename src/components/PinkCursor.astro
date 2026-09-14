@@ -1,0 +1,38 @@
+---
+// PinkCursor — replaces the system cursor on fine-pointer devices (hidden
+// globally in global.css). The dot itself is positioned by GSAP quickTo
+// in src/scripts/cursor.ts, which also flips it to white whenever it sits
+// over an element marked data-cursor="invert" (a pink ground would
+// otherwise swallow it).
+---
+
+<div id="pink-cursor" aria-hidden="true"></div>
+
+<style>
+  #pink-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 99999;
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    margin-top: -12px;
+    border-radius: 50%;
+    background: var(--rose, #f06496);
+    pointer-events: none;
+    will-change: transform;
+    transform: translate(-200px, -200px);
+  }
+  @media (pointer: fine) {
+    #pink-cursor { display: block; }
+  }
+  @media not (pointer: fine) {
+    #pink-cursor { display: none; }
+  }
+</style>
+
+<script>
+  import { mountPinkCursor } from "../scripts/cursor";
+  mountPinkCursor();
+</script>

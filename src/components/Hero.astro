@@ -1,0 +1,260 @@
+---
+// Hero — the opening scrollytelling sequence.
+//
+// A rose prelude circle carrying the CLFA mark contracts to nothing, an
+// outlined iris opens back out of that same point, three beats of copy
+// play through an iris/swipe/iris cycle (the third holds open while its
+// middle word swaps "smarter" -> "faster"), then the whole frame blooms
+// into rose and a cream circle climbs up from below to close on the
+// offer copy.
+//
+// The whole thing is one GSAP timeline scrubbed 1:1 against this
+// section's scroll distance (see src/scripts/hero.ts) — every property
+// below is a plain 0..1 progress value; the CSS turns that into an
+// actual size via calc(), so it stays correct at any viewport without
+// the timeline needing to know pixels.
+import ClfaMark from "./ClfaMark.astro";
+
+const CREAM = "#FFFCF5";
+const CHARCOAL = "#252525";
+const COPPER = "#BE7837";
+const AZURE = "#527078";
+const ROSE = "#F06496";
+---
+
+<section class="hcb" id="hero">
+  <div class="hcb__stage" data-motion="iris" data-ring="on">
+    <div class="hcb__iris">
+      <p class="hcb__beat">
+        <span class="hcb__lead">Where healthcare meets tech,</span>
+        <span class="hcb__emph">the ground</span>
+        <span class="hcb__emph">keeps shifting</span>
+      </p>
+      <p class="hcb__beat">
+        <span class="hcb__lead">When your organization is</span>
+        <span class="hcb__emph">changing rapidly</span>
+      </p>
+      <p class="hcb__beat" data-swap>
+        <span class="hcb__lead">We are the</span>
+        <span class="hcb__swap">
+          <span class="hcb__emph hcb__emph--swap" data-word="a">smarter</span>
+          <span class="hcb__emph hcb__emph--swap" data-word="b" style={`color:${AZURE}`}>faster</span>
+        </span>
+        <span class="hcb__emph">solve</span>
+      </p>
+    </div>
+
+    <span class="hcb__dot" aria-hidden="true">
+      <ClfaMark class="hcb__dotmark" />
+    </span>
+    <span class="hcb__ring" aria-hidden="true"></span>
+    <span class="hcb__flood" aria-hidden="true"></span>
+
+    <div class="hcb__lockup">
+      <h1 class="hcb__head">
+        <span class="hcb__lead">We are the</span>
+        <span class="hcb__solve" id="hcbSolve">solve</span>
+        <span class="hcb__tail">
+          <i class="hcb__arrow" aria-hidden="true"></i>
+          <em>for brands in motion</em>
+        </span>
+      </h1>
+    </div>
+
+    <span class="hcb__rise" aria-hidden="true"></span>
+
+    <p class="hcb__closing">
+      We&rsquo;re an adaptable healthcare B2B agency network of highly experienced
+      thinkers who connect <strong>strategy, creative, and execution</strong> to
+      tackle it head-on.
+    </p>
+
+    <span class="hcb__cue" aria-hidden="true">Scroll<i></i></span>
+  </div>
+</section>
+
+<script>
+  import { setupHero } from "../scripts/hero";
+  setupHero();
+</script>
+
+<style define:vars={{ CREAM, CHARCOAL, COPPER, AZURE, ROSE }}>
+  .hcb { position: relative; height: 620vh; }
+  .hcb__stage {
+    position: sticky; top: 0; height: 100svh; overflow: hidden;
+    background: var(--CREAM); color: var(--CHARCOAL);
+    display: grid; place-items: center;
+    --dot-k: 0; --dot-op: 0; --mark-op: 0; --ring: 0;
+    --wipe-l: 0; --wipe-r: 1;
+    --flood: 0; --head: 0; --rise: 0; --copy: 0;
+    --hc-lead: clamp(20px, calc(9.25px + 2.85vw), 64px);
+  }
+
+  .hcb__iris {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    padding: 0 clamp(24px, 6vw, 120px);
+    will-change: clip-path;
+  }
+  .hcb__stage[data-motion="iris"] .hcb__iris { clip-path: circle(calc(var(--ring) * 49vmin) at 50% 50%); }
+  .hcb__stage[data-motion="swipe"] .hcb__iris { clip-path: inset(0 calc(var(--wipe-r) * 100%) 0 calc(var(--wipe-l) * 100%)); }
+  .hcb__stage[data-motion="bloom"] .hcb__iris { clip-path: circle(0 at 50% 50%); }
+
+  .hcb__beat {
+    grid-area: 1 / 1; margin: 0; display: none; justify-items: center; text-align: center; gap: .06em;
+    opacity: 0;
+  }
+  .hcb__beat.is-on { display: grid; opacity: 1; }
+  .hcb__lead {
+    font-weight: 300; letter-spacing: -.02em; line-height: 1.1;
+    font-size: var(--hc-lead);
+  }
+  .hcb__emph {
+    font-weight: 800; letter-spacing: -.035em; line-height: 1.0;
+    font-size: clamp(34px, 5.4vw, 100px);
+    color: var(--COPPER);
+    max-width: 14ch;
+  }
+  .hcb__beat[data-swap] .hcb__emph { font-size: clamp(44px, 7vw, 134px); }
+  .hcb__swap { position: relative; display: block; }
+  .hcb__emph--swap { transition: opacity .32s var(--ease); }
+  .hcb__emph--swap[data-word="b"] { position: absolute; inset: 0; opacity: 0; }
+  .hcb__beat[data-swap-b] .hcb__emph--swap[data-word="a"] { opacity: 0; }
+  .hcb__beat[data-swap-b] .hcb__emph--swap[data-word="b"] { opacity: 1; }
+
+  .hcb__dot {
+    position: absolute; left: 50%; top: 50%;
+    width: calc((1 - var(--dot-k)) * 400px); height: calc((1 - var(--dot-k)) * 400px);
+    margin: calc((1 - var(--dot-k)) * -200px) 0 0 calc((1 - var(--dot-k)) * -200px);
+    border-radius: 50%; background: var(--ROSE);
+    opacity: var(--dot-op); pointer-events: none; z-index: 2;
+    display: grid; place-items: center; overflow: hidden;
+  }
+  /* :global — <ClfaMark> is a separate component, so its rendered <svg>
+     never receives this file's scoping attribute; an unscoped selector
+     is the only way a parent's style can reach into a child's markup. */
+  :global(.hcb__dotmark) {
+    width: 54%; height: auto; display: block;
+    color: var(--CHARCOAL); --clfa-dot: var(--CREAM);
+    opacity: var(--mark-op);
+  }
+
+  .hcb__ring {
+    position: absolute; left: 50%; top: 50%;
+    width: calc(var(--ring) * 98vmin); height: calc(var(--ring) * 98vmin);
+    margin: calc(var(--ring) * -49vmin) 0 0 calc(var(--ring) * -49vmin);
+    border: 1px solid var(--ROSE); border-radius: 50%;
+    opacity: .55; pointer-events: none;
+  }
+  .hcb__stage[data-ring="off"] .hcb__ring { opacity: 0; }
+
+  .hcb__flood {
+    position: absolute; left: 50%; top: 50%;
+    width: 152vmax; height: 152vmax; margin: -76vmax 0 0 -76vmax;
+    border-radius: 50%; background: var(--ROSE);
+    transform: scale(var(--flood));
+    will-change: transform;
+  }
+
+  .hcb__lockup, .hcb__closing { grid-area: 1 / 1; }
+
+  .hcb__lockup {
+    position: relative; z-index: 3;
+    display: inline-grid; justify-items: stretch;
+    padding: 0 clamp(24px, 5vw, 78px);
+  }
+  .hcb__head {
+    margin: 0; text-align: left;
+    color: var(--CHARCOAL); opacity: var(--head);
+    transform: translateY(calc((1 - var(--head)) * 22px));
+    display: grid; justify-items: start;
+  }
+  .hcb__head .hcb__lead {
+    margin-left: 7.4%;
+    margin-bottom: -3.4vw;
+    position: relative; z-index: 2;
+  }
+  .hcb__solve {
+    font-weight: 800; letter-spacing: -.035em; line-height: .86;
+    font-size: min(clamp(120px, calc(71px + 15.04vw), 360px), var(--solve-fit, 9999px));
+    color: var(--CREAM);
+  }
+  .hcb__tail {
+    display: flex; align-items: center; width: 100%;
+    gap: clamp(10px, 1.6vw, 30px);
+    margin-top: -.6vw;
+  }
+  .hcb__arrow {
+    flex: 1 1 auto; min-width: 40px; height: 1.5px;
+    background: var(--CHARCOAL); color: var(--CHARCOAL);
+    position: relative;
+  }
+  .hcb__arrow::after {
+    content: ""; position: absolute; right: 0; top: 50%;
+    width: clamp(8px, .85vw, 17px); height: clamp(8px, .85vw, 17px);
+    border-top: 1.5px solid currentColor; border-right: 1.5px solid currentColor;
+    transform: translateY(-50%) rotate(45deg);
+  }
+  .hcb__tail em {
+    flex: 0 0 auto;
+    font-family: var(--hc-serif, "Lora", Georgia, serif);
+    font-style: italic; font-weight: 500; letter-spacing: -.01em;
+    font-size: clamp(22px, 2.9vw, 54px);
+    color: var(--CHARCOAL);
+  }
+
+  .hcb__rise {
+    position: absolute; left: 50%; top: 50%;
+    width: 144vmax; height: 144vmax; margin: -72vmax 0 0 -72vmax;
+    border-radius: 50%; background: var(--CREAM);
+    transform: translateY(calc((1 - var(--rise)) * (72vmax + 50svh)));
+    will-change: transform; z-index: 4; pointer-events: none;
+  }
+
+  .hcb__closing {
+    position: relative; z-index: 5; margin: 0;
+    max-width: min(24ch, 84vw); text-align: center;
+    color: var(--CHARCOAL);
+    font-weight: 300; letter-spacing: -.02em; line-height: 1.26;
+    font-size: var(--hc-lead);
+    opacity: var(--copy);
+    transform: translateY(calc((1 - var(--copy)) * 30px));
+  }
+  .hcb__closing strong { font-weight: 800; letter-spacing: -.03em; color: var(--COPPER); }
+
+  .hcb__cue {
+    position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+    font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ROSE); opacity: calc(1 - var(--flood));
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .hcb__cue i {
+    width: 1px; height: 32px; background: var(--ROSE); display: block;
+    animation: hcbCue 1.9s cubic-bezier(.22, .61, .36, 1) infinite; transform-origin: top;
+  }
+  @keyframes hcbCue {
+    0% { transform: scaleY(0); } 45% { transform: scaleY(1); }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+  }
+
+  @media (max-width: 760px) {
+    .hcb__lockup { padding: 0 32px; }
+    .hcb__solve { font-size: var(--solve-fit, 34vw); }
+    .hcb__closing { max-width: min(20ch, 86vw); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hcb { height: auto; }
+    /* the lockup and the closing copy normally overlap (stacked in the
+       same grid cell so the scroll-driven crossfade can swap between
+       them) — with no scroll to drive that swap, stack them in normal
+       flow instead so both are simply readable, one after the other. */
+    .hcb__stage { position: static; height: auto; padding: 18vh 0; background: var(--ROSE); display: block; }
+    .hcb__iris { position: static; clip-path: none !important; margin-bottom: 8vh; }
+    .hcb__beat { display: none !important; }
+    .hcb__dot, .hcb__ring, .hcb__flood, .hcb__cue { display: none; }
+    .hcb__lockup, .hcb__closing { grid-area: auto; }
+    .hcb__head { opacity: 1; transform: none; }
+    .hcb__rise { display: none; }
+    .hcb__closing { opacity: 1; transform: none; margin: 8vh auto 0; }
+  }
+</style>

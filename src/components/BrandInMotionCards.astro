@@ -1,0 +1,243 @@
+---
+// BrandInMotionCards — five cards fanned on one screen, on an arc rather
+// than a stack or a line. The section pins; scroll deals the deck into
+// the fan, then walks a lead card along the curve (see cardsFan.ts).
+// On narrow screens the arc has nowhere to spread, so the deck stacks
+// and shuffles instead as the section pins.
+import CardIcon from "./CardIcon.astro";
+import type { IconName } from "../lib/cardIcons";
+
+type Card = {
+  pre?: string;
+  emph: string;
+  rest: string;
+  bg: string;
+  fg: string;
+  hot: string;
+  icon: IconName;
+  idle: string;
+  hover: string;
+};
+
+const CARDS: Card[] = [
+  { pre: "Your ", emph: "equity-backed", rest: " company needs ASAP marketing services?",
+    bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "speed", idle: "#A5B7BE", hover: "#BE7A3A" },
+  { emph: "Just been acquired", rest: " and need to reintroduce yourself.",
+    bg: "#344338", fg: "#FEFCF4", hot: "#FF981E", icon: "acquired", idle: "#858D83", hover: "#FF981E" },
+  { emph: "Ready to launch", rest: " (or should be ready to launch).",
+    bg: "#506E78", fg: "#FEFCF4", hot: "#FF981E", icon: "launch", idle: "#9EBBC4", hover: "#FF981E" },
+  { emph: "Mid-merger", rest: " and the brand story hasn’t caught up yet.",
+    bg: "#252525", fg: "#FEFCF4", hot: "#FF981E", icon: "merge", idle: "#7C7B78", hover: "#FF981E" },
+  { emph: "Pivoting", rest: " because the tech stack changed.",
+    bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "pivot", idle: "#A5B7BE", hover: "#BE7837" },
+];
+---
+
+<section class="bmc" id="motion">
+  <div class="bmc__pin" id="bmcPin">
+    <div class="bmc__stage" id="bmcStage">
+      <div class="bmc__top">
+        <h2 class="bmc__q">So&hellip; what&rsquo;s a <b>brand in motion?</b></h2>
+      </div>
+
+      <div class="bmc__fan" id="bmcFan">
+        {CARDS.map((c, i) => (
+          <article
+            class="bmc__card"
+            style={`background:${c.bg};color:${c.fg};--hot:${c.hot};--idle:${c.idle};--hover:${c.hover};--i:${i}`}
+          >
+            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.rest}</p>
+            <span class="bmc__icon"><CardIcon name={c.icon} /></span>
+          </article>
+        ))}
+      </div>
+
+      <div class="bmc__dots" id="bmcDots" aria-hidden="true">
+        {CARDS.map((_, i) => <span class="bmc__dot" data-on={i === 0 ? "true" : "false"} />)}
+      </div>
+
+      <div class="bmc__aside">
+        <h3 class="bmc__payoff">Sound familiar?</h3>
+        <a class="bmc__cta" href="#contact">Let&rsquo;s Talk</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { setupBrandInMotionCards } from "../scripts/cardsFan";
+  setupBrandInMotionCards();
+</script>
+
+<style>
+  .bmc { position: relative; background: #FEFCF4; color: #252525; }
+  .bmc__pin { position: relative; height: 220vh; }
+  .bmc__stage {
+    position: sticky; top: 0; height: 100svh; overflow: hidden;
+    display: flex; flex-direction: column; align-items: stretch;
+    padding: clamp(34px, 6vh, 76px) clamp(20px, 3vw, 56px) clamp(20px, 4vh, 48px);
+  }
+
+  .bmc__q {
+    margin: 0; flex: 0 1 auto;
+    font-weight: 300; letter-spacing: -.038em; line-height: .997; text-align: left;
+    font-size: clamp(34px, 5.4vw, 98px);
+    color: #252525;
+    opacity: 0; transform: translateY(18px);
+  }
+  .bmc__q b { display: block; font-weight: 800; color: #BE7A3A; }
+
+  .bmc__top {
+    flex: 0 0 auto;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: clamp(24px, 4vw, 90px);
+    padding: 60px 0 0;
+    margin: 0 0 clamp(14px, 2.4vh, 34px);
+  }
+  .bmc__aside {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: clamp(12px, 1.6vh, 20px);
+    margin: 40px 0 0;
+    opacity: 0; transform: translateY(14px);
+  }
+
+  .bmc__dots {
+    flex: 0 0 auto; display: flex; justify-content: center;
+    gap: clamp(10px, 1vw, 16px);
+    margin-top: clamp(-72px, -8vh, -36px); position: relative; z-index: 60;
+    opacity: 0; transform: translateY(8px);
+  }
+  .bmc__dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1.5px solid rgba(37, 37, 37, .28); background: transparent;
+    transition: background .35s var(--ease), border-color .35s var(--ease);
+  }
+  .bmc__dot[data-on="true"] { background: #F06496; border-color: #F06496; }
+
+  .bmc__fan {
+    position: relative; flex: 1 1 auto; width: 100%; min-height: 0;
+  }
+  .bmc__card {
+    position: absolute; left: 50%; top: 50%;
+    width: clamp(168px, 17.5vw, 300px);
+    aspect-ratio: 441 / 540;
+    border-radius: clamp(12px, 1.35vw, 26px);
+    padding: clamp(15px, 1.6vw, 28px);
+    display: flex; flex-direction: column;
+    transform-origin: 50% 50%;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+    box-shadow: 0 14px 34px rgba(37, 37, 37, .16);
+    transition: box-shadow .45s var(--ease);
+  }
+  .bmc__card[data-active="true"] { box-shadow: 0 24px 56px rgba(37, 37, 37, .26); }
+  .bmc__card:hover { box-shadow: 0 24px 56px rgba(37, 37, 37, .26); }
+
+  .bmc__copy {
+    margin: 0; font-weight: 300; letter-spacing: -.02em; line-height: 1.14;
+    font-size: clamp(14px, 1.72vw, 29px);
+  }
+  .bmc__copy em {
+    font-family: var(--hc-serif, "Lora", Georgia, serif);
+    font-style: italic; font-weight: 600; color: var(--hot);
+  }
+
+  .bmc__icon {
+    position: absolute; right: clamp(13px, 1.5vw, 28px); bottom: clamp(13px, 1.5vw, 28px);
+    width: clamp(48px, 4.8vw, 88px); line-height: 0;
+    color: var(--idle);
+    transition: color .45s var(--ease);
+  }
+  .bmc__card:hover .bmc__icon,
+  .bmc__card[data-active="true"] .bmc__icon { color: var(--hover); }
+
+  .bmc__payoff {
+    margin: 0; font-weight: 600; color: #BE7A3A;
+    letter-spacing: -.03em; line-height: 1.02;
+    font-size: clamp(24px, 2.7vw, 48px);
+  }
+  .bmc__cta {
+    display: inline-block; font: inherit; cursor: pointer;
+    font-size: clamp(14px, 1.05vw, 18px); font-weight: 500; letter-spacing: .005em;
+    color: #252525; background: none; text-decoration: none;
+    border: 1.5px solid #252525; border-radius: 999px;
+    padding: clamp(12px, 1.05vw, 17px) clamp(26px, 2.6vw, 44px);
+    transition: background .3s var(--ease), color .3s var(--ease);
+  }
+  .bmc__cta:hover { background: #252525; color: #FEFCF4; }
+
+  @media (max-width: 1000px) {
+    .bmc__pin { height: auto; }
+    .bmc__stage { position: static; height: auto; padding: 11vh clamp(22px, 6vw, 48px) 9vh; }
+    .bmc__top { padding-left: 0; padding-right: 0; padding-top: 30px; }
+    .bmc__copy { font-size: clamp(20px, 8vw, 30px); }
+    .bmc__icon { width: clamp(56px, 21vw, 86px); right: clamp(16px, 6.4vw, 26px); bottom: clamp(16px, 6.4vw, 26px); }
+  }
+
+  /* Below 1000px: card 1 starts fully visible, dealt out; cards 2–5 sit
+     behind it as a tight pile, each showing only a ~20% sliver (where
+     its icon sits) of the one behind it. Scrolling deals the pile out
+     one card at a time — the next card rises to sit fully revealed
+     directly below the ones already dealt, which freeze in place; the
+     remaining cards stay piled tight, now trailing the new one. This
+     is JS-driven (setupCardStack in cardsFan.ts), not CSS sticky — a
+     card's resting spot needs to *change* as more of the pile empties
+     out ahead of it, which sticky's one-way "don't scroll past this
+     point" clamp can't express; the cascade version above could
+     because every card's threshold was fixed for its whole life. */
+  @media (max-width: 999px) {
+    .bmc__pin { height: auto; }
+    .bmc__stage {
+      position: static; height: auto; overflow: visible;
+      padding: clamp(60px, 8vh, 84px) clamp(20px, 6vw, 32px) 40px;
+    }
+    .bmc__top { padding-top: 0; }
+    .bmc__q {
+      font-size: 30px; font-weight: 400; line-height: 1.15; letter-spacing: -.02em;
+    }
+    .bmc__q b {
+      display: block; margin-top: 4px;
+      font-family: var(--hc-serif, "Lora", Georgia, serif);
+      font-style: italic; font-weight: 600; color: var(--flare);
+      font-size: 35px; letter-spacing: -.01em;
+    }
+
+    .bmc__fan {
+      display: block; position: relative; margin-top: 24px;
+      /* height is set by cardsFan.ts once it knows the live card
+         height — cards are position:absolute, so without an explicit
+         height here the container would collapse to nothing. */
+    }
+    .bmc__card {
+      position: absolute; left: 50%; top: 0; margin: 0;
+      width: min(310px, 82vw);
+      /* y (the reveal position) is set by cardsFan.ts. z-index has to
+         go the opposite way from DOM order: card 1 needs to stay on
+         top of every card piled behind it (so it — and each card once
+         it's dealt — reads as fully in front, not as a sliver peeking
+         out from under later cards), which means *earlier* cards need
+         the *higher* z-index. Left to the default (later DOM paints
+         on top), the pile is inverted: the last card ends up fully
+         exposed and every pending card shows its top edge peeking out
+         instead of the bottom edge where its icon sits. */
+      z-index: calc(5 - var(--i, 0));
+    }
+    .bmc__copy { font-size: clamp(22px, 8.6vw, 32px); }
+
+    /* the reveal-stack mechanic has no single "current" card the way
+       the arc/deck do, so these dots have nothing meaningful to
+       indicate at this width — drop them rather than leave a row of
+       static, never-updating circles. */
+    .bmc__dots { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bmc__pin { height: auto; }
+    .bmc__stage { position: static; height: auto; padding: 12vh clamp(22px, 6vw, 48px); }
+    .bmc__aside { opacity: 1; transform: none; }
+    .bmc__fan { display: grid; gap: 20px; justify-items: center; }
+    .bmc__card { position: static !important; transform: none !important; }
+    .bmc__q { opacity: 1; transform: none; }
+  }
+</style>

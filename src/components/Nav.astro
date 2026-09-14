@@ -1,7 +1,6 @@
 ---
-// Nav — the fixed top bar, the full-screen mega menu it opens, and the
-// sticky "kick off" CTA. Open/close and the CTA's show/hide are both
-// driven by GSAP — see src/scripts/nav.ts and src/scripts/kickoff.ts.
+// Nav — the fixed top bar and the full-screen mega menu it opens.
+// Open/close is driven by GSAP — see src/scripts/nav.ts.
 import ClfaWordmark from "./ClfaWordmark.astro";
 ---
 
@@ -39,13 +38,9 @@ import ClfaWordmark from "./ClfaWordmark.astro";
   </div>
 </div>
 
-<a class="kickoff" href="#contact" id="kickoff">Is it go time?</a>
-
 <script>
   import { setupNav } from "../scripts/nav";
-  import { setupKickoffCta } from "../scripts/kickoff";
   import { setupNavTint } from "../scripts/navTint";
   setupNav();
-  setupKickoffCta();
   setupNavTint();
 </script>

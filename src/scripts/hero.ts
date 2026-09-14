@@ -92,9 +92,9 @@ export function setupHero() {
 
   /* Once the bloom has flooded the frame rose and before the cream rise
      has covered much of it back up, the whole screen reads as pink —
-     anything sitting on top (the sticky kickoff CTA) needs the light
-     "on dark/saturated ground" treatment for that stretch. Read the
-     live --flood/--rise values GSAP is already writing rather than
+     anything sitting on top (the nav logo dot, the cursor) needs the
+     light "on dark/saturated ground" treatment for that stretch. Read
+     the live --flood/--rise values GSAP is already writing rather than
      re-deriving the same easing here. */
   let wasPink = false;
   const checkPinkGround = () => {

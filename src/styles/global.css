@@ -107,6 +107,13 @@ a { color: inherit; }
 .nav__logo.is-gone { opacity: 0; pointer-events: none; }
 body.menu-open .nav__logo.is-gone { opacity: 1; pointer-events: auto; }
 .nav__logo .clfa { width: clamp(84px, 7vw, 118px); }
+/* visibility:hidden, not display:none — the nav is a two-item flex
+   row (logo, menu button) with justify-content:space-between; removing
+   the logo from layout entirely would leave the button as the sole
+   flex child, which space-between then snaps to the left edge instead
+   of its usual right-aligned spot. visibility:hidden keeps its box
+   (and the space-between math) intact while making it invisible. */
+@media (max-width: 599px) { .nav__logo { visibility: hidden; } }
 
 /* Burger only — a word label lives for a11y, hidden visually. */
 .menu-btn {
@@ -167,26 +174,8 @@ body.menu-open .mega { pointer-events: auto; }
 }
 
 /* ============================================================
-   BUTTONS + STICKY CTA  (pink = interactive)
+   BUTTONS  (pink = interactive)
    ============================================================ */
-.kickoff {
-  position: fixed; right: var(--gut); bottom: 26px; z-index: 70;
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 14px 24px; border-radius: 100px;
-  background: var(--pink); color: var(--charcoal);
-  font-size: 18px; font-weight: 500; font-style: normal; letter-spacing: 0; text-decoration: none;
-  box-shadow: 0 10px 12px rgba(0, 0, 0, .15);
-  opacity: 0; visibility: hidden; transform: translateY(14px);
-  transition: background .3s var(--ease);
-}
-.kickoff:hover { background: var(--flare); color: var(--ink); }
-/* the "Don't let up" section, the azure "partnering" window, and the
-   hero's pink bloom all swap the pill's fill to cream — see
-   kickoff.ts, which crossfades on entering/leaving each zone.
-   Typography is identical in both states; only the fill changes. */
-.kickoff--alt { background: var(--cream); }
-.kickoff--alt:hover { background: var(--flare); color: var(--cream); }
-
 .btn, .btn--fill {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 46px; padding: 12px 34px; border-radius: 100px;

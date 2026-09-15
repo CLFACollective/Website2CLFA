@@ -154,6 +154,15 @@ const CARDS: Card[] = [
   }
   .bmc__card:hover .bmc__icon,
   .bmc__card[data-active="true"] .bmc__icon { color: var(--hover); }
+  /* full solid colour on hover, not just a stroke-colour swap — each
+     path's fill/stroke-opacity otherwise stays wherever cardsFan.ts's
+     draw-in animation left it (an inline style GSAP sets per path and
+     never clears), which needs !important to override here. */
+  .bmc__card:hover .bmc__icon :global(path),
+  .bmc__card[data-active="true"] .bmc__icon :global(path) {
+    fill-opacity: 1 !important;
+    stroke-opacity: 1 !important;
+  }
 
   .bmc__payoff {
     margin: 0; font-weight: 600; color: #BE7A3A;

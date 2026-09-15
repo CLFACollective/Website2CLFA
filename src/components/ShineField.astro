@@ -1,15 +1,25 @@
 ---
 // ShineField — replaces BlingField's drifting dust. Every square in the
-// grid is always shown (no per-dot rest/fall lifecycle). Sizes/opacity/
-// colour mix are measured directly off the Figma reference dust field
-// (node 2964:20817's parent "Bling" group, sampled 2026-09-14): ~1,884
-// squares across a ~732×725 tile, sizes skewed heavily toward small,
-// opacity 0.5–0.94 on top of a constant 0.6 fill-opacity (~0.3–0.56
-// effective), ~96% ink-coloured with a ~4% pink accent. Sizes are
-// scaled to 60% of that measured range (SIZE_SCALE below) — full-size
-// read as too heavy/prominent once seen on the actual page — and about
-// a third of squares get rounded corners instead of sharp ones, for a
-// bit of shape variety on top of the size/opacity mix.
+// grid is always shown (no per-dot rest/fall lifecycle). Colour mix
+// (~96% ink, ~4% pink accent) and the sweep-band animation are carried
+// over from the original Figma-measured version (node 2964:20817); the
+// size/density *distribution* itself was redone against a second
+// reference (node 3194:2229, sampled 2026-09-15) — a uniform-count grid
+// (~1 square per 90px² throughout) where average square size grows
+// steadily top-to-bottom (~0.56px avg in the top fifth of the tile up
+// to ~1.39px avg in the bottom fifth, a roughly 2.5x ceiling growth,
+// not a change in how many squares there are). ROW_GROWTH below is
+// that per-row size-ceiling ramp; opacity still varies per square
+// (tracks the same size-skew fraction) and ~a third get rounded
+// corners — neither of those came from either reference, both were
+// separate, earlier explicit requests, so both stayed.
+//
+// The tile height is intentionally shorter than the tile width (see
+// TILE_H) rather than a single square TILE size: the field is masked
+// to the section's own top ~30% (well under 300px tall in practice),
+// and the whole point of the size ramp is that it's visible — a taller
+// tile would mean the mask cuts off the pattern before it ever reaches
+// its own "dense" half.
 //
 // A thin vertical band slowly sweeps left to right (see shineField.ts):
 // wherever it currently sits, the squares underneath are hidden — a
@@ -25,12 +35,14 @@
 // emitting one <rect> per square across a full 1920px-wide section.
 interface Props {
   class?: string;
-  /** Tile size in px — the pattern repeats at this interval. */
+  /** Tile width in px — the pattern repeats at this interval. */
   tile?: number;
+  /** Tile height in px — independent of width, see the note above. */
+  tileHeight?: number;
   /** Average spacing between squares within the tile, in px. */
   cell?: number;
 }
-const { class: className, tile = 500, cell = 17 } = Astro.props;
+const { class: className, tile = 500, tileHeight = 260, cell = 13 } = Astro.props;
 const patternId = `shine-${crypto.randomUUID().slice(0, 8)}`;
 
 const PINK = "#F06496";
@@ -42,22 +54,29 @@ const MIN_SIZE = 0.4 * SIZE_SCALE;
 const MAX_SIZE = 6.5 * SIZE_SCALE;
 const MIN_ALPHA = 0.3;
 const MAX_ALPHA = 0.56;
+// How much bigger a square is *allowed* to get by the last row versus
+// the first — the ~2.5x ceiling growth measured off the reference.
+const ROW_GROWTH = 2.5;
 // Fraction of squares that get rounded corners instead of sharp ones —
 // "some," not all, for a bit of shape variety alongside the size mix.
 const ROUNDED_CHANCE = 0.35;
 const ROUNDED_RADIUS_FRAC = 0.3; // corner radius as a fraction of the square's own size
 
 const cols = Math.round(tile / cell);
-const rows = Math.round(tile / cell);
+const rows = Math.round(tileHeight / cell);
 
 const squares = Array.from({ length: cols * rows }, (_, i) => {
   const col = i % cols;
   const row = Math.floor(i / cols);
 
+  const rowFrac = rows > 1 ? row / (rows - 1) : 0;
+  const rowMax = MIN_SIZE + (MAX_SIZE - MIN_SIZE) * (1 + rowFrac * (ROW_GROWTH - 1)) / ROW_GROWTH;
+
   // Squaring a uniform random biases it toward 0 — the same "mostly
-  // small, occasionally large" skew measured in the Figma reference.
+  // small, occasionally large" skew measured in the original reference
+  // — applied within this row's own (growing) size ceiling.
   const sizeFrac = Math.random() ** 2;
-  const size = MIN_SIZE + sizeFrac * (MAX_SIZE - MIN_SIZE);
+  const size = MIN_SIZE + sizeFrac * (rowMax - MIN_SIZE);
   const alpha = MIN_ALPHA + sizeFrac * (MAX_ALPHA - MIN_ALPHA) + (Math.random() - 0.5) * 0.08;
 
   const jitterX = (Math.random() - 0.5) * cell * 0.5;
@@ -80,7 +99,7 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
   <div class="shine-band-y">
     <svg class="shine-field">
       <defs>
-        <pattern id={patternId} width={tile} height={tile} patternUnits="userSpaceOnUse">
+        <pattern id={patternId} width={tile} height={tileHeight} patternUnits="userSpaceOnUse">
           {squares.map((sq) => (
             <rect x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r} fill={sq.fill} opacity={sq.o} />
           ))}

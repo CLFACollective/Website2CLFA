@@ -174,8 +174,26 @@ body.menu-open .mega { pointer-events: auto; }
 }
 
 /* ============================================================
-   BUTTONS  (pink = interactive)
+   BUTTONS + STICKY CTA  (pink = interactive)
    ============================================================ */
+.kickoff {
+  position: fixed; right: var(--gut); bottom: 26px; z-index: 70;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 14px 24px; border-radius: 100px;
+  background: var(--pink); color: var(--charcoal);
+  font-size: 18px; font-weight: 500; font-style: normal; letter-spacing: 0; text-decoration: none;
+  box-shadow: 0 10px 12px rgba(0, 0, 0, .15);
+  opacity: 0; visibility: hidden; transform: translateY(14px);
+  transition: background .3s var(--ease);
+}
+.kickoff:hover { background: var(--flare); color: var(--ink); }
+/* the "Don't let up" section, the azure "partnering" window, and the
+   hero's pink bloom all swap the pill's fill to cream — see
+   kickoff.ts, which crossfades on entering/leaving each zone.
+   Typography is identical in both states; only the fill changes. */
+.kickoff--alt { background: var(--cream); }
+.kickoff--alt:hover { background: var(--flare); color: var(--cream); }
+
 .btn, .btn--fill {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 46px; padding: 12px 34px; border-radius: 100px;
@@ -224,6 +242,10 @@ body.menu-open .mega { pointer-events: auto; }
   position: sticky; top: 0; min-height: 100svh;
   display: flex; align-items: center; overflow: hidden;
   padding: clamp(72px, 10vw, 170px) var(--gut); box-sizing: border-box;
+  /* the dust-field cream, matching the Cards section's own #FEFCF4 —
+     a shade off .sec--slate's shared var(--surf-3)/--cream (#FFFAF5),
+     so scoped here rather than changing the shared token */
+  background: #FEFCF4;
 }
 .pinday__stage .sec__inner { width: 100%; }
 /* Lora's italic face is only loaded up to weight 700 (see the @import
@@ -245,7 +267,9 @@ body.menu-open .mega { pointer-events: auto; }
   width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
   background: var(--pink);
 }
-.rail__stop { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: transparent; border: 1.5px solid var(--pink); transition: background .4s var(--ease), border-color .4s var(--ease); }
+/* filled with the section's own cream, not transparent — otherwise the
+   thin grey .rail line shows straight through the middle of the ring */
+.rail__stop { position: absolute; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #FEFCF4; border: 1.5px solid var(--pink); transition: background .4s var(--ease), border-color .4s var(--ease); }
 /* three evenly-spaced stops along the rail — sixths, not exact thirds,
    to match where the section's three beats actually land */
 .rail__stop:nth-of-type(1) { left: 16.6%; }
@@ -275,7 +299,7 @@ body.menu-open .mega { pointer-events: auto; }
 .col h3 { font-size: clamp(22px, 2.6vw, 40px); font-weight: 800; letter-spacing: -.025em; margin: 0 0 10px; line-height: 1.08; transition: color .6s var(--ease); }
 .col p { margin: 0; font-size: clamp(16px, 1.4vw, 20px); line-height: 1.5; max-width: 32ch; font-weight: 400; opacity: 1; color: var(--charcoal); }
 .col.on h3 { color: var(--pink); }
-.col p.revealed { opacity: 1 !important; transform: none !important; }
+.col p.revealed { opacity: 1 !important; transform: none !important; max-width: 50%; }
 @media (prefers-reduced-motion: reduce) { .col { opacity: 1; transform: none; } .col p { opacity: 1; transform: none; } }
 
 /* Phones: the three columns become a vertical timeline — a single line down
@@ -288,10 +312,13 @@ body.menu-open .mega { pointer-events: auto; }
     padding: 0 0 clamp(34px, 9vw, 56px) clamp(28px, 7vw, 40px);
   }
   #dayone .col:last-child { padding-bottom: clamp(6px, 2vw, 12px); }
+  /* filled with the section's own cream, not transparent — otherwise
+     the vertical timeline's left border line shows straight through
+     the middle of each not-yet-reached dot (same fix as .rail__stop) */
   #dayone .col::before {
     content: ""; position: absolute; left: -12px; top: 2px; box-sizing: border-box;
     width: 22px; height: 22px; border-radius: 50%;
-    border: 2px solid var(--pink); background: transparent;
+    border: 2px solid var(--pink); background: #FEFCF4;
   }
   #dayone .col.is-rev::before { background: var(--pink); }
   #dayone .col.on::before { background: var(--pink); box-shadow: 0 0 0 7px rgba(240, 105, 150, .18); }
@@ -313,7 +340,7 @@ body.menu-open .mega { pointer-events: auto; }
 .keepup__body { margin: 0; max-width: 52ch; font-size: 48px; line-height: 55px; letter-spacing: -1.568px; font-weight: 300; opacity: 1; }
 .keepup__body strong { font-weight: 600; font-style: italic; }
 @media (max-width: 799px) {
-  .keepup__big { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
+  .keepup__big { font-size: 55px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
   .keepup__body {
     font-size: 19px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
@@ -325,7 +352,9 @@ body.menu-open .mega { pointer-events: auto; }
    ============================================================ */
 #momentum { height: 360vh; }
 #momentum .pin__stage {
-  background: var(--surf-1);
+  /* matches the Cards section's own #FEFCF4 dust-field cream, a shade
+     off the shared var(--surf-1)/--cream (#FFFAF5) */
+  background: #FEFCF4;
   display: flex; flex-direction: column;
   align-items: stretch;
 }
@@ -383,10 +412,11 @@ body.menu-open .mega { pointer-events: auto; }
 
 .hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
 .mquote__wrap { position: relative; width: max-content; max-width: 100%; }
+/* sits outside the text block's own top-right corner (negative
+   offsets), clear of every line, rather than overlapping the quote */
 .mquote__badge {
-  position: absolute; top: 0; right: 0;
-  transform: translate(calc(34% + 40px), calc(-100% - 20px));
-  width: clamp(74px, 6vw, 112px); height: auto; display: block; pointer-events: none;
+  position: absolute; top: -18px; right: -18px;
+  width: clamp(64px, 5.5vw, 100px); height: auto; display: block; pointer-events: none;
 }
 .mquote__badge svg { display: block; width: 100%; height: auto; }
 /* Two of the three quote lines are plain sans (SemiBold, upright) —
@@ -405,26 +435,12 @@ body.menu-open .mega { pointer-events: auto; }
 }
 
 /* Below 800px the section stops pinning/hijacking scroll entirely —
-   it's a normal in-flow block, and the panel track becomes a plain
-   horizontally-swipeable strip (native overflow-x, no JS transform).
-   See momentum.ts, which skips its ScrollTrigger/pin setup at this
-   width the same way cardsFan.ts skips its own positioning math. */
+   the panel track still pans via the same pinned ScrollTrigger as
+   desktop (see momentum.ts) — only the sizing/typography differ below
+   this width. */
 @media (max-width: 799px) {
-  #momentum { height: auto; }
-  #momentum .pin__stage { position: static; height: auto; padding-bottom: 48px; }
   .hs__head { padding: clamp(60px, 8vh, 84px) var(--gut) 24px; max-width: none; }
-  .hs__track {
-    /* width:max-content (the desktop value) sizes the box to its own
-       content, so it never "overflows itself" — overflow-x:auto had
-       nothing to scroll and the whole page just grew wide instead.
-       Pinning the box to the viewport width is what actually makes it
-       a scroll container. */
-    width: 100%;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    transform: none !important; padding-right: var(--gut);
-    scroll-snap-type: x proximity;
-  }
-  .hs__panel { width: min(272px, 78vw); scroll-snap-align: start; }
+  .hs__panel { width: min(272px, 78vw); }
   .hs__panel + .hs__panel::before { top: 30%; bottom: 30%; }
   .hs__spine { display: none; }
 
@@ -442,7 +458,8 @@ body.menu-open .mega { pointer-events: auto; }
 
   .mfig { font-size: 88px; }
   .mcap { font-size: 16px; }
-  .mquote { font-size: 46px; }
+  .mquote { font-size: 36px; }
+  .mquote__badge { width: 40px; top: -10px; right: -10px; }
 }
 
 /* ============================================================

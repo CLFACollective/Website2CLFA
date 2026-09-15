@@ -49,6 +49,18 @@ body {
 body.menu-open { overflow: hidden; }
 a { color: inherit; }
 
+/* Skip link — visually hidden until it receives keyboard focus, so a
+   keyboard/AT user isn't forced through the nav on every page load. */
+.skip-link {
+  position: fixed; top: 0; left: 12px; z-index: 999;
+  transform: translateY(-120%);
+  background: var(--ink); color: var(--cream);
+  padding: 12px 22px; border-radius: 0 0 8px 8px;
+  font-weight: 600; font-size: 15px; text-decoration: none;
+  transition: transform .2s var(--ease);
+}
+.skip-link:focus { transform: translateY(0); }
+
 /* ============================================================
    LOGO
    ============================================================ */

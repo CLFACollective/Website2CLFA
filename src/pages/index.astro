@@ -16,19 +16,22 @@ import Footer from "../components/Footer.astro";
 <Layout title="CLFA Collective — We are the solve for brands in motion">
   <Nav />
 
-  <Hero />
+  <main id="main" tabindex="-1">
+    <Hero />
 
-  <div class="act">
-    <BrandInMotionCards />
-    <Ribbons />
-    <WindowA />
-    <DayOne />
-    <KeepUp />
-    <Momentum />
-    <Who />
-    <WindowB />
-    <Footer />
-  </div>
+    <div class="act">
+      <BrandInMotionCards />
+      <Ribbons />
+      <WindowA />
+      <DayOne />
+      <KeepUp />
+      <Momentum />
+      <Who />
+      <WindowB />
+    </div>
+  </main>
+
+  <Footer />
 
   <script>
     import "../scripts/main";

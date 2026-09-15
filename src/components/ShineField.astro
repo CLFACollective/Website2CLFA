@@ -41,8 +41,12 @@ interface Props {
   tileHeight?: number;
   /** Average spacing between squares within the tile, in px. */
   cell?: number;
+  /** % of the container's own height below which the field is visible
+      (fades in just above it) — the field sits below whatever heads
+      the section instead of behind it. 0 = visible from the top. */
+  bandStart?: number;
 }
-const { class: className, tile = 500, tileHeight = 260, cell = 13 } = Astro.props;
+const { class: className, tile = 500, tileHeight = 260, cell = 13, bandStart = 0 } = Astro.props;
 const patternId = `shine-${crypto.randomUUID().slice(0, 8)}`;
 
 const PINK = "#F06496";
@@ -50,7 +54,11 @@ const ACCENT_CHANCE = 0.04;
 // Scaled to 60% of the originally-measured 0.4–6.5px range — the full
 // size read as too prominent/heavy once seen on the page.
 const SIZE_SCALE = 0.6;
-const MIN_SIZE = 0.4 * SIZE_SCALE;
+// The floor gets its own, higher scale (not quite the original 0.4px,
+// but close to it) — squares at the top of each row-growth cycle read
+// noticeably bigger than a flat 60% scale would leave them.
+const MIN_SIZE_SCALE = 0.85;
+const MIN_SIZE = 0.4 * MIN_SIZE_SCALE;
 const MAX_SIZE = 6.5 * SIZE_SCALE;
 const MIN_ALPHA = 0.3;
 const MAX_ALPHA = 0.56;
@@ -84,24 +92,38 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
   const cx = col * cell + cell / 2 + jitterX;
   const cy = row * cell + cell / 2 + jitterY;
 
+  const isPink = Math.random() < ACCENT_CHANCE;
+
   return {
     x: (cx - size / 2).toFixed(2),
     y: (cy - size / 2).toFixed(2),
     s: size.toFixed(2),
     r: Math.random() < ROUNDED_CHANCE ? (size * ROUNDED_RADIUS_FRAC).toFixed(2) : "0",
     o: Math.max(0.15, Math.min(0.65, alpha)).toFixed(2),
-    fill: Math.random() < ACCENT_CHANCE ? PINK : "currentColor",
+    fill: isPink ? PINK : "currentColor",
+    // pink accents twinkle — everything else stays static, so the
+    // handful of pink squares are what catch the eye rather than
+    // getting lost in the rest of the field. Randomized delay/duration
+    // per square so they glint independently, not in lockstep.
+    sparkle: isPink,
+    delay: (Math.random() * 6).toFixed(2),
+    dur: (2.6 + Math.random() * 2.4).toFixed(2),
   };
 });
 ---
 
-<div class:list={["shine-wrap", className]} aria-hidden="true">
+<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-start:${bandStart}%`}>
   <div class="shine-band-y">
     <svg class="shine-field">
       <defs>
         <pattern id={patternId} width={tile} height={tileHeight} patternUnits="userSpaceOnUse">
           {squares.map((sq) => (
-            <rect x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r} fill={sq.fill} opacity={sq.o} />
+            <rect
+              x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r}
+              fill={sq.fill} opacity={sq.o}
+              class:list={[{ "shine-sparkle": sq.sparkle }]}
+              style={sq.sparkle ? `--base-o:${sq.o};--delay:${sq.delay}s;--dur:${sq.dur}s` : undefined}
+            />
           ))}
         </pattern>
       </defs>
@@ -123,10 +145,11 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    /* confined to the upper third of the section, fading out rather
-       than cutting off hard at the edge */
-    mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 30%);
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 30%);
+    /* invisible above --band-start (wherever the section's own heading
+       sits), fading in rather than cutting on hard, solid for the rest
+       of the container below that */
+    mask-image: linear-gradient(to bottom, transparent 0%, transparent calc(var(--band-start) - 4%), #000 calc(var(--band-start) + 4%), #000 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent calc(var(--band-start) - 4%), #000 calc(var(--band-start) + 4%), #000 100%);
     --band: -20%;
   }
   /* Second band, travels top-to-bottom instead of left-to-right, half
@@ -196,5 +219,19 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
       #000 calc(var(--band) + 6%),
       #000 100%
     );
+  }
+  /* transform-box:fill-box so the scale keyframe scales each square
+     around its own centre, not the SVG's (0,0) origin. */
+  .shine-sparkle {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: shine-sparkle var(--dur) ease-in-out var(--delay) infinite;
+  }
+  @keyframes shine-sparkle {
+    0%, 100% { opacity: var(--base-o); transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.6); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shine-sparkle { animation: none; }
   }
 </style>

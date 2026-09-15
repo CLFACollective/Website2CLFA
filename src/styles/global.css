@@ -363,7 +363,12 @@ body.menu-open .mega { pointer-events: auto; }
 .keepup__body { margin: 0; max-width: 52ch; font-size: 48px; line-height: 55px; letter-spacing: -1.568px; font-weight: 300; opacity: 1; }
 .keepup__body strong { font-weight: 600; font-style: italic; }
 @media (max-width: 799px) {
-  .keepup__big { font-size: 55px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; }
+  /* 44px is the largest size that keeps "And after day one?" (the
+     longer, lighter-weight of the two lines) from wrapping within its
+     own line at this breakpoint's narrowest real width (393px,
+     measured, not guessed) — white-space:nowrap is a hard guarantee on
+     top of that; the <br> between the two phrases is unaffected by it. */
+  .keepup__big { font-size: 44px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; white-space: nowrap; }
   .keepup__body {
     font-size: 19px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
@@ -475,16 +480,9 @@ body.menu-open .mega { pointer-events: auto; }
   .hs__spine { display: none; }
 
   .hs__intro-head { font-size: 36px; line-height: 1.06; }
-  /* "momentum" reverts to plain sans on mobile — only the trailing
-     dot keeps the Lora italic copper treatment (see Momentum.astro). */
-  .hs__intro-head .hot {
-    font-family: var(--sans); font-style: normal; font-weight: 300; color: var(--charcoal);
-    font-size: 1em;
-  }
-  .hs__intro-head .hs__dot {
-    font-family: var(--hc-serif, "Lora", Georgia, serif); font-style: italic;
-    font-weight: 600; color: var(--flare);
-  }
+  /* "momentum" keeps the same Lora italic/copper/weight-600 treatment
+     as desktop (.hs__intro-head .hot above) — its clamp() already
+     scales down responsively and simply sits at its 32px floor here. */
 
   .mfig { font-size: 88px; }
   .mcap { font-size: 16px; }
@@ -507,6 +505,14 @@ body.menu-open .mega { pointer-events: auto; }
    Day One/Momentum's own .hot overrides elsewhere in this file) */
 .who__top p .hot { font-weight: 600; font-size: clamp(28px, 2.6vw, 36px); }
 .who__gap { height: clamp(14px, 1.8vw, 26px); }
+@media (max-width: 799px) {
+  /* Flowing inline after the rest of the sentence leaves it too little
+     room, so it wraps mid-phrase — put it on its own line and size it
+     to fit there as one unit (26px is the largest that fits within
+     335px, the narrowest real container width down to iPhone SE;
+     measured, not guessed). */
+  .who__top p .hot { display: block; margin-top: 6px; font-size: 26px; white-space: nowrap; }
+}
 
 /* ============================================================
    WINDOW SECTIONS

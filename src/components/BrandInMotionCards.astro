@@ -11,6 +11,7 @@ type Card = {
   pre?: string;
   emph: string;
   rest: string;
+  breakAfterEmph?: boolean;
   bg: string;
   fg: string;
   hot: string;
@@ -24,7 +25,7 @@ const CARDS: Card[] = [
     bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "speed", idle: "#A5B7BE", hover: "#BE7A3A" },
   { emph: "Just been acquired", rest: " and need to reintroduce yourself.",
     bg: "#344338", fg: "#FEFCF4", hot: "#FF981E", icon: "acquired", idle: "#858D83", hover: "#FF981E" },
-  { emph: "Ready to launch", rest: " (or should be ready to launch).",
+  { emph: "Ready to launch", rest: " (or should be ready to launch).", breakAfterEmph: true,
     bg: "#506E78", fg: "#FEFCF4", hot: "#FF981E", icon: "launch", idle: "#9EBBC4", hover: "#FF981E" },
   { emph: "Mid-merger", rest: " and the brand story hasn’t caught up yet.",
     bg: "#252525", fg: "#FEFCF4", hot: "#FF981E", icon: "merge", idle: "#7C7B78", hover: "#FF981E" },
@@ -46,7 +47,7 @@ const CARDS: Card[] = [
             class="bmc__card"
             style={`background:${c.bg};color:${c.fg};--hot:${c.hot};--idle:${c.idle};--hover:${c.hover};--i:${i}`}
           >
-            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.rest}</p>
+            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.breakAfterEmph && <br class="mobile-br" />}{c.rest}</p>
             <span class="bmc__icon"><CardIcon name={c.icon} /></span>
           </article>
         ))}

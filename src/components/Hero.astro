@@ -149,7 +149,13 @@ const ROSE = "#F06496";
 
   .hcb__flood {
     position: absolute; left: 50%; top: 50%;
-    width: 152vmax; height: 152vmax; margin: -76vmax 0 0 -76vmax;
+    /* a circle centred on the viewport needs diameter >= the viewport's
+       diagonal to cover every corner, not just >= 100vmax — worst case
+       is a perfect square (diagonal ~= 141.4vmax), so 148vmax is the
+       verified-safe floor with a small margin; below ~141vmax the
+       corners visibly leak background on square-ish viewports (checked
+       empirically at 900x900, not just by the math). */
+    width: 148vmax; height: 148vmax; margin: -74vmax 0 0 -74vmax;
     border-radius: 50%; background: var(--ROSE);
     transform: scale(var(--flood));
     will-change: transform;
@@ -204,6 +210,10 @@ const ROSE = "#F06496";
 
   .hcb__rise {
     position: absolute; left: 50%; top: 50%;
+    /* same diagonal-coverage requirement as .hcb__flood above (~141.4vmax
+       for a square viewport), but this one only has ~1.8% margin over
+       that already — left as-is rather than trimmed further; there's no
+       safe headroom left to cut here without risking a corner gap. */
     width: 144vmax; height: 144vmax; margin: -72vmax 0 0 -72vmax;
     border-radius: 50%; background: var(--CREAM);
     transform: translateY(calc((1 - var(--rise)) * (72vmax + 50svh)));

@@ -113,7 +113,15 @@ body.menu-open .nav__logo.is-gone { opacity: 1; pointer-events: auto; }
    flex child, which space-between then snaps to the left edge instead
    of its usual right-aligned spot. visibility:hidden keeps its box
    (and the space-between math) intact while making it invisible. */
-@media (max-width: 599px) { .nav__logo { visibility: hidden; } }
+@media (max-width: 599px) {
+  .nav__logo { visibility: hidden; }
+  /* shown only at the very top of the page and again at the footer —
+     see navLogoMobile.ts. A higher-specificity override, not a separate
+     opacity value, so it also wins over hero.ts's unrelated `.is-gone`
+     (desktop-only timing) if the two ever overlap. */
+  .nav__logo.mobile-visible { visibility: visible; }
+  .nav__logo.mobile-visible.is-gone { opacity: 1; }
+}
 
 /* Burger only — a word label lives for a11y, hidden visually. */
 .menu-btn {
@@ -519,8 +527,8 @@ body.menu-open .mega { pointer-events: auto; }
 @media (max-width: 799px) {
   .wev__head { margin-top: 18px !important; }
   .archB { width: 152% !important; margin-left: -26% !important; aspect-ratio: 2 / 1 !important; }
-  .wev__lead { font-size: 20px !important; }
-  .wev__bold { font-size: 28px !important; line-height: 1.05 !important; }
+  .wev__lead { font-size: 30px !important; }
+  .wev__bold { font-size: 40px !important; line-height: 1.05 !important; }
 }
 
 /* ============================================================

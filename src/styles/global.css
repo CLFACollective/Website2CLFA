@@ -374,6 +374,12 @@ body.menu-open .mega { pointer-events: auto; }
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
   }
 }
+/* Tighter line-height than the 799px tier above — only below 600px,
+   so a tablet/small-laptop window in the 600-799px range keeps the
+   more open 38px spacing and just phone-width screens get this. */
+@media (max-width: 600px) {
+  .keepup__body { line-height: 25px !important; }
+}
 /* iPhone SE/mini-class widths (375px and under) — one tier below the
    393px+ that iPhone 16/17 and every other current phone ship at, so
    this doesn't touch them, just the smallest screens where 55px reads
@@ -503,15 +509,17 @@ body.menu-open .mega { pointer-events: auto; }
    than the rest of the paragraph, reusing .hot's italic/colour base
    (its default weight 400 reads too light here, same fix pattern as
    Day One/Momentum's own .hot overrides elsewhere in this file) */
-.who__top p .hot { font-weight: 600; font-size: clamp(28px, 2.6vw, 36px); }
+/* display:block so it's always its own line rather than trailing onto
+   the end of the previous sentence and wrapping mid-phrase wherever
+   that happens to run out of room — true at every width, not just
+   mobile. */
+.who__top p .hot { display: block; margin-top: 6px; font-weight: 600; font-size: clamp(28px, 2.6vw, 36px); }
 .who__gap { height: clamp(14px, 1.8vw, 26px); }
 @media (max-width: 799px) {
-  /* Flowing inline after the rest of the sentence leaves it too little
-     room, so it wraps mid-phrase — put it on its own line and size it
-     to fit there as one unit (26px is the largest that fits within
-     335px, the narrowest real container width down to iPhone SE;
-     measured, not guessed). */
-  .who__top p .hot { display: block; margin-top: 6px; font-size: 26px; white-space: nowrap; }
+  /* Sized to fit as one line at mobile's much narrower container width
+     (26px is the largest that fits within 335px, the narrowest real
+     width down to iPhone SE; measured, not guessed). */
+  .who__top p .hot { font-size: 26px; white-space: nowrap; }
 }
 
 /* ============================================================

@@ -366,6 +366,13 @@ body.menu-open .mega { pointer-events: auto; }
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
   }
 }
+/* iPhone SE/mini-class widths (375px and under) — one tier below the
+   393px+ that iPhone 16/17 and every other current phone ship at, so
+   this doesn't touch them, just the smallest screens where 55px reads
+   too large. */
+@media (max-width: 380px) {
+  .keepup__big { font-size: 42px; }
+}
 
 /* ============================================================
    MOMENTUM — horizontal scroll

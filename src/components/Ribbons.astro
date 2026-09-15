@@ -5,6 +5,13 @@
 // (src/scripts/marquee.ts) rather than a CSS @keyframes loop, so every
 // looping band on the page shares one consistent animation engine.
 const PHRASES = ["Ready to launch?", "Mid-merger?", "Pivoting?", "Just acquired?", "Complex, inherited brand?"];
+// Each "half" below has to stay wider than the band itself at every
+// viewport width for the xPercent 0 -> -50 loop to read as seamless —
+// otherwise, once the item font-size hits its clamp() ceiling, a wide
+// enough screen outgrows a single run of PHRASES and the track visibly
+// runs out of copy before the loop wraps back around. Repeating the
+// list is cheap insurance against that ceiling on very wide screens.
+const REPEATED_PHRASES = Array(4).fill(PHRASES).flat();
 
 type Band = { bg: string; fg: string; seconds: number; reverse?: boolean };
 const STACK: Band[] = [
@@ -13,8 +20,8 @@ const STACK: Band[] = [
 ];
 const CROSS: Band = { bg: "#BACDDC", fg: "#252525", seconds: 26, reverse: true };
 
-const ANGLE = -3.4;
-const CROSS_ANGLE = 3.4;
+const ANGLE = -6;
+const CROSS_ANGLE = 6;
 ---
 
 <div class="rib" aria-hidden="true">
@@ -24,7 +31,7 @@ const CROSS_ANGLE = 3.4;
         <div class="rib__track" data-seconds={b.seconds} data-reverse={b.reverse ? "true" : "false"}>
           {[0, 1].map(() => (
             <span class="rib__half">
-              {PHRASES.map((p) => (
+              {REPEATED_PHRASES.map((p) => (
                 <span class="rib__item">{p}<i class="rib__dot"></i></span>
               ))}
             </span>
@@ -39,7 +46,7 @@ const CROSS_ANGLE = 3.4;
       <div class="rib__track" data-seconds={CROSS.seconds} data-reverse={CROSS.reverse ? "true" : "false"}>
         {[0, 1].map(() => (
           <span class="rib__half">
-            {PHRASES.map((p) => (
+            {REPEATED_PHRASES.map((p) => (
               <span class="rib__item">{p}<i class="rib__dot"></i></span>
             ))}
           </span>
@@ -62,7 +69,7 @@ const CROSS_ANGLE = 3.4;
     transform-origin: 50% 50%; z-index: 3;
   }
   .rib__band { width: 126%; margin-left: -13%; overflow: hidden; padding: clamp(9px, 1.1vw, 17px) 0; }
-  .rib__stack .rib__band + .rib__band { margin-top: clamp(10px, 1.4vw, 22px); }
+  .rib__stack .rib__band + .rib__band { margin-top: clamp(20px, 2.8vw, 44px); }
   /* the gap between the two stack bands has to scale with viewport width
      (not sit at a fixed px) so the forest band's top edge keeps meeting
      the cross band's bottom edge at the same relative point — at a fixed

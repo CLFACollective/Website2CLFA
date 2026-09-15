@@ -248,7 +248,7 @@ body.menu-open .mega { pointer-events: auto; }
 .sec--slate { background: var(--surf-3); }
 
 .sec__head {
-  font-size: clamp(32px, 5.4vw, 86px); line-height: 1.0; letter-spacing: -.038em;
+  font-size: clamp(32px, 8.4vw, 86px); line-height: 1.0; letter-spacing: -.038em;
   margin: 0 0 clamp(30px, 4vw, 66px); max-width: 20ch; text-wrap: balance; font-weight: 300;
 }
 /* Resting (pre-reveal) state only — the fade/rise-up itself is a GSAP
@@ -541,7 +541,11 @@ body.menu-open .mega { pointer-events: auto; }
 }
 .win__copy h2 { margin: 0; font-size: clamp(32px, 5.4vw, 88px); font-weight: 300; line-height: 1.0; letter-spacing: -.038em; max-width: 19ch; text-wrap: balance; }
 .win--flat .win__copy { align-items: flex-start; text-align: left; }
-.win__partnering-head { font-size: clamp(40px, 9.4vw, 120px); }
+/* h2.win__partnering-head, not just .win__partnering-head — a plain
+   class selector here is LOWER specificity than ".win__copy h2" above
+   (which also matches this same element) and was silently losing to
+   it, so this rule was dead code. */
+h2.win__partnering-head { font-size: clamp(32px, 8.4vw, 88px); }
 .win__partnering-head .bd { color: #FFA235; letter-spacing: 0; }
 @media (max-width: 799px) {
   .win--flat .win__copy { align-items: center; text-align: center; }

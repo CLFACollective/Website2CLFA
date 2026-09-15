@@ -469,8 +469,13 @@ body.menu-open .mega { pointer-events: auto; }
   display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center;
   gap: clamp(16px, 2vw, 28px); margin-bottom: clamp(40px, 5.5vw, 84px);
 }
-#who .sec__head { margin: 0; max-width: 18ch; }
-.who__top p { margin: 0; padding: 4px; font-size: clamp(16px, 1.5vw, 23px); line-height: 1.45; max-width: 48ch; font-weight: 300; opacity: .75; }
+#who .sec__head { margin: 0; max-width: 18ch; font-weight: 400; }
+.who__top p { margin: 0; padding: 4px; font-size: clamp(19px, 1.9vw, 24px); line-height: 1.4; max-width: 48ch; font-weight: 500; }
+/* "All of them are moving fast." — Lora SemiBold Italic copper, larger
+   than the rest of the paragraph, reusing .hot's italic/colour base
+   (its default weight 400 reads too light here, same fix pattern as
+   Day One/Momentum's own .hot overrides elsewhere in this file) */
+.who__top p .hot { font-weight: 600; font-size: clamp(28px, 2.6vw, 36px); }
 .who__gap { height: clamp(14px, 1.8vw, 26px); }
 
 /* ============================================================

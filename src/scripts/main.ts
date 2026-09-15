@@ -2,6 +2,7 @@ import { useGsap } from "./gsapSetup";
 import { setupReveals } from "./reveals";
 import { setupWindowParallax } from "./windowParallax";
 import { setupShimmer } from "./shimmer";
+import { setupSmoothAnchors } from "./smoothAnchors";
 
 /**
  * Page-wide setup. Section-specific behaviour (nav, hero, day one,
@@ -13,3 +14,4 @@ useGsap();
 setupShimmer();
 setupReveals();
 setupWindowParallax();
+setupSmoothAnchors();

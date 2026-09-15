@@ -114,7 +114,19 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
     go();
   };
 
-  const onScroll = () => { measureParallax(); draw(); };
+  /* Native `scroll` events can fire far more often than the display can
+     paint (especially momentum scrolling on iOS), and each one here was
+     doing a layout read (measureParallax's getBoundingClientRect) plus
+     a full canvas redraw — batch to at most one of those per frame. */
+  let scrollRaf = 0;
+  const onScroll = () => {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      measureParallax();
+      draw();
+    });
+  };
 
   let lastW = 0, lastH = 0;
   const onResize = () => {
@@ -132,6 +144,7 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
 
   return () => {
     cancelAnimationFrame(raf);
+    cancelAnimationFrame(scrollRaf);
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("scroll", onScroll);
     ro.disconnect();

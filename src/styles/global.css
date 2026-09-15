@@ -40,7 +40,10 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+/* No `scroll-behavior: smooth` here — it fights ScrollTrigger's own
+   scrub math (a documented bad combination, worse on WebKit than
+   Blink). Anchor-link glide is instead handled by GSAP's ScrollToPlugin
+   in smoothAnchors.ts, driven by the same ticker ScrollTrigger uses. */
 body {
   margin: 0; background: var(--surf-1); color: var(--fg);
   font-family: var(--sans); font-size: 17px; line-height: 1.5;
@@ -581,7 +584,6 @@ body.menu-open .mega { pointer-events: auto; }
    REDUCED MOTION
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   .pin { height: auto !important; }
   .pin__stage { position: static; height: auto; padding: 12vh 0; overflow: visible; }
   .reveal { opacity: 1 !important; transform: none !important; }

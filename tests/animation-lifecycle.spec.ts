@@ -34,6 +34,59 @@ async function scrollToFooter(page: Page) {
   await page.waitForTimeout(500);
 }
 
+/**
+ * ShineField's three sweep/fade masks used to be three nested masked
+ * DOM elements (a static height-fade wrapping an animated vertical
+ * sweep wrapping an animated horizontal sweep) — confirmed as a real
+ * iPad crash: sitting in Day One in view, not scrolling (so the
+ * off-screen pause never applies) was enough to bring the tab down,
+ * on both Safari and Chrome (same WebKit engine on iOS). A
+ * mask-of-a-mask forces the browser to composite the inner masked
+ * layer to its own offscreen surface and then mask that again — two
+ * animated backing stores kept in sync every frame. Collapsed to one
+ * element with a single multi-layer mask-image (mask-composite:
+ * intersect). This guards the structural fix, not just the visual —
+ * a future edit could reintroduce a nested masked wrapper without
+ * changing how anything looks in a screenshot.
+ */
+test.describe("ShineField uses a single masked layer, not nested masks", () => {
+  test("only one masked element per ShineField instance", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    const counts = await page.evaluate(() => {
+      const wraps = Array.from(document.querySelectorAll<HTMLElement>(".shine-wrap"));
+      return wraps.map((wrap) => {
+        const maskedDescendants = Array.from(wrap.querySelectorAll<HTMLElement>("*")).filter((el) => {
+          const cs = getComputedStyle(el);
+          return cs.maskImage !== "none" || cs.getPropertyValue("-webkit-mask-image") !== "none";
+        });
+        return maskedDescendants.length;
+      });
+    });
+    expect(counts.length).toBeGreaterThan(0);
+    for (const n of counts) expect(n).toBe(0);
+  });
+
+  test("the wrap's own mask combines all three bands with mask-composite: intersect", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    const { layerCount, composite } = await page.evaluate(() => {
+      const wrap = document.querySelector(".shine-wrap")!;
+      const cs = getComputedStyle(wrap);
+      const image = cs.maskImage || cs.getPropertyValue("-webkit-mask-image");
+      // top-level commas only — the gradient stops inside each
+      // linear-gradient(...) have their own commas that don't count
+      let depth = 0, layers = 1;
+      for (const ch of image) {
+        if (ch === "(") depth++;
+        else if (ch === ")") depth--;
+        else if (ch === "," && depth === 0) layers++;
+      }
+      return { layerCount: layers, composite: cs.getPropertyValue("mask-composite") };
+    });
+    expect(layerCount).toBe(3);
+    expect(composite).toContain("intersect");
+  });
+});
+
 test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () => {
   test("ShineField sweep bands freeze once scrolled far away, resume in view", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });

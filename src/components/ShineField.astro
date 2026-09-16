@@ -122,23 +122,21 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
 ---
 
 <div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-end:${bandEnd}%;--fade-width:${fadeWidth}%`}>
-  <div class="shine-band-y">
-    <svg class="shine-field">
-      <defs>
-        <pattern id={patternId} width={tile} height={tileHeight} patternUnits="userSpaceOnUse">
-          {squares.map((sq) => (
-            <rect
-              x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r}
-              fill={sq.fill} opacity={sq.o}
-              class:list={[{ "shine-sparkle": sq.sparkle }]}
-              style={sq.sparkle ? `--base-o:${sq.o};--delay:${sq.delay}s;--dur:${sq.dur}s` : undefined}
-            />
-          ))}
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-    </svg>
-  </div>
+  <svg class="shine-field">
+    <defs>
+      <pattern id={patternId} width={tile} height={tileHeight} patternUnits="userSpaceOnUse">
+        {squares.map((sq) => (
+          <rect
+            x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r}
+            fill={sq.fill} opacity={sq.o}
+            class:list={[{ "shine-sparkle": sq.sparkle }]}
+            style={sq.sparkle ? `--base-o:${sq.o};--delay:${sq.delay}s;--dur:${sq.dur}s` : undefined}
+          />
+        ))}
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+  </svg>
 </div>
 
 <script>
@@ -154,83 +152,60 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    /* solid from the very top (0%) down past the section's own heading,
-       fading out (not a hard cut) over --fade-width, ending fully
-       transparent at --band-end — both set per usage so it clears
-       whatever comes next (a rail, a card row) instead of running
-       into it */
-    mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end));
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end));
     --band: -20%;
-    --fade-width: 8%;
-  }
-  /* Second band, travels top-to-bottom instead of left-to-right, half
-     the first band's thickness, full width (a horizontal gradient band
-     is inherently constant across the whole width already — nothing
-     extra needed for that). A separate nested element rather than a
-     second mask-image layer on .shine-field: two mask-image layers on
-     one element composite via mask-composite (default "add", which
-     unions rather than intersects — a region only one band is dimming
-     would get washed back to full visibility by the other, undimmed,
-     layer). Nested masks multiply naturally instead — parent and child
-     each reduce visibility independently, so whichever band is over a
-     given spot, that dimming holds regardless of what the other band
-     is doing elsewhere. */
-  .shine-band-y {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 calc(var(--band-y) - 3%),
-      rgba(0, 0, 0, 0.35) calc(var(--band-y) - 1.5%),
-      rgba(0, 0, 0, 0.35) calc(var(--band-y) + 1.5%),
-      #000 calc(var(--band-y) + 3%),
-      #000 100%
-    );
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0%,
-      #000 calc(var(--band-y) - 3%),
-      rgba(0, 0, 0, 0.35) calc(var(--band-y) - 1.5%),
-      rgba(0, 0, 0, 0.35) calc(var(--band-y) + 1.5%),
-      #000 calc(var(--band-y) + 3%),
-      #000 100%
-    );
     --band-y: -20%;
+    --fade-width: 8%;
+    /* All three sweeps/fades used to be three nested masked elements
+       (a static height-fade on .shine-wrap, wrapping an animated
+       vertical-sweep mask on .shine-band-y, wrapping an animated
+       horizontal-sweep mask on .shine-field) — confirmed as the source
+       of a real iPad crash: sitting on Day One (in view, not scrolling,
+       so the IntersectionObserver pause never kicks in) was enough to
+       bring it down on both Safari and Chrome, which share the same
+       WebKit engine on iOS. A mask-of-a-mask forces the browser to
+       fully composite the inner masked layer to its own offscreen
+       surface, then mask *that* again — two backing stores kept in
+       sync every frame for two of these three masks were animating
+       continuously the whole time the section was in view, which is
+       exactly the sustained load a memory-constrained mobile GPU
+       struggles to keep reclaiming cleanly.
+       One element, one mask-image with three comma-separated gradient
+       layers and mask-composite: intersect (a pixel only shows if
+       every layer says it should — same "all bands must agree"
+       multiplying behaviour the nested elements gave for free) gets
+       the identical visual with a single masked surface instead of
+       three nested ones. Unprefixed only: multi-layer mask-composite
+       needs the modern spec (Safari 15.4+/2022, universal by now on
+       anything this site needs to run on); mixing in the legacy
+       -webkit-mask-composite keyword syntax for a 3-layer intersect
+       isn't worth the complexity for browsers this old. */
+    mask-image:
+      linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end)),
+      linear-gradient(
+        to right,
+        #000 0%,
+        #000 calc(var(--band) - 6%),
+        rgba(0, 0, 0, 0.35) calc(var(--band) - 3%),
+        rgba(0, 0, 0, 0.35) calc(var(--band) + 3%),
+        #000 calc(var(--band) + 6%),
+        #000 100%
+      ),
+      linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 calc(var(--band-y) - 3%),
+        rgba(0, 0, 0, 0.35) calc(var(--band-y) - 1.5%),
+        rgba(0, 0, 0, 0.35) calc(var(--band-y) + 1.5%),
+        #000 calc(var(--band-y) + 3%),
+        #000 100%
+      );
+    mask-composite: intersect, intersect, intersect;
   }
   .shine-field {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    /* a moving strip where the squares are dimmed (not fully erased —
-       rgba alpha, not "transparent") with a soft feathered edge (a
-       gradual ramp either side of the dimmed core, not a hard cut).
-       Still mask-image rather than clip-path: clip-path can only ever
-       keep one contiguous inset region, it can't cut a hole out of the
-       middle of a shape the way this band needs to. Position tracks
-       --band exactly, set by shineField.ts. */
-    mask-image: linear-gradient(
-      to right,
-      #000 0%,
-      #000 calc(var(--band) - 6%),
-      rgba(0, 0, 0, 0.35) calc(var(--band) - 3%),
-      rgba(0, 0, 0, 0.35) calc(var(--band) + 3%),
-      #000 calc(var(--band) + 6%),
-      #000 100%
-    );
-    -webkit-mask-image: linear-gradient(
-      to right,
-      #000 0%,
-      #000 calc(var(--band) - 6%),
-      rgba(0, 0, 0, 0.35) calc(var(--band) - 3%),
-      rgba(0, 0, 0, 0.35) calc(var(--band) + 3%),
-      #000 calc(var(--band) + 6%),
-      #000 100%
-    );
   }
   /* transform-box:fill-box so the scale keyframe scales each square
      around its own centre, not the SVG's (0,0) origin. */

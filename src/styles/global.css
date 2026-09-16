@@ -168,7 +168,19 @@ body.menu-open .nav { color: var(--cream); }
   display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(24px, 5vw, 90px);
   align-content: center;
   /* open/close (opacity, clip-path) is driven entirely by the GSAP
-     timeline in nav.ts, not a CSS transition — see gsap.set below. */
+     timeline in nav.ts, not a CSS transition — see gsap.set below.
+     The closed values are repeated here (not just in that gsap.set)
+     because this is a position:fixed, inset:0 element: without a
+     default-hidden state in the render-blocking stylesheet, it's
+     rendered fully visible — covering the whole viewport — for
+     however long it takes the nav's script module (and GSAP itself)
+     to load, parse and run, which read as a flash of the expanded
+     menu on first load. GSAP's own gsap.set() below still runs and
+     just re-confirms the same values, which is what the open/close
+     timeline actually animates from. */
+  opacity: 0;
+  visibility: hidden;
+  clip-path: inset(0% 0% 100% 0%);
   pointer-events: none;
 }
 body.menu-open .mega { pointer-events: auto; }

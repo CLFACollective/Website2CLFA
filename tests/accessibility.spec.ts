@@ -78,3 +78,26 @@ test.describe("accessibility", () => {
     expect(activeId).toBe("menuBtn");
   });
 });
+
+/**
+ * The mega menu's closed state used to exist only as a gsap.set() call
+ * in nav.ts — fine once that script has loaded and run, but until then
+ * the plain CSS left it fully opaque, full-viewport, and on top of
+ * everything (position: fixed; inset: 0), so anyone landing on the
+ * page saw the expanded menu flash before JS caught up and hid it.
+ * global.css now carries the closed values (opacity, visibility,
+ * clip-path) itself, so the render-blocking stylesheet — not a script
+ * — is what keeps it hidden. Runs with JS turned off entirely, the
+ * strongest way to prove this doesn't depend on any script executing.
+ */
+test.describe("mega menu hides without relying on JS", () => {
+  test("mega menu is hidden by CSS alone, before any script runs", async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto("/");
+    const mega = page.locator("#mega");
+    await expect(mega).toHaveCSS("opacity", "0");
+    await expect(mega).toHaveCSS("visibility", "hidden");
+    await context.close();
+  });
+});

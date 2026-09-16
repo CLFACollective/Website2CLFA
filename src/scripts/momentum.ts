@@ -55,11 +55,22 @@ export function setupMomentum() {
   const { gsap, ScrollTrigger } = useGsap();
   const setX = gsap.quickSetter(track, "x", "px") as (v: number) => void;
 
+  /* .hs__track's will-change:transform (see global.css) is necessary
+     while it's actually panning, but once this section is scrolled
+     past, a browser will otherwise keep it composited/promoted — a
+     genuinely large layer (the full 4-panel track width x the pinned
+     stage height) — for the rest of the page's lifetime, since
+     nothing ever tells it the pan is done. Dropped on leaving,
+     restored on scrolling back up. */
+  const setLayer = (on: boolean) => { track.style.willChange = on ? "" : "auto"; };
+
   ScrollTrigger.create({
     trigger: section,
     start: "top top",
     end: "bottom bottom",
     scrub: true,
+    onLeave: () => setLayer(false),
+    onEnterBack: () => setLayer(true),
     onUpdate: (self) => {
       const pp = Math.min(1, Math.max(0, (self.progress - 0.1) / 0.9));
       const dist = track.scrollWidth - window.innerWidth;

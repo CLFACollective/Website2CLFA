@@ -50,6 +50,12 @@ const d = ICONS[name];
   .ci--acquired.is-drawn { animation: ciBreathe 7s ease-in-out infinite; }
   .ci--speed.is-drawn { animation: ciBreathe 9s ease-in-out infinite; }
   .ci--pivot { opacity: 0.5; }
+  /* .bmc__stage toggles is-live off cardsFan.ts's own intro-reveal
+     IntersectionObserver — reused here rather than a second observer,
+     since these 4 infinite animations would otherwise keep running
+     for the rest of the page's lifetime once first drawn, regardless
+     of whether the cards are anywhere near the viewport. */
+  :global(.bmc__stage:not(.is-live)) .ci.is-drawn { animation-play-state: paused; }
 
   @keyframes ciSpin { to { transform: rotate(360deg); } }
   @keyframes ciFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }

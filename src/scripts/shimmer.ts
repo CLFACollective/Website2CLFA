@@ -7,6 +7,14 @@
  * @keyframes loop (see .shimmer i in global.css) — cheap enough at this
  * count that spinning up individual GSAP tweens would only add
  * overhead for no visible benefit.
+ *
+ * Same unbounded-background-work issue ShineField's sweep bands and
+ * sparkle squares had, fixed the same way: each instance's 22 CSS
+ * `infinite` animations would otherwise keep running for the rest of
+ * the page's lifetime regardless of whether that section is anywhere
+ * near the viewport. An IntersectionObserver per instance pauses them
+ * (via a class toggling animation-play-state, cheaper than pausing 22
+ * Animation objects individually) once scrolled out of view.
  */
 export function setupShimmer() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -21,5 +29,11 @@ export function setupShimmer() {
       dot.style.color = Math.random() > 0.8 ? "var(--pink)" : "var(--fg)";
       host.appendChild(dot);
     }
+
+    const io = new IntersectionObserver(
+      ([entry]) => host.classList.toggle("is-offscreen", !entry.isIntersecting),
+      { rootMargin: "200px 0px" },
+    );
+    io.observe(host);
   });
 }

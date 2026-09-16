@@ -107,12 +107,33 @@ export function setupHero() {
     }
   };
 
+  /* .hcb__iris/.hcb__flood/.hcb__rise are will-change'd for the
+     transform/clip-path work below — necessary while the hero is
+     actually animating, but each one is a huge layer (a full-viewport
+     clip-path, two ~150vmax circles) that a browser will otherwise
+     keep composited/promoted for the rest of the page's lifetime once
+     set, since nothing ever tells it the hero is done. On a memory-
+     constrained device that's tens of MB of GPU texture held for no
+     reason for the remaining 5+ sections of scroll — dropped once
+     scrolled past (restored on scrolling back up, in case the
+     animation needs to run smoothly again). */
+  const heavyLayers = [
+    document.querySelector<HTMLElement>(".hcb__iris"),
+    document.querySelector<HTMLElement>(".hcb__flood"),
+    document.querySelector<HTMLElement>(".hcb__rise"),
+  ].filter((el): el is HTMLElement => !!el);
+  const setLayers = (on: boolean) => {
+    heavyLayers.forEach((el) => { el.style.willChange = on ? "" : "auto"; });
+  };
+
   ScrollTrigger.create({
     trigger: section,
     start: "top top",
     end: "bottom bottom",
     scrub: true,
     animation: tl,
+    onLeave: () => setLayers(false),
+    onEnterBack: () => setLayers(true),
     onUpdate: (self) => {
       const p = self.progress;
       navLogo?.classList.toggle("is-gone", p < PRE);

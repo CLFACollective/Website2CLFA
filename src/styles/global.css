@@ -94,6 +94,9 @@ a { color: inherit; }
   0%, 100% { opacity: 0; transform: scale(.6); }
   45% { opacity: .5; transform: scale(1); }
 }
+/* toggled by shimmer.ts's IntersectionObserver — see .shine-wrap's own
+   is-offscreen rule for the same pattern. */
+.shimmer.is-offscreen i { animation-play-state: paused; }
 
 /* ============================================================
    TYPE HELPERS
@@ -482,7 +485,7 @@ body.menu-open .mega { pointer-events: auto; }
    ceiling) — confirmed happening from ~1600px up, checked pixel gap
    at 8 widths from 800-2560px, not just eyeballed at one size. */
 .mquote__badge {
-  position: absolute; top: -14px; right: -34px;
+  position: absolute; top: -14px; right: -25.5px;
   width: clamp(44px, 3.6vw, 68px); height: auto; display: block; pointer-events: none;
 }
 .mquote__badge svg { display: block; width: 100%; height: auto; }
@@ -527,7 +530,7 @@ body.menu-open .mega { pointer-events: auto; }
   .mfig { font-size: 88px; }
   .mcap { font-size: 16px; }
   .mquote { font-size: 27px; }
-  .mquote__badge { width: 30px; top: -8px; right: -18px; }
+  .mquote__badge { width: 30px; top: -8px; right: -14px; }
 }
 
 /* ============================================================

@@ -42,18 +42,36 @@ export function setupDayOne() {
      the solid dark-pink core underneath holds still. Each indicator
      gets its own randomized duration/offset so the three stops (and
      the travelling ball) never fall into lockstep — reads as organic
-     rather than a synchronised blink. */
+     rather than a synchronised blink.
+     Up to 4 of these (the ball + 3 stops) each repeat:-1 forever once
+     started, with nothing to stop them once scrolled past — same
+     unbounded-background-work issue as ShineField/marquee/shimmer had.
+     Tracked in haloTweens so one IntersectionObserver on the whole
+     section can pause/resume all of them together, including ones
+     created later (a stop only starts pulsing once scrolled to). */
+  const haloTweens: gsap.core.Tween[] = [];
+  let sectionVisible = true;
   const pulseHalo = (el: HTMLElement, delay = 0) => {
     gsap.set(el, { "--halo-s": 1, "--halo-o": 0.5 });
-    gsap.to(el, {
+    const tween = gsap.to(el, {
       "--halo-s": 2.6,
       "--halo-o": 0,
       duration: 1.6 + Math.random() * 0.6,
       ease: "power1.out",
       repeat: -1,
       delay,
+      paused: !sectionVisible,
     });
+    haloTweens.push(tween);
   };
+
+  new IntersectionObserver(
+    ([entry]) => {
+      sectionVisible = entry.isIntersecting;
+      haloTweens.forEach((t) => (sectionVisible ? t.play() : t.pause()));
+    },
+    { rootMargin: "200px 0px" },
+  ).observe(section);
 
   const ball = rail.querySelector<HTMLElement>(".rail__ball");
   if (ball) pulseHalo(ball);

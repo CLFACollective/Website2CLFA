@@ -4,7 +4,7 @@ import ShineField from "./ShineField.astro";
 
 <section class="sec sec--slate pinday" id="partnering">
   <div class="pinday__stage">
-    <ShineField bandStart={58} />
+    <ShineField class="shine-dayone" bandEnd={60} />
     <div class="shimmer" aria-hidden="true"></div>
     <div class="sec__inner">
       <h2 class="sec__head reveal">
@@ -43,3 +43,13 @@ import ShineField from "./ShineField.astro";
   import { setupDayOne } from "../scripts/dayOne";
   setupDayOne();
 </script>
+
+<style>
+  /* the rail is hidden below 799px (replaced by the vertical timeline
+     inside .cols3 itself), so the heading and the cards sit right on
+     top of each other there — no room to extend past the heading
+     without running into the cards, unlike desktop's ~60px rail gap */
+  @media (max-width: 799px) {
+    :global(.shine-dayone) { --band-end: 42%; }
+  }
+</style>

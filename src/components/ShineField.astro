@@ -41,12 +41,15 @@ interface Props {
   tileHeight?: number;
   /** Average spacing between squares within the tile, in px. */
   cell?: number;
-  /** % of the container's own height below which the field is visible
-      (fades in just above it) — the field sits below whatever heads
-      the section instead of behind it. 0 = visible from the top. */
-  bandStart?: number;
+  /** % of the container's own height where the visible field fades out
+      — solid from the very top down to this point (past the section's
+      own heading), transparent below it (short of whatever content
+      comes next). Override per breakpoint with a scoped
+      `--band-end` on the class passed in via `class`, if a section
+      needs a different cutoff on mobile. */
+  bandEnd?: number;
 }
-const { class: className, tile = 500, tileHeight = 260, cell = 13, bandStart = 0 } = Astro.props;
+const { class: className, tile = 500, tileHeight = 260, cell = 13, bandEnd = 30 } = Astro.props;
 const patternId = `shine-${crypto.randomUUID().slice(0, 8)}`;
 
 const PINK = "#F06496";
@@ -112,7 +115,7 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
 });
 ---
 
-<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-start:${bandStart}%`}>
+<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-end:${bandEnd}%`}>
   <div class="shine-band-y">
     <svg class="shine-field">
       <defs>
@@ -145,11 +148,12 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    /* invisible above --band-start (wherever the section's own heading
-       sits), fading in rather than cutting on hard, solid for the rest
-       of the container below that */
-    mask-image: linear-gradient(to bottom, transparent 0%, transparent calc(var(--band-start) - 4%), #000 calc(var(--band-start) + 4%), #000 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent calc(var(--band-start) - 4%), #000 calc(var(--band-start) + 4%), #000 100%);
+    /* solid from the very top (0%) down past the section's own heading,
+       fading out (not a hard cut) by --band-end — set per usage so it
+       clears whatever comes next (a rail, a card row) instead of
+       running into it */
+    mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - 8%), transparent var(--band-end));
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - 8%), transparent var(--band-end));
     --band: -20%;
   }
   /* Second band, travels top-to-bottom instead of left-to-right, half

@@ -47,7 +47,7 @@ const CARDS: Card[] = [
             class="bmc__card"
             style={`background:${c.bg};color:${c.fg};--hot:${c.hot};--idle:${c.idle};--hover:${c.hover};--i:${i}`}
           >
-            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.breakAfterEmph && <br class="mobile-br" />}{c.rest}</p>
+            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.breakAfterEmph && <br />}{c.rest}</p>
             <span class="bmc__icon"><CardIcon name={c.icon} /></span>
           </article>
         ))}

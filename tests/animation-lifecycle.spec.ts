@@ -18,7 +18,9 @@ import { test, expect, type Page } from "@playwright/test";
  * empty/not-running and gives a false pass. Use value-sampling
  * (readValue twice with a wait between) for anything GSAP-driven;
  * getAnimations() is only valid for the native-CSS-animation cases
- * (shimmer dots, ShineField sparkle squares, card icons).
+ * (shimmer dots, card icons) — ShineField's sparkle squares are
+ * canvas-drawn now, not a native CSS animation at all; see the
+ * canvas-checksum-based test below instead.
  */
 
 async function isStatic(page: Page, readValue: () => Promise<string>, waitMs = 1200): Promise<boolean> {
@@ -35,71 +37,79 @@ async function scrollToFooter(page: Page) {
 }
 
 /**
- * ShineField's three sweep/fade masks used to be three nested masked
- * DOM elements (a static height-fade wrapping an animated vertical
- * sweep wrapping an animated horizontal sweep) — confirmed as a real
- * iPad crash: sitting in Day One in view, not scrolling (so the
- * off-screen pause never applies) was enough to bring the tab down,
- * on both Safari and Chrome (same WebKit engine on iOS). A
- * mask-of-a-mask forces the browser to composite the inner masked
- * layer to its own offscreen surface and then mask that again — two
- * animated backing stores kept in sync every frame. Collapsed to one
- * element with a single multi-layer mask-image (mask-composite:
- * intersect). This guards the structural fix, not just the visual —
- * a future edit could reintroduce a nested masked wrapper without
- * changing how anything looks in a screenshot.
+ * ShineField used to be an SVG <pattern> of ~760 squares (~30 of them
+ * individually CSS-animated for the sparkle twinkle) masked with
+ * CSS mask-image — two independent, confirmed sources of sustained
+ * memory growth on iPad (a mask-image whose calc()-driven value
+ * changes every frame, and animating content inside an SVG <pattern>,
+ * which forces the browser to continuously re-rasterize and re-tile
+ * the entire fill area since the pattern's cache is never stable).
+ * Rebuilt as a canvas: no mask-image, no SVG, no pattern to
+ * invalidate. This guards the structural fix, not just the visual —
+ * a future edit could reintroduce either without changing how
+ * anything looks in a screenshot.
  */
-test.describe("ShineField uses a single masked layer, not nested masks", () => {
-  test("only one masked element per ShineField instance", async ({ page }) => {
+test.describe("ShineField is canvas-drawn, not SVG/mask-image", () => {
+  test("every instance is a canvas with no mask-image, no SVG pattern", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
-    const counts = await page.evaluate(() => {
+    const info = await page.evaluate(() => {
       const wraps = Array.from(document.querySelectorAll<HTMLElement>(".shine-wrap"));
-      return wraps.map((wrap) => {
-        const maskedDescendants = Array.from(wrap.querySelectorAll<HTMLElement>("*")).filter((el) => {
-          const cs = getComputedStyle(el);
-          return cs.maskImage !== "none" || cs.getPropertyValue("-webkit-mask-image") !== "none";
-        });
-        return maskedDescendants.length;
-      });
+      return wraps.map((el) => ({
+        tag: el.tagName,
+        maskImage: getComputedStyle(el).maskImage,
+        webkitMaskImage: getComputedStyle(el).getPropertyValue("-webkit-mask-image"),
+      }));
     });
-    expect(counts.length).toBeGreaterThan(0);
-    for (const n of counts) expect(n).toBe(0);
-  });
-
-  test("the wrap's own mask combines all three bands with mask-composite: intersect", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
-    const { layerCount, composite } = await page.evaluate(() => {
-      const wrap = document.querySelector(".shine-wrap")!;
-      const cs = getComputedStyle(wrap);
-      const image = cs.maskImage || cs.getPropertyValue("-webkit-mask-image");
-      // top-level commas only — the gradient stops inside each
-      // linear-gradient(...) have their own commas that don't count
-      let depth = 0, layers = 1;
-      for (const ch of image) {
-        if (ch === "(") depth++;
-        else if (ch === ")") depth--;
-        else if (ch === "," && depth === 0) layers++;
-      }
-      return { layerCount: layers, composite: cs.getPropertyValue("mask-composite") };
-    });
-    expect(layerCount).toBe(3);
-    expect(composite).toContain("intersect");
+    expect(info.length).toBeGreaterThan(0);
+    for (const el of info) {
+      expect(el.tag).toBe("CANVAS");
+      expect(el.maskImage).toBe("none");
+      expect(el.webkitMaskImage === "none" || el.webkitMaskImage === "").toBe(true);
+    }
+    const svgCount = await page.locator(".shine-wrap svg, .shine-wrap pattern").count();
+    expect(svgCount).toBe(0);
   });
 });
 
-test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () => {
-  test("ShineField sweep bands freeze once scrolled far away, resume in view", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
-    await scrollToFooter(page);
+/** Sum of every RGBA byte in a canvas's pixel buffer — cheap way to
+ *  detect "did anything at all change" without tracking one exact
+ *  pixel (fragile against sub-pixel/grid alignment, confirmed flaky
+ *  elsewhere in this suite for exactly that reason). */
+async function canvasChecksum(page: Page, selector: string): Promise<number> {
+  return page.evaluate((sel) => {
+    const el = document.querySelector<HTMLCanvasElement>(sel)!;
+    const data = el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += data[i + 3]; // alpha channel is enough
+    return sum;
+  }, selector);
+}
 
-    const readBand = () =>
-      page.evaluate(() => getComputedStyle(document.querySelector(".shine-wrap")!).getPropertyValue("--band"));
-    expect(await isStatic(page, readBand)).toBe(true);
+test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () => {
+  test("ShineField sweep/sparkle redraw freezes once scrolled far away, resumes in view", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+
+    // in view first, to confirm it's actually redrawing at all
+    await page.locator("#partnering").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    const a1 = await canvasChecksum(page, ".shine-wrap");
+    await page.waitForTimeout(1200);
+    const a2 = await canvasChecksum(page, ".shine-wrap");
+    expect(a2).not.toBe(a1);
+
+    await scrollToFooter(page);
+    const b1 = await canvasChecksum(page, ".shine-wrap");
+    await page.waitForTimeout(1200);
+    const b2 = await canvasChecksum(page, ".shine-wrap");
+    expect(b2).toBe(b1);
 
     // scroll back to Day One and confirm it resumes
     await page.locator("#partnering").scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
-    expect(await isStatic(page, readBand)).toBe(false);
+    const c1 = await canvasChecksum(page, ".shine-wrap");
+    await page.waitForTimeout(1200);
+    const c2 = await canvasChecksum(page, ".shine-wrap");
+    expect(c2).not.toBe(c1);
   });
 
   test("Ribbons marquee tracks freeze once scrolled far away, resume in view", async ({ page }) => {
@@ -176,14 +186,6 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
     expect(running).toBe(0);
   });
 
-  test("ShineField sparkle squares are paused when far from both instances", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
-    await scrollFarFromShimmerHosts(page);
-    const { total, running } = await countRunning(page, ".shine-sparkle");
-    expect(total).toBeGreaterThan(0);
-    expect(running).toBe(0);
-  });
-
   test("shimmer resumes for whichever instance is actually in view", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
     await page.locator("#partnering").scrollIntoViewIfNeeded();
@@ -217,42 +219,62 @@ test.describe("GridField cursor-follow fade is GSAP-driven", () => {
     const cx = x + width / 2;
     const cy = y + height / 2;
 
-    // Max alpha over a small region around the hover point, not one exact
-    // pixel: the lit cell is a real 32px grid cell, and which cell that
-    // is depends on where the cursor falls relative to the grid's own
-    // origin — a single sampled pixel can land a fraction of a pixel
-    // outside its bounds depending on sub-pixel scroll/viewport
-    // rounding, and miss it entirely (confirmed flaky this way).
-    const readMaxAlpha = () =>
+    // Sum of alpha across the *entire* canvas, not a region around the
+    // hover point: this canvas also has GridField's own vertical
+    // parallax (drifts the grid's draw position by up to ±160px based
+    // on scroll position), which under a full parallel suite run can
+    // shift by the time GSAP's later onUpdate frames redraw versus
+    // where the mouse first targeted — confirmed via a failure
+    // screenshot showing a real, correctly-lit cell, just offset from
+    // the cursor by exactly that kind of drift. Whether or not a given
+    // pixel region catches it, the lit cell always adds real coverage
+    // *somewhere* in the canvas, so summing the whole thing sidesteps
+    // needing to know exactly where.
+    const readAlphaSum = () =>
       page.evaluate(() => {
         const el = document.querySelectorAll<HTMLCanvasElement>(".grid-field")[0];
-        const r = el.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const cx2 = Math.round((r.width / 2) * dpr);
-        const cy2 = Math.round((r.height / 2) * dpr);
-        const span = 40;
-        const data = el.getContext("2d")!.getImageData(cx2 - span, cy2 - span, span * 2, span * 2).data;
-        let max = 0;
-        for (let i = 3; i < data.length; i += 4) if (data[i] > max) max = data[i];
-        return max;
+        const data = el.getContext("2d")!.getImageData(0, 0, el.width, el.height).data;
+        let sum = 0;
+        for (let i = 3; i < data.length; i += 4) sum += data[i];
+        return sum;
       });
 
-    // baseline: grid lines alone contribute some alpha in this region
-    // even with nothing lit, so "faded back out" means "back down near
-    // this," not "down to exactly zero."
-    const baseline = await readMaxAlpha();
+    // Polls instead of a single fixed sleep: under a full parallel
+    // suite run (5 browsers competing for CPU), a fixed short wait
+    // occasionally samples mid-tween rather than settled, since GSAP's
+    // ticker is wall-clock-based and can genuinely fall behind under
+    // contention. Waits for the value to stop changing between two
+    // consecutive samples — but only after an initial wait long enough
+    // that the tween has actually started moving; without it, two
+    // samples taken back-to-back *before* a delayed tween has begun
+    // can both still read the untouched starting value, look "stable,"
+    // and return a false-early "settled" reading.
+    const pollSettled = async (maxMs = 2000, stepMs = 100) => {
+      await page.waitForTimeout(150);
+      let prev = await readAlphaSum();
+      for (let waited = 0; waited < maxMs; waited += stepMs) {
+        await page.waitForTimeout(stepMs);
+        const next = await readAlphaSum();
+        if (next === prev) return next;
+        prev = next;
+      }
+      return prev;
+    };
+
+    // baseline: grid lines alone contribute plenty of alpha across the
+    // whole canvas even with nothing lit, so "faded back out" means
+    // "back down near this," not "down to exactly zero."
+    const baseline = await readAlphaSum();
 
     await page.mouse.move(cx, cy);
-    await page.waitForTimeout(450); // let the GSAP fade-in settle
-    const settled = await readMaxAlpha();
+    const settled = await pollSettled();
     expect(settled).toBeGreaterThan(baseline);
 
     // top-left corner of the viewport — guaranteed outside a mid-page
     // section's canvas, unlike an arbitrary offset from its own centre
     // which can still land inside a large canvas
     await page.mouse.move(2, 2);
-    await page.waitForTimeout(450);
-    const faded = await readMaxAlpha();
+    const faded = await pollSettled();
     expect(faded).toBeLessThan(settled);
   });
 });

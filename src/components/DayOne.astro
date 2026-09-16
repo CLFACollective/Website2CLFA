@@ -4,7 +4,22 @@ import ShineField from "./ShineField.astro";
 
 <section class="sec sec--slate pinday" id="partnering">
   <div class="pinday__stage">
-    <ShineField class="shine-dayone" bandEnd={48} fadeWidth={30} />
+    <!-- Below 799px the rail is replaced by the vertical timeline inside
+         .cols3 itself, so the heading and the cards sit right on top of
+         each other there — no room to extend past the heading without
+         running into the cards, unlike desktop's ~60px rail gap. Both
+         mobile values are measured against "already off."'s own bottom
+         edge (not the rail/cards) — no squares should sit at or below
+         that line, and the fade should already read as faint well
+         above it, not cut off sharply right at it. -->
+    <ShineField
+      class="shine-dayone"
+      bandEnd={48}
+      fadeWidth={30}
+      mobileBandEnd={37}
+      mobileFadeWidth={14}
+      bg="#FFFAF5"
+    />
     <div class="shimmer" aria-hidden="true"></div>
     <div class="sec__inner">
       <h2 class="sec__head reveal">
@@ -43,21 +58,3 @@ import ShineField from "./ShineField.astro";
   import { setupDayOne } from "../scripts/dayOne";
   setupDayOne();
 </script>
-
-<style>
-  /* the rail is hidden below 799px (replaced by the vertical timeline
-     inside .cols3 itself), so the heading and the cards sit right on
-     top of each other there — no room to extend past the heading
-     without running into the cards, unlike desktop's ~60px rail gap.
-     Both values are measured against "already off."'s own bottom edge
-     (not the rail/cards) — no squares should sit at or below that
-     line, and the fade should already read as faint well above it,
-     not cut off sharply right at it. */
-  @media (max-width: 799px) {
-    /* !important: ShineField sets --band-end/--fade-width via an
-       inline style (from its Astro props), which otherwise always
-       beats a plain class rule here regardless of media query or
-       source order. */
-    :global(.shine-dayone) { --band-end: 37% !important; --fade-width: 14% !important; }
-  }
-</style>

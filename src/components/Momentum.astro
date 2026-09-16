@@ -4,7 +4,7 @@ import ShineField from "./ShineField.astro";
 
 <section class="pin" id="momentum">
   <div class="pin__stage">
-    <ShineField class="shine-momentum" bandEnd={28} />
+    <ShineField class="shine-momentum" bandEnd={28} mobileBandEnd={19} bg="#FEFCF4" />
     <div class="shimmer" aria-hidden="true"></div>
     <div class="hs__spine" aria-hidden="true">
       <span>MOMENTUM</span>
@@ -69,12 +69,3 @@ import ShineField from "./ShineField.astro";
   import { setupMomentum } from "../scripts/momentum";
   setupMomentum();
 </script>
-
-<style>
-  @media (max-width: 799px) {
-    /* !important: ShineField sets --band-end via an inline style
-       (from its Astro props), which otherwise always beats a plain
-       class rule here regardless of media query or source order. */
-    :global(.shine-momentum) { --band-end: 19% !important; }
-  }
-</style>

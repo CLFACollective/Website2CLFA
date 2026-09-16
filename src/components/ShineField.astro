@@ -1,143 +1,91 @@
 ---
-// ShineField — replaces BlingField's drifting dust. Every square in the
-// grid is always shown (no per-dot rest/fall lifecycle). Colour mix
-// (~96% ink, ~4% pink accent) and the sweep-band animation are carried
-// over from the original Figma-measured version (node 2964:20817); the
-// size/density *distribution* itself was redone against a second
-// reference (node 3194:2229, sampled 2026-09-15) — a uniform-count grid
-// (~1 square per 90px² throughout) where average square size grows
-// steadily top-to-bottom (~0.56px avg in the top fifth of the tile up
-// to ~1.39px avg in the bottom fifth, a roughly 2.5x ceiling growth,
-// not a change in how many squares there are). ROW_GROWTH below is
-// that per-row size-ceiling ramp; opacity still varies per square
-// (tracks the same size-skew fraction) and ~a third get rounded
-// corners — neither of those came from either reference, both were
-// separate, earlier explicit requests, so both stayed.
+// ShineField — the dust field behind Day One / Momentum's headings.
 //
-// The tile height is intentionally shorter than the tile width (see
-// TILE_H) rather than a single square TILE size: the field is masked
-// to the section's own top ~30% (well under 300px tall in practice),
-// and the whole point of the size ramp is that it's visible — a taller
-// tile would mean the mask cuts off the pattern before it ever reaches
-// its own "dense" half.
+// This used to be an SVG <pattern> of ~760 <rect> squares, tiled across
+// the section, with two effects layered on top: a fade-out mask past
+// bandEnd, and two slowly sweeping "hide" bands driven by GSAP
+// animating CSS custom properties feeding calc()-based mask-image
+// gradients. Both pieces turned out to be real, independent sources of
+// sustained memory growth on iPad — confirmed live: the tab survived
+// ~25s sitting on Day One (up from crashing almost immediately) after
+// collapsing the sweep masks from three nested elements to one, but
+// still eventually reloaded/crashed. Two separate WebKit costs were
+// compounding:
+//   1. mask-image whose calc()-driven VALUE changes every frame (GSAP
+//      rewriting --band/--band-y) forces a full gradient reparse +
+//      re-rasterization every tick, and WebKit doesn't reliably
+//      reclaim those regenerated backing stores fast enough under
+//      sustained animation.
+//   2. ~30 sparkle squares with individual `animation: ... infinite`
+//      lived *inside* the SVG <pattern> definition. A pattern's tile is
+//      normally rasterized once and cached, then cheaply repeated —
+//      but animating anything inside it invalidates that cache, and
+//      with ~30 independently-timed infinite loops there's essentially
+//      never a moment the tile is fully settled, forcing continuous
+//      re-rasterization and re-tiling of the *entire* fill area for as
+//      long as the section stays in view. This one was completely
+//      unaffected by the mask-image fix.
 //
-// A thin vertical band slowly sweeps left to right (see shineField.ts):
-// wherever it currently sits, the squares underneath are hidden — a
-// moving "hole" in the field, not a reveal of some brighter version
-// underneath, and not a per-square opacity fade. Squares behind the
-// band come right back once it's moved past.
-//
-// Squares are generated once at build time (Astro runs server-side) and
-// tiled via an SVG <pattern> rather than laid out across the whole
-// section — a pattern repeats natively at any container size without
-// stretching/distorting the squares the way scaling a fixed viewBox to
-// fill a variable-aspect-ratio section would, and it's far cheaper than
-// emitting one <rect> per square across a full 1920px-wide section.
+// Canvas sidesteps both at once: no mask-image at all (the height-fade
+// and both sweep bands are just per-square alpha math at draw time),
+// and no SVG pattern to invalidate (every square is a plain fillRect
+// into one bitmap the browser never has to re-tile). It's also already
+// proven out on iPad/iPhone in this exact codebase — see GridField,
+// the WindowA/KeepUp canvas decoration this mirrors structurally. See
+// src/scripts/shineField.ts for the actual drawing/animation.
 interface Props {
   class?: string;
-  /** Tile width in px — the pattern repeats at this interval. */
+  /** Tile width in px — the square pattern repeats at this interval. */
   tile?: number;
-  /** Tile height in px — independent of width, see the note above. */
+  /** Tile height in px — independent of width; squares grow larger
+      toward the bottom of each tile (see shineField.ts), and the field
+      is faded out well before most tiles ever repeat vertically. */
   tileHeight?: number;
   /** Average spacing between squares within the tile, in px. */
   cell?: number;
   /** % of the container's own height where the visible field fades out
       — solid from the very top down to this point (past the section's
       own heading), transparent below it (short of whatever content
-      comes next). Override per breakpoint with a scoped
-      `--band-end` on the class passed in via `class`, if a section
-      needs a different cutoff on mobile. */
+      comes next). */
   bandEnd?: number;
   /** % of container height the fade-out itself spans, ending exactly
       at bandEnd — 8 (the default) reads as a fairly quick fade right
-      near the cutoff; a larger value spreads it out into a long,
-      gradual dim that's already faint well above bandEnd. Same
-      per-breakpoint override pattern as bandEnd, via `--fade-width`. */
+      near the cutoff; a larger value spreads it into a long, gradual
+      dim that's already faint well above bandEnd. */
   fadeWidth?: number;
+  /** bandEnd/fadeWidth to use instead, below `mobileBreakpoint`px —
+      omit to use the same values at every width. */
+  mobileBandEnd?: number;
+  mobileFadeWidth?: number;
+  mobileBreakpoint?: number;
+  /** The exact solid colour immediately behind this instance's own
+      section — the sweep bands dim squares toward this colour rather
+      than truly erasing them, so it needs to be a real match, not a
+      guess. */
+  bg?: string;
 }
-const { class: className, tile = 500, tileHeight = 260, cell = 13, bandEnd = 30, fadeWidth = 8 } = Astro.props;
-const patternId = `shine-${crypto.randomUUID().slice(0, 8)}`;
+const {
+  class: className,
+  tile = 500,
+  tileHeight = 260,
+  cell = 13,
+  bandEnd = 30,
+  fadeWidth = 8,
+  mobileBandEnd,
+  mobileFadeWidth,
+  mobileBreakpoint = 799,
+  bg = "#FFFAF5",
+} = Astro.props;
 
-const PINK = "#F06496";
-const ACCENT_CHANCE = 0.04;
-// Scaled to 60% of the originally-measured 0.4–6.5px range — the full
-// size read as too prominent/heavy once seen on the page.
-const SIZE_SCALE = 0.6;
-// The floor gets its own, higher scale (not quite the original 0.4px,
-// but close to it) — squares at the top of each row-growth cycle read
-// noticeably bigger than a flat 60% scale would leave them.
-const MIN_SIZE_SCALE = 0.85;
-const MIN_SIZE = 0.4 * MIN_SIZE_SCALE;
-const MAX_SIZE = 6.5 * SIZE_SCALE;
-const MIN_ALPHA = 0.3;
-const MAX_ALPHA = 0.56;
-// How much bigger a square is *allowed* to get by the last row versus
-// the first — the ~2.5x ceiling growth measured off the reference.
-const ROW_GROWTH = 2.5;
-// Fraction of squares that get rounded corners instead of sharp ones —
-// "some," not all, for a bit of shape variety alongside the size mix.
-const ROUNDED_CHANCE = 0.35;
-const ROUNDED_RADIUS_FRAC = 0.3; // corner radius as a fraction of the square's own size
-
-const cols = Math.round(tile / cell);
-const rows = Math.round(tileHeight / cell);
-
-const squares = Array.from({ length: cols * rows }, (_, i) => {
-  const col = i % cols;
-  const row = Math.floor(i / cols);
-
-  const rowFrac = rows > 1 ? row / (rows - 1) : 0;
-  const rowMax = MIN_SIZE + (MAX_SIZE - MIN_SIZE) * (1 + rowFrac * (ROW_GROWTH - 1)) / ROW_GROWTH;
-
-  // Squaring a uniform random biases it toward 0 — the same "mostly
-  // small, occasionally large" skew measured in the original reference
-  // — applied within this row's own (growing) size ceiling.
-  const sizeFrac = Math.random() ** 2;
-  const size = MIN_SIZE + sizeFrac * (rowMax - MIN_SIZE);
-  const alpha = MIN_ALPHA + sizeFrac * (MAX_ALPHA - MIN_ALPHA) + (Math.random() - 0.5) * 0.08;
-
-  const jitterX = (Math.random() - 0.5) * cell * 0.5;
-  const jitterY = (Math.random() - 0.5) * cell * 0.5;
-  const cx = col * cell + cell / 2 + jitterX;
-  const cy = row * cell + cell / 2 + jitterY;
-
-  const isPink = Math.random() < ACCENT_CHANCE;
-
-  return {
-    x: (cx - size / 2).toFixed(2),
-    y: (cy - size / 2).toFixed(2),
-    s: size.toFixed(2),
-    r: Math.random() < ROUNDED_CHANCE ? (size * ROUNDED_RADIUS_FRAC).toFixed(2) : "0",
-    o: Math.max(0.15, Math.min(0.65, alpha)).toFixed(2),
-    fill: isPink ? PINK : "currentColor",
-    // pink accents twinkle — everything else stays static, so the
-    // handful of pink squares are what catch the eye rather than
-    // getting lost in the rest of the field. Randomized delay/duration
-    // per square so they glint independently, not in lockstep.
-    sparkle: isPink,
-    delay: (Math.random() * 6).toFixed(2),
-    dur: (2.6 + Math.random() * 2.4).toFixed(2),
-  };
+const config = JSON.stringify({
+  tile, tileHeight, cell, bandEnd, fadeWidth, bg,
+  mobileBandEnd: mobileBandEnd ?? bandEnd,
+  mobileFadeWidth: mobileFadeWidth ?? fadeWidth,
+  mobileBreakpoint,
 });
 ---
 
-<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-end:${bandEnd}%;--fade-width:${fadeWidth}%`}>
-  <svg class="shine-field">
-    <defs>
-      <pattern id={patternId} width={tile} height={tileHeight} patternUnits="userSpaceOnUse">
-        {squares.map((sq) => (
-          <rect
-            x={sq.x} y={sq.y} width={sq.s} height={sq.s} rx={sq.r} ry={sq.r}
-            fill={sq.fill} opacity={sq.o}
-            class:list={[{ "shine-sparkle": sq.sparkle }]}
-            style={sq.sparkle ? `--base-o:${sq.o};--delay:${sq.delay}s;--dur:${sq.dur}s` : undefined}
-          />
-        ))}
-      </pattern>
-    </defs>
-    <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-  </svg>
-</div>
+<canvas class:list={["shine-wrap", className]} aria-hidden="true" data-config={config}></canvas>
 
 <script>
   import { setupShineField } from "../scripts/shineField";
@@ -152,78 +100,5 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    --band: -20%;
-    --band-y: -20%;
-    --fade-width: 8%;
-    /* All three sweeps/fades used to be three nested masked elements
-       (a static height-fade on .shine-wrap, wrapping an animated
-       vertical-sweep mask on .shine-band-y, wrapping an animated
-       horizontal-sweep mask on .shine-field) — confirmed as the source
-       of a real iPad crash: sitting on Day One (in view, not scrolling,
-       so the IntersectionObserver pause never kicks in) was enough to
-       bring it down on both Safari and Chrome, which share the same
-       WebKit engine on iOS. A mask-of-a-mask forces the browser to
-       fully composite the inner masked layer to its own offscreen
-       surface, then mask *that* again — two backing stores kept in
-       sync every frame for two of these three masks were animating
-       continuously the whole time the section was in view, which is
-       exactly the sustained load a memory-constrained mobile GPU
-       struggles to keep reclaiming cleanly.
-       One element, one mask-image with three comma-separated gradient
-       layers and mask-composite: intersect (a pixel only shows if
-       every layer says it should — same "all bands must agree"
-       multiplying behaviour the nested elements gave for free) gets
-       the identical visual with a single masked surface instead of
-       three nested ones. Unprefixed only: multi-layer mask-composite
-       needs the modern spec (Safari 15.4+/2022, universal by now on
-       anything this site needs to run on); mixing in the legacy
-       -webkit-mask-composite keyword syntax for a 3-layer intersect
-       isn't worth the complexity for browsers this old. */
-    mask-image:
-      linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end)),
-      linear-gradient(
-        to right,
-        #000 0%,
-        #000 calc(var(--band) - 6%),
-        rgba(0, 0, 0, 0.35) calc(var(--band) - 3%),
-        rgba(0, 0, 0, 0.35) calc(var(--band) + 3%),
-        #000 calc(var(--band) + 6%),
-        #000 100%
-      ),
-      linear-gradient(
-        to bottom,
-        #000 0%,
-        #000 calc(var(--band-y) - 3%),
-        rgba(0, 0, 0, 0.35) calc(var(--band-y) - 1.5%),
-        rgba(0, 0, 0, 0.35) calc(var(--band-y) + 1.5%),
-        #000 calc(var(--band-y) + 3%),
-        #000 100%
-      );
-    mask-composite: intersect, intersect, intersect;
   }
-  .shine-field {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-  /* transform-box:fill-box so the scale keyframe scales each square
-     around its own centre, not the SVG's (0,0) origin. */
-  .shine-sparkle {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: shine-sparkle var(--dur) ease-in-out var(--delay) infinite;
-  }
-  @keyframes shine-sparkle {
-    0%, 100% { opacity: var(--base-o); transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.6); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .shine-sparkle { animation: none; }
-  }
-  /* toggled by shineField.ts's IntersectionObserver — cheaper than
-     pausing every sparkling square's own Animation object individually,
-     and CSS animations resume from wherever they paused, same as the
-     GSAP band tweens do. */
-  .shine-wrap.is-offscreen .shine-sparkle { animation-play-state: paused; }
 </style>

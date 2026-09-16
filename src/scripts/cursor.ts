@@ -1,5 +1,21 @@
 import { gsap } from "gsap";
 
+/** True if (x, y) falls within el's current on-screen circle — its
+ *  rendered box (post-transform, via getBoundingClientRect) treated as
+ *  a circle centred in that box. Used instead of a scroll-progress
+ *  threshold so the swap tracks the actual growing/shrinking shape,
+ *  not just "roughly when it's big." */
+function withinCircle(el: Element, x: number, y: number): boolean {
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return false;
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  const radius = Math.min(r.width, r.height) / 2;
+  const dx = x - cx;
+  const dy = y - cy;
+  return dx * dx + dy * dy <= radius * radius;
+}
+
 /**
  * PinkCursor — the fine-pointer replacement for the system cursor.
  *
@@ -19,19 +35,35 @@ export function mountPinkCursor() {
   const setX = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power3" });
   const setY = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power3" });
 
-  /* the hero's own pink bloom is the other case a pink dot disappears
-     into its ground — same "clfa:hero-ground" signal the nav's logo
-     dot and the sticky CTA both key off. */
-  let onPinkGround = false;
-  document.addEventListener("clfa:hero-ground", (e) => {
-    onPinkGround = (e as CustomEvent<{ pink: boolean }>).detail.pink;
-  });
+  /* Hero only: the cursor stays pink by default and only inverts to
+     white while it's actually over the pink flood circle (or the
+     small prelude dot) — a geometric hit-test against those elements'
+     live (scaled) circles, not the coarser "whole screen has gone
+     pink" scroll-progress flag other fixed UI (the nav logo dot, the
+     kickoff CTA) uses, since those don't move around the way a cursor
+     does. The rising cream circle wins over the flood where the two
+     overlap, since that's what's actually visible there. */
+  const heroFlood = document.querySelector<HTMLElement>("#hero .hcb__flood");
+  const heroDot = document.querySelector<HTMLElement>("#hero .hcb__dot");
+  const heroRise = document.querySelector<HTMLElement>("#hero .hcb__rise");
 
   const onMove = (e: MouseEvent) => {
     setX(e.clientX);
     setY(e.clientY);
     const under = document.elementFromPoint(e.clientX, e.clientY);
-    const onInvert = onPinkGround || !!under?.closest('[data-cursor="invert"]');
+
+    let onInvert: boolean;
+    if (under?.closest("#hero")) {
+      const overRise = !!heroRise && withinCircle(heroRise, e.clientX, e.clientY);
+      const overFlood = !!heroFlood && withinCircle(heroFlood, e.clientX, e.clientY);
+      const overDot =
+        !!heroDot &&
+        parseFloat(getComputedStyle(heroDot).opacity) > 0.01 &&
+        withinCircle(heroDot, e.clientX, e.clientY);
+      onInvert = (overFlood || overDot) && !overRise;
+    } else {
+      onInvert = !!under?.closest('[data-cursor="invert"]');
+    }
     dot.style.background = onInvert ? "#FFFCF5" : "#F06496";
   };
 

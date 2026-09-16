@@ -239,11 +239,12 @@ const ROSE = "#F06496";
   }
   .hcb__cue i {
     width: 1px; height: 32px; background: var(--ROSE); display: block;
-    animation: hcbCue 1.9s cubic-bezier(.22, .61, .36, 1) infinite; transform-origin: top;
-  }
-  @keyframes hcbCue {
-    0% { transform: scaleY(0); } 45% { transform: scaleY(1); }
-    100% { transform: scaleY(0); transform-origin: bottom; }
+    transform-origin: top;
+    /* the grow/shrink pulse itself is a GSAP timeline (see hero.ts) —
+       matches the pause-when-scrolled-away treatment the rest of the
+       page's infinite animations already get (ShineField, marquee,
+       shimmer, Day One's halo), which a CSS `animation: ... infinite`
+       here didn't have. */
   }
 
   @media (max-width: 799px) {

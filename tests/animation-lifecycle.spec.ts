@@ -129,6 +129,20 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
       page.evaluate(() => getComputedStyle(document.querySelector(".rail__ball")!).getPropertyValue("--halo-o"));
     expect(await isStatic(page, readHalo)).toBe(true);
   });
+
+  test("Hero's SCROLL cue pulse freezes once scrolled far away, resumes back at top", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+
+    const readTransform = () =>
+      page.evaluate(() => getComputedStyle(document.querySelector(".hcb__cue i")!).transform);
+
+    await scrollToFooter(page);
+    expect(await isStatic(page, readTransform)).toBe(true);
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    expect(await isStatic(page, readTransform)).toBe(false);
+  });
 });
 
 test.describe("off-screen animations pause (native CSS — getAnimations is valid)", () => {
@@ -176,5 +190,69 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
     await page.waitForTimeout(500);
     const { running } = await countRunning(page, ".shimmer i");
     expect(running).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * GridField's cursor-follow highlight (the lit grid cell behind Window
+ * A / KeepUp) used to fade in/out via a hand-rolled requestAnimationFrame
+ * loop with manual lerp easing; now it's a GSAP tween of a plain state
+ * object driving canvas redraws. Desktop-only: the underlying script
+ * already ignores non-"mouse" pointerType (touch fires pointermove too,
+ * which isn't what this decoration is for), and Playwright's mobile
+ * projects don't reliably produce a real "mouse" pointerType for
+ * page.mouse.move() to begin with (see CLAUDE.md).
+ */
+test.describe("GridField cursor-follow fade is GSAP-driven", () => {
+  test.skip(({ isMobile }) => isMobile, "mouse-only decoration, not reliably emulated on mobile projects");
+
+  test("lit cell fades in on hover and fades back out when the pointer leaves", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    const canvas = page.locator(".grid-field").first();
+    await canvas.scrollIntoViewIfNeeded();
+
+    const box = await canvas.boundingBox();
+    expect(box).not.toBeNull();
+    const { x, y, width, height } = box!;
+    const cx = x + width / 2;
+    const cy = y + height / 2;
+
+    // Max alpha over a small region around the hover point, not one exact
+    // pixel: the lit cell is a real 32px grid cell, and which cell that
+    // is depends on where the cursor falls relative to the grid's own
+    // origin — a single sampled pixel can land a fraction of a pixel
+    // outside its bounds depending on sub-pixel scroll/viewport
+    // rounding, and miss it entirely (confirmed flaky this way).
+    const readMaxAlpha = () =>
+      page.evaluate(() => {
+        const el = document.querySelectorAll<HTMLCanvasElement>(".grid-field")[0];
+        const r = el.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cx2 = Math.round((r.width / 2) * dpr);
+        const cy2 = Math.round((r.height / 2) * dpr);
+        const span = 40;
+        const data = el.getContext("2d")!.getImageData(cx2 - span, cy2 - span, span * 2, span * 2).data;
+        let max = 0;
+        for (let i = 3; i < data.length; i += 4) if (data[i] > max) max = data[i];
+        return max;
+      });
+
+    // baseline: grid lines alone contribute some alpha in this region
+    // even with nothing lit, so "faded back out" means "back down near
+    // this," not "down to exactly zero."
+    const baseline = await readMaxAlpha();
+
+    await page.mouse.move(cx, cy);
+    await page.waitForTimeout(450); // let the GSAP fade-in settle
+    const settled = await readMaxAlpha();
+    expect(settled).toBeGreaterThan(baseline);
+
+    // top-left corner of the viewport — guaranteed outside a mid-page
+    // section's canvas, unlike an arbitrary offset from its own centre
+    // which can still land inside a large canvas
+    await page.mouse.move(2, 2);
+    await page.waitForTimeout(450);
+    const faded = await readMaxAlpha();
+    expect(faded).toBeLessThan(settled);
   });
 });

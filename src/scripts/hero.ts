@@ -46,6 +46,31 @@ export function setupHero() {
   const { gsap, ScrollTrigger } = useGsap();
   const beats = Array.from(section.querySelectorAll<HTMLElement>(".hcb__beat"));
 
+  /* The "SCROLL" cue's tick mark: grows down from the top, then shrinks
+     away from the bottom — a plain infinite CSS @keyframes animation
+     before, converted to GSAP so it can pause/resume the same way every
+     other infinite animation on the page does (see onLeave/onEnterBack
+     below), which the CSS version never had. Two scaleY tweens (matching
+     the original keyframe's 0%-45%-100% stops) plus a third, parallel
+     tween sliding transformOrigin from top to bottom across the full
+     duration — the original's timing function (a fast-rise, long-tail
+     curve) only ever had transformOrigin set at 0%/100%, so CSS eased
+     it across the *whole* duration while scaleY eased across each of
+     its two sub-segments independently. "power3.out" is a built-in
+     stand-in for that same fast-rise/long-tail shape — close enough for
+     a 1px decorative tick that pulling in the CustomEase plugin (and
+     its own several KB) just for exact bezier fidelity here isn't
+     worth the extra payload. */
+  const cueLine = section.querySelector<HTMLElement>(".hcb__cue i");
+  let cueTl: gsap.core.Timeline | null = null;
+  if (cueLine) {
+    const DUR = 1.9;
+    cueTl = gsap.timeline({ repeat: -1 })
+      .fromTo(cueLine, { scaleY: 0 }, { scaleY: 1, duration: DUR * 0.45, ease: "power3.out" }, 0)
+      .to(cueLine, { scaleY: 0, duration: DUR * 0.55, ease: "power3.out" }, DUR * 0.45)
+      .fromTo(cueLine, { transformOrigin: "50% 0%" }, { transformOrigin: "50% 100%", duration: DUR, ease: "power3.out" }, 0);
+  }
+
   gsap.set(stage, {
     "--dot-k": 0, "--dot-op": 1, "--mark-op": 1, "--ring": 0,
     "--wipe-l": 0, "--wipe-r": 1, "--flood": 0, "--head": 0, "--rise": 0, "--copy": 0,
@@ -132,8 +157,8 @@ export function setupHero() {
     end: "bottom bottom",
     scrub: true,
     animation: tl,
-    onLeave: () => setLayers(false),
-    onEnterBack: () => setLayers(true),
+    onLeave: () => { setLayers(false); cueTl?.pause(); },
+    onEnterBack: () => { setLayers(true); cueTl?.play(); },
     onUpdate: (self) => {
       const p = self.progress;
       navLogo?.classList.toggle("is-gone", p < PRE);

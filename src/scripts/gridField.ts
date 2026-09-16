@@ -1,9 +1,16 @@
+import { gsap } from "gsap";
+
 /**
  * GridField — the graph ground used behind "Window A". Draws the grid
  * itself and lights one domino under the cursor (the cell you're over
  * plus one diagonal neighbour), which moves cell-to-cell rather than
- * leaving a trail. A per-pixel canvas job, so it stays a plain rAF loop
- * rather than a GSAP tween.
+ * leaving a trail. It's a per-pixel canvas job (there's no DOM/CSS
+ * property to hand a mask/opacity to), so the actual redraw always has
+ * to happen in a plain callback — but the fade itself (the lit domino's
+ * alpha easing toward 0 or 1) is now a GSAP tween of a plain object
+ * (`gsap.to(state, { alpha, onUpdate: draw })`), not a hand-rolled
+ * requestAnimationFrame + manual lerp loop. GSAP's own ticker drives
+ * the onUpdate calls, so this no longer runs its own frame loop at all.
  *
  * Ported from the React GridField component.
  */
@@ -42,8 +49,8 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
   type Pair = { x: number; y: number; dx: number; dy: number };
   let w = 0, h = 0, off = 0;
   let cur: Pair | null = null;
-  let alpha = 0, target = 0;
-  let raf = 0, last = 0;
+  let target = 0;
+  const fade = { alpha: 0 };
 
   const diagFor = (x: number, y: number) => {
     const k = Math.abs(x * 7 + y * 13 + x * y * 3) % 4;
@@ -81,23 +88,22 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
 
     ctx.fillStyle = litColor;
     if (cur) {
-      ctx.globalAlpha = Math.max(0, Math.min(1, alpha)) * litAlpha;
+      ctx.globalAlpha = Math.max(0, Math.min(1, fade.alpha)) * litAlpha;
       ctx.fillRect(cur.x * cfg.cell, cur.y * cfg.cell + off, cfg.cell, cfg.cell);
       ctx.fillRect((cur.x + cur.dx) * cfg.cell, (cur.y + cur.dy) * cfg.cell + off, cfg.cell, cfg.cell);
     }
     ctx.globalAlpha = 1;
   };
 
-  const loop = (now: number) => {
-    raf = 0;
-    const dt = last ? now - last : 16;
-    last = now;
-    alpha += (target - alpha) * Math.min(1, dt / cfg.fade);
-    draw();
-    if (Math.abs(target - alpha) > 0.01) raf = requestAnimationFrame(loop);
-    else last = 0;
+  /* Retargets (and redraws) only when the on/off target actually flips
+     — moving within the same lit cell shouldn't restart the fade tween
+     on every mousemove, just redraw at the current alpha with the new
+     cell position (handled below, outside this function). */
+  const fadeTo = (next: number) => {
+    if (next === target) return;
+    target = next;
+    gsap.to(fade, { alpha: target, duration: cfg.fade / 1000, ease: "power2.out", overwrite: true, onUpdate: draw });
   };
-  const go = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
 
   const onMove = (e: PointerEvent) => {
     // touch delivers pointermove too (e.g. while swipe-scrolling past
@@ -106,15 +112,15 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
     if (reduce || e.pointerType !== "mouse") return;
     const r = canvas.getBoundingClientRect();
     const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-    if (!inside) { target = 0; go(); return; }
+    if (!inside) { fadeTo(0); return; }
     const cx = Math.floor((e.clientX - r.left) / cfg.cell);
     const cy = Math.floor((e.clientY - r.top - off) / cfg.cell);
-    target = 1;
     if (!cur || cur.x !== cx || cur.y !== cy) {
       const d = diagFor(cx, cy);
       cur = { x: cx, y: cy, dx: d[0], dy: d[1] };
+      draw(); // new cell, current alpha — redraw even if the fade itself doesn't need to restart
     }
-    go();
+    fadeTo(1);
   };
 
   /* Native `scroll` events can fire far more often than the display can
@@ -146,7 +152,7 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
   ro.observe(canvas);
 
   return () => {
-    cancelAnimationFrame(raf);
+    gsap.killTweensOf(fade);
     cancelAnimationFrame(scrollRaf);
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("scroll", onScroll);

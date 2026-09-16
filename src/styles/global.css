@@ -276,6 +276,10 @@ body.menu-open .mega { pointer-events: auto; }
    but the Figma-specified 900 silently clamped to nothing. 600 is the
    heaviest that actually renders as intended. */
 .pinday .sec__head .hot { font-weight: 600; }
+/* more breathing room before the rail than the shared .sec__head
+   margin gives (that value is shared with Who's own heading, which
+   doesn't need as much before its own next element). */
+.pinday .sec__head { margin-bottom: clamp(50px, 6vw, 100px); }
 @media (prefers-reduced-motion: reduce) {
   .pinday { height: auto; }
   .pinday__stage { position: static; min-height: 0; }
@@ -435,18 +439,23 @@ body.menu-open .mega { pointer-events: auto; }
 .hs__intro-head { font-size: clamp(28px, 4.2vw, 76px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
 .hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; line-height: .85; display: block; }
 
-.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 18px; }
+.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 clamp(18px, 1.15vw, 22px); }
 /* the "150+" figure was measured with noticeably less negative tracking
    than the other two stats — not an oversight, Figma has it that way */
 .mfig--wide { letter-spacing: -1px; }
 .mfig .unit { font-size: .4em; font-weight: 800; }
 .mcap {
-  margin: 0 0 clamp(14px, 1.4vw, 20px); color: var(--flare); font-weight: 600; letter-spacing: 0;
+  margin: 0 0 clamp(20px, 2.4vw, 46px); color: var(--flare); font-weight: 600; letter-spacing: 0;
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
   line-height: 1.2; max-width: 20ch;
 }
 .hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
-.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 22px; }
+/* rule-to-figure, figure-to-caption, and caption-to-description gaps
+   below are measured off the Figma reference (node 2964:18868) at its
+   1920px design width — 40px / see .mfig above / 46px respectively —
+   and expressed as clamp()s anchored to that width rather than fixed
+   px, consistent with the rest of this section's responsive spacing. */
+.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 clamp(22px, 2.1vw, 40px); }
 .hs__panel--stat { align-items: center; text-align: center; }
 .hs__panel--stat .hs__rule { align-self: flex-start; }
 .hs__panel--stat .mcap, .hs__panel--stat h4 { margin-left: auto; margin-right: auto; }
@@ -499,6 +508,9 @@ body.menu-open .mega { pointer-events: auto; }
 /* ============================================================
    WHO TAGS US IN
    ============================================================ */
+/* matches the dust-field sections' own #FEFCF4 cream rather than
+   .sec--slate's shared var(--surf-3)/--cream (#FFFAF5) */
+#who { background: #FEFCF4; }
 .who__top {
   display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center;
   gap: clamp(16px, 2vw, 28px); margin-bottom: clamp(40px, 5.5vw, 84px);

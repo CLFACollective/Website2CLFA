@@ -1,13 +1,12 @@
 import { useGsap } from "./gsapSetup";
 
 /**
- * On mobile the fixed nav wordmark stays out of the way for most of the
- * scroll (there's no room for it next to the burger, and it would sit
- * on top of every section's own content) — it only surfaces at the very
- * top of the page and again once the footer comes into view. Desktop's
- * timing (hero.ts's `.is-gone` toggle) is unrelated and left alone; this
- * only ever acts below the 599px breakpoint, via its own `mobile-visible`
- * class so the two mechanisms can't fight over `.nav__logo`'s opacity.
+ * On mobile the fixed nav wordmark stays visible everywhere except the
+ * footer (which carries its own big wordmark already, so the fixed one
+ * would be redundant clutter there). Desktop's timing (hero.ts's
+ * `.is-gone` toggle) is unrelated and left alone; this only ever acts
+ * below the 599px breakpoint, via its own `mobile-visible` class so the
+ * two mechanisms can't fight over `.nav__logo`'s opacity.
  */
 export function setupNavLogoMobile() {
   const logo = document.querySelector<HTMLElement>(".nav__logo");
@@ -17,15 +16,9 @@ export function setupNavLogoMobile() {
   const { ScrollTrigger } = useGsap();
   const mq = window.matchMedia("(max-width: 599px)");
 
-  let atTop = window.scrollY < 4;
   let atFooter = false;
-  const apply = () => logo.classList.toggle("mobile-visible", mq.matches && (atTop || atFooter));
+  const apply = () => logo.classList.toggle("mobile-visible", mq.matches && !atFooter);
 
-  const onScroll = () => {
-    atTop = window.scrollY < 4;
-    apply();
-  };
-  window.addEventListener("scroll", onScroll, { passive: true });
   mq.addEventListener("change", apply);
 
   ScrollTrigger.create({

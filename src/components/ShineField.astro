@@ -48,8 +48,14 @@ interface Props {
       `--band-end` on the class passed in via `class`, if a section
       needs a different cutoff on mobile. */
   bandEnd?: number;
+  /** % of container height the fade-out itself spans, ending exactly
+      at bandEnd — 8 (the default) reads as a fairly quick fade right
+      near the cutoff; a larger value spreads it out into a long,
+      gradual dim that's already faint well above bandEnd. Same
+      per-breakpoint override pattern as bandEnd, via `--fade-width`. */
+  fadeWidth?: number;
 }
-const { class: className, tile = 500, tileHeight = 260, cell = 13, bandEnd = 30 } = Astro.props;
+const { class: className, tile = 500, tileHeight = 260, cell = 13, bandEnd = 30, fadeWidth = 8 } = Astro.props;
 const patternId = `shine-${crypto.randomUUID().slice(0, 8)}`;
 
 const PINK = "#F06496";
@@ -115,7 +121,7 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
 });
 ---
 
-<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-end:${bandEnd}%`}>
+<div class:list={["shine-wrap", className]} aria-hidden="true" style={`--band-end:${bandEnd}%;--fade-width:${fadeWidth}%`}>
   <div class="shine-band-y">
     <svg class="shine-field">
       <defs>
@@ -149,12 +155,14 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
     pointer-events: none;
     z-index: 0;
     /* solid from the very top (0%) down past the section's own heading,
-       fading out (not a hard cut) by --band-end — set per usage so it
-       clears whatever comes next (a rail, a card row) instead of
-       running into it */
-    mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - 8%), transparent var(--band-end));
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - 8%), transparent var(--band-end));
+       fading out (not a hard cut) over --fade-width, ending fully
+       transparent at --band-end — both set per usage so it clears
+       whatever comes next (a rail, a card row) instead of running
+       into it */
+    mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end));
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 calc(var(--band-end) - var(--fade-width)), transparent var(--band-end));
     --band: -20%;
+    --fade-width: 8%;
   }
   /* Second band, travels top-to-bottom instead of left-to-right, half
      the first band's thickness, full width (a horizontal gradient band
@@ -238,4 +246,9 @@ const squares = Array.from({ length: cols * rows }, (_, i) => {
   @media (prefers-reduced-motion: reduce) {
     .shine-sparkle { animation: none; }
   }
+  /* toggled by shineField.ts's IntersectionObserver — cheaper than
+     pausing every sparkling square's own Animation object individually,
+     and CSS animations resume from wherever they paused, same as the
+     GSAP band tweens do. */
+  .shine-wrap.is-offscreen .shine-sparkle { animation-play-state: paused; }
 </style>

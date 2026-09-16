@@ -72,6 +72,9 @@ import ShineField from "./ShineField.astro";
 
 <style>
   @media (max-width: 799px) {
-    :global(.shine-momentum) { --band-end: 19%; }
+    /* !important: ShineField sets --band-end via an inline style
+       (from its Astro props), which otherwise always beats a plain
+       class rule here regardless of media query or source order. */
+    :global(.shine-momentum) { --band-end: 19% !important; }
   }
 </style>

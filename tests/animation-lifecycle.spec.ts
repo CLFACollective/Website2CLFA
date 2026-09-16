@@ -88,9 +88,22 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
     }, selector);
   }
 
+  // Both shimmer/sparkle hosts (DayOne, Momentum) sit close together
+  // mid-page, with comparatively little content below Momentum before
+  // the footer — on a tall viewport (e.g. iPad Pro's 1194px), scrolling
+  // to the absolute bottom of the page can still leave Momentum within
+  // the 200px IntersectionObserver rootMargin, so "at the footer" isn't
+  // reliably "far from both" there. Hero's own height (620vh) makes the
+  // very top of the page unambiguously far from both instances on any
+  // viewport, so use that instead.
+  async function scrollFarFromShimmerHosts(page: Page) {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+  }
+
   test("shimmer dust dots are paused when far from both instances", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
-    await scrollToFooter(page);
+    await scrollFarFromShimmerHosts(page);
     const { total, running } = await countRunning(page, ".shimmer i");
     expect(total).toBeGreaterThan(0);
     expect(running).toBe(0);
@@ -98,7 +111,7 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
 
   test("ShineField sparkle squares are paused when far from both instances", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
-    await scrollToFooter(page);
+    await scrollFarFromShimmerHosts(page);
     const { total, running } = await countRunning(page, ".shine-sparkle");
     expect(total).toBeGreaterThan(0);
     expect(running).toBe(0);

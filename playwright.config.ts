@@ -39,6 +39,13 @@ export default defineConfig({
       name: "mobile-webkit",
       use: { ...devices["iPhone 15"], browserName: "webkit" },
     },
+    {
+      // iPad — the device the crash reports this codebase has chased
+      // actually came from. No project covered tablet dimensions at
+      // all before this; WebKit for the same reason as mobile-webkit.
+      name: "ipad",
+      use: { ...devices["iPad Pro 11"], browserName: "webkit" },
+    },
   ],
   webServer: process.env.PW_BASE_URL
     ? undefined

@@ -8,7 +8,13 @@ import { test, expect } from "@playwright/test";
  * `.is-gone`, tied to hero scroll progress) and isn't covered here.
  */
 test.describe("mobile nav logo", () => {
-  test.skip(({ isMobile }) => !isMobile, "mobile-only behavior");
+  // scoped to the actual <599px breakpoint the behavior is gated on —
+  // `isMobile` alone isn't narrow enough now that the ipad project
+  // (834px, still `isMobile: true` in its device preset) exists.
+  test.skip(
+    ({ isMobile, viewport }) => !isMobile || (viewport?.width ?? 0) >= 599,
+    "mobile-only behavior, <599px",
+  );
 
   test("visible at top, visible mid-page, hidden only at the footer", async ({ page }) => {
     await page.goto("/");

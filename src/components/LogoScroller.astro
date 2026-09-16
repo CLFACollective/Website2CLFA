@@ -52,6 +52,8 @@ const { speed = 40, reverse = false } = Astro.props;
     display: inline-block; margin: 0 clamp(20px, 2.6vw, 44px);
     flex: 0 0 auto;
   }
-  .lsc:hover .lsc__name { opacity: .4; }
-  .lsc__item:hover .lsc__name { opacity: 1; }
+  @media (hover: hover) {
+    .lsc:hover .lsc__name { opacity: .4; }
+    .lsc__item:hover .lsc__name { opacity: 1; }
+  }
 </style>

@@ -100,7 +100,10 @@ export function mountGridField(canvas: HTMLCanvasElement, options: GridFieldOpti
   const go = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
 
   const onMove = (e: PointerEvent) => {
-    if (reduce) return;
+    // touch delivers pointermove too (e.g. while swipe-scrolling past
+    // this canvas), which would flicker the lit cell under a finger —
+    // this effect is a cursor-follow decoration, mouse only.
+    if (reduce || e.pointerType !== "mouse") return;
     const r = canvas.getBoundingClientRect();
     const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
     if (!inside) { target = 0; go(); return; }

@@ -136,7 +136,9 @@ const CARDS: Card[] = [
     transition: box-shadow .45s var(--ease);
   }
   .bmc__card[data-active="true"] { box-shadow: 0 24px 56px rgba(37, 37, 37, .38); }
-  .bmc__card:hover { box-shadow: 0 24px 56px rgba(37, 37, 37, .38); }
+  @media (hover: hover) {
+    .bmc__card:hover { box-shadow: 0 24px 56px rgba(37, 37, 37, .38); }
+  }
 
   .bmc__copy {
     margin: 0; font-weight: 300; letter-spacing: -.02em; line-height: 1.14;
@@ -153,16 +155,21 @@ const CARDS: Card[] = [
     color: var(--idle);
     transition: color .45s var(--ease);
   }
-  .bmc__card:hover .bmc__icon,
   .bmc__card[data-active="true"] .bmc__icon { color: var(--hover); }
   /* full solid colour on hover, not just a stroke-colour swap — each
      path's fill/stroke-opacity otherwise stays wherever cardsFan.ts's
      draw-in animation left it (an inline style GSAP sets per path and
      never clears), which needs !important to override here. */
-  .bmc__card:hover .bmc__icon :global(path),
   .bmc__card[data-active="true"] .bmc__icon :global(path) {
     fill-opacity: 1 !important;
     stroke-opacity: 1 !important;
+  }
+  @media (hover: hover) {
+    .bmc__card:hover .bmc__icon { color: var(--hover); }
+    .bmc__card:hover .bmc__icon :global(path) {
+      fill-opacity: 1 !important;
+      stroke-opacity: 1 !important;
+    }
   }
 
   .bmc__payoff {
@@ -178,7 +185,9 @@ const CARDS: Card[] = [
     padding: clamp(12px, 1.05vw, 17px) clamp(26px, 2.6vw, 44px);
     transition: background .3s var(--ease), color .3s var(--ease);
   }
-  .bmc__cta:hover { background: #252525; color: #FEFCF4; }
+  @media (hover: hover) {
+    .bmc__cta:hover { background: #252525; color: #FEFCF4; }
+  }
 
   @media (max-width: 1000px) {
     .bmc__pin { height: auto; }

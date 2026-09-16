@@ -417,9 +417,19 @@ body.menu-open .mega { pointer-events: auto; }
   padding: 60px clamp(24px, 4vw, 80px);
   width: clamp(300px, 46vw, 620px); position: relative;
 }
+/* top/bottom come from --divider-top/--divider-bottom, set by
+   momentum.ts's setupMomentumDividers() to the panel's own actual
+   content bounds (first child's top to last child's bottom) — that
+   content height is fluid (clamp()-based type, variable wrapping), so
+   a fixed inset can't track it at every width the way a measured one
+   does. Falls back to a 60px inset before that JS runs. Colour
+   measured directly off the Figma reference's rendered pixels
+   (~50% opacity charcoal), noticeably darker than the shared
+   --hairline token used for the thin lines elsewhere on the page. */
 .hs__panel + .hs__panel::before {
-  content: ""; position: absolute; left: 0; top: 60px; bottom: 60px; width: 1px;
-  background: var(--hairline);
+  content: ""; position: absolute; left: 0; width: 1px;
+  top: var(--divider-top, 60px); bottom: var(--divider-bottom, 60px);
+  background: rgba(35, 35, 35, .5);
 }
 
 .hs__spine {
@@ -491,7 +501,6 @@ body.menu-open .mega { pointer-events: auto; }
 @media (max-width: 799px) {
   .hs__head { padding: clamp(60px, 8vh, 84px) var(--gut) 24px; max-width: none; }
   .hs__panel { width: min(272px, 78vw); }
-  .hs__panel + .hs__panel::before { top: 30%; bottom: 30%; }
   .hs__spine { display: none; }
 
   .hs__intro-head { font-size: 36px; line-height: 1.06; }

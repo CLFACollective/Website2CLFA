@@ -473,20 +473,36 @@ body.menu-open .mega { pointer-events: auto; }
 .hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
 .mquote__wrap { position: relative; width: max-content; max-width: 100%; }
 /* sits outside the text block's own top-right corner (negative
-   offsets), clear of every line, rather than overlapping the quote */
+   offsets), clear of every line, rather than overlapping the quote —
+   only actually true when every line's own box is sized to its own
+   text (see .mquote span's width below); the wrap itself is sized to
+   the *widest* line, so positioning the badge off the wrap alone let
+   it drift over a shorter first line at wider viewports where the
+   badge (still scaling) had outgrown the text (capped at its clamp
+   ceiling) — confirmed happening from ~1600px up, checked pixel gap
+   at 8 widths from 800-2560px, not just eyeballed at one size. */
 .mquote__badge {
-  position: absolute; top: -18px; right: -18px;
-  width: clamp(64px, 5.5vw, 100px); height: auto; display: block; pointer-events: none;
+  position: absolute; top: -14px; right: -34px;
+  width: clamp(44px, 3.6vw, 68px); height: auto; display: block; pointer-events: none;
 }
 .mquote__badge svg { display: block; width: 100%; height: auto; }
 /* Two of the three quote lines are plain sans (SemiBold, upright) —
    only the middle line is Lora italic/copper. The base rule covers
-   the sans majority; .mquote__l2 overrides to the italic treatment. */
+   the sans majority; .mquote__l2 overrides to the italic treatment.
+   Sized down from the original clamp(38px,6.2vw,96px): at the stat
+   panels' own live content height, that read as noticeably taller
+   than the numbers beside it (the shared divider line's height comes
+   from each panel's own content, so a mismatch there was visible as
+   an inconsistent divider length between panels, not just an odd
+   quote) — this clamp is that one scaled by the ratio needed to match. */
 .mquote {
   margin: 0; font-weight: 600; font-family: var(--sans); font-style: normal;
-  font-size: clamp(38px, 6.2vw, 96px); line-height: 1.0; letter-spacing: -.03em;
+  font-size: clamp(29px, 4.7vw, 73px); line-height: 1.0; letter-spacing: -.03em;
 }
-.mquote span { display: block; }
+/* width:fit-content, not the stretched-to-wrap default a block span
+   gets — each line needs to end where its own text ends (used by the
+   badge positioning above), not all share the widest line's width. */
+.mquote span { display: block; width: fit-content; }
 .mquote__l1, .mquote__l3 { color: var(--charcoal); }
 .mquote__l2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 .mquote__by {
@@ -510,8 +526,8 @@ body.menu-open .mega { pointer-events: auto; }
 
   .mfig { font-size: 88px; }
   .mcap { font-size: 16px; }
-  .mquote { font-size: 36px; }
-  .mquote__badge { width: 40px; top: -10px; right: -10px; }
+  .mquote { font-size: 27px; }
+  .mquote__badge { width: 30px; top: -8px; right: -18px; }
 }
 
 /* ============================================================

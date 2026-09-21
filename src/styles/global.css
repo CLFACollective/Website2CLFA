@@ -417,13 +417,18 @@ body.menu-open .mega { pointer-events: auto; }
    (176.4/152 there, vs .bd's inherited 176.4/196 = .9) — sharing one
    ratio across both was cramming the lead line's leading down to
    whatever its now-larger-than-intended inherited size implied. */
-/* block, not relying on the <br class="mobile-br"> that follows it —
-   that break is conditional on mobile width (desktop used to fall
-   through to it "for free" as an incidental word-wrap side effect of
-   this text being wide enough, at its old shared font-size, to push
-   the next word onto its own line regardless). Now that this span has
-   its own smaller size, it no longer eats enough width to force that
-   wrap on its own, so the break needs to be unconditional. */
+/* block, not a <br> in the markup — a <br class="mobile-br"> used to
+   sit there, but that's only active under 800px, and desktop used to
+   fall through to a clean break "for free" anyway as an incidental
+   word-wrap side effect of this text being wide enough, at its old
+   shared font-size, to push the next word onto its own line
+   regardless. Now that this span has its own smaller size, it no
+   longer eats enough width to force that wrap on its own, so the
+   break needs to be unconditional — a stray <br class="mobile-br">
+   left in after this was added double-broke the two lines apart at
+   mobile widths (its own display:inline break stacking on top of the
+   block's), reading as a much bigger gap than the line-height alone
+   would ever produce. */
 .keepup__lead { display: block; font-size: clamp(36px, 8.22vw, 152px); line-height: 1.16; }
 .keepup__big .bd { letter-spacing: 0; color: var(--flare); }
 .keepup__body { margin: 0; max-width: 52ch; font-size: 48px; line-height: 55px; letter-spacing: -1.568px; font-weight: 300; opacity: 1; }
@@ -434,7 +439,7 @@ body.menu-open .mega { pointer-events: auto; }
      own line at this breakpoint's narrowest real width (393px,
      measured, not guessed) — white-space:nowrap is a hard guarantee on
      top of that; the <br> between the two phrases is unaffected by it. */
-  .keepup__big { font-size: 44px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; white-space: nowrap; }
+  .keepup__big { font-size: 44px; line-height: .8; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; white-space: nowrap; }
   /* the desktop-only size split (.keepup__lead vs .bd) doesn't apply at
      this width — both lines go back to sharing .keepup__big's own
      mobile-tuned size (see the nowrap comment above) */

@@ -164,12 +164,19 @@ const CARDS: Card[] = [
     fill-opacity: 1 !important;
     stroke-opacity: 1 !important;
   }
+  /* the pivot icon idles at half opacity (see CardIcon.astro) rather
+     than the idle animation every other icon gets — goes fully opaque
+     in focus, same "active" signal as the colour swap above, on both
+     desktop (hover or scroll-driven lead card) and mobile (slid into
+     its resting spot in the stack). */
+  .bmc__card[data-active="true"] .bmc__icon :global(.ci--pivot) { opacity: 1; }
   @media (hover: hover) {
     .bmc__card:hover .bmc__icon { color: var(--hover); }
     .bmc__card:hover .bmc__icon :global(path) {
       fill-opacity: 1 !important;
       stroke-opacity: 1 !important;
     }
+    .bmc__card:hover .bmc__icon :global(.ci--pivot) { opacity: 1; }
   }
 
   .bmc__payoff {

@@ -4,7 +4,26 @@ type Beat = {
   swap?: boolean;
   ring: boolean;
   motion: "iris" | "swipe";
-  /** Whether this beat's own text fade can bleed across its start/end
+  /** This beat's own total on-screen time, start to finish — each beat
+   *  can have a different one (beat 0's opening needs much more room
+   *  than beats 1/2: a grow-in, two explicit 2s pauses, and a slow
+   *  reveal, versus the other two beats' plain hold-then-crossfade). */
+  duration: number;
+  /** How long this beat's text takes to fade fully in / fully out. Not
+   *  a fraction of `duration` (unlike everything else here) — beat 0
+   *  needs its fade-IN to take exactly as long as its own slow ring-
+   *  reveal (so the text arrives in step with the shape revealing it),
+   *  which isn't expressible as "some fraction of this beat's total
+   *  time" without the two pause phases leaking into it. */
+  fadeIn: number;
+  fadeOut: number;
+  /** Absolute movie-time this beat's fade-IN ramp is anchored to, if not
+   *  its own start (BEAT_STARTS[i]). Only beat 0 needs this: its text
+   *  doesn't start revealing at the movie's very first frame — it waits
+   *  out the grow-in and first hold, then reveals in step with the ring
+   *  opening partway through its own slice. */
+  revealAt?: number;
+  /** Whether this beat's own text fade can bleed across its end
    *  boundary into the neighbouring stage — only safe where the clip
    *  geometry on both sides is actually the same shape at that instant
    *  (both "iris", both settled on the same circle radius). Where the
@@ -17,17 +36,8 @@ type Beat = {
    *  beat's own slice instead — no crossfade overlap with the
    *  neighbour, just a smooth ramp to/from transparent that never
    *  shows through the wrong shape. */
-  bleedInBefore?: boolean;
   bleedOutAfter?: boolean;
 };
-
-// Mirrors the copy already in Hero.astro's markup — only the timing/motion
-// metadata lives here.
-const BEATS: Beat[] = [
-  { ring: true, motion: "iris", bleedInBefore: true },
-  { ring: false, motion: "swipe" },
-  { swap: true, ring: false, motion: "iris", bleedOutAfter: true },
-];
 
 /**
  * Real seconds, not scroll-progress fractions. This used to be a
@@ -38,21 +48,63 @@ const BEATS: Beat[] = [
  * enough to read, and it owns the page (scroll is locked) until it's
  * done — see setupHero's onMovieComplete for what "done" hands back.
  */
-const PRE_DUR = 1.3; // dot contracts, ring opens
-const BEAT_DUR = 2.3; // each beat's own total on-screen time
-const OPEN_T = PRE_DUR + BEATS.length * BEAT_DUR; // movie time the bloom starts at
-const BLOOM_DUR = 1.2; // frame floods pink, headline fades up
-const BEAT_FADE_FRAC = 0.3; // fraction of a beat's own on-screen time spent fading in/out
+const BEAT_DUR = 2.3; // beats 1 and 2's own total on-screen time
+const BEAT_FADE = BEAT_DUR * 0.3; // their fade in/out window (beat 0 gets its own, below)
 
-/** Ramps 0->1 over `dur`, ending exactly at `at` (or starting exactly
- *  at `at` if `bleedBefore` is false — i.e. confined to *after* `at`
- *  instead of straddling it). */
-function rampIn(t: number, at: number, dur: number, bleedBefore: boolean): number {
-  const lo = bleedBefore ? at - dur : at;
-  const hi = bleedBefore ? at : at + dur;
-  if (t <= lo) return 0;
-  if (t >= hi) return 1;
-  return (t - lo) / (hi - lo);
+// Beat 0's opening gets its own explicit shape rather than the generic
+// grow-then-crossfade every other beat uses: the branded circle grows
+// in, *holds* for a full 2s so it actually registers, then slowly
+// opens into "Where healthcare meets tech" (the ring-open IS the
+// fade-in — see how GROW/REVEAL feed the tween construction below),
+// which then *also* holds for 2s once fully readable, before fading
+// out into beat 1 same as everything else.
+const GROW_DUR = 1.0; // branded circle grows from nothing to full size
+const HOLD1_DUR = 2.0; // pause — held at full size, mark showing
+const REVEAL_DUR = 1.5; // slow ring-open, revealing beat 0's text in step
+const HOLD2_DUR = 2.0; // pause — beat 0 fully visible and readable
+const BEAT0_DUR = GROW_DUR + HOLD1_DUR + REVEAL_DUR + HOLD2_DUR + BEAT_FADE;
+const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // movie time the ring-open (and text fade-in) begins
+
+// Beat 2's word cycles smarter -> faster -> better, each getting its
+// own on-screen slice rather than a plain three-way split of BEAT_DUR
+// — "faster" and "better" each hold .3s longer than "smarter" does, so
+// the cycle doesn't rush through the back half.
+const SWAP_SLOW = 0.3;
+const SWAP_A_DUR = BEAT_DUR / 3; // "smarter"
+const SWAP_B_DUR = BEAT_DUR / 3 + SWAP_SLOW; // "faster"
+const SWAP_C_DUR = BEAT_DUR / 3 + SWAP_SLOW; // "better"
+const SWAP_DUR = SWAP_A_DUR + SWAP_B_DUR + SWAP_C_DUR;
+
+// Mirrors the copy already in Hero.astro's markup — only the timing/motion
+// metadata lives here.
+const BEATS: Beat[] = [
+  { ring: true, motion: "iris", duration: BEAT0_DUR, fadeIn: REVEAL_DUR, fadeOut: BEAT_FADE, revealAt: B0_REVEAL_AT },
+  { ring: false, motion: "swipe", duration: BEAT_DUR, fadeIn: BEAT_FADE, fadeOut: BEAT_FADE },
+  { swap: true, ring: false, motion: "iris", duration: SWAP_DUR, fadeIn: BEAT_FADE, fadeOut: BEAT_FADE, bleedOutAfter: true },
+];
+
+// Cumulative start time for each beat, computed once from their own
+// durations above instead of assuming they're all the same length.
+const BEAT_STARTS = (() => {
+  let t = 0;
+  return BEATS.map((b) => { const s = t; t += b.duration; return s; });
+})();
+const OPEN_T = BEAT_STARTS[BEATS.length - 1] + BEATS[BEATS.length - 1].duration; // movie time the bloom starts at
+const BLOOM_DUR = 1.2; // frame floods pink, headline fades up
+
+function beatIndexAt(t: number): number {
+  for (let i = 0; i < BEATS.length; i++) {
+    if (t >= BEAT_STARTS[i] && t < BEAT_STARTS[i] + BEATS[i].duration) return i;
+  }
+  return -1;
+}
+
+/** Ramps 0->1 over `dur`, starting exactly at `at` — confined to
+ *  *after* `at`, never straddling it. */
+function rampIn(t: number, at: number, dur: number): number {
+  if (t <= at) return 0;
+  if (t >= at + dur) return 1;
+  return (t - at) / dur;
 }
 
 /** Ramps 1->0 over `dur`, starting exactly at `at` (or ending exactly
@@ -128,7 +180,13 @@ export function setupHero() {
      pink ground" treatment, the heavy layers' will-change, and the
      cue's pulse (no reason to keep animating it once it's fully
      scrolled out of view). */
+  // Guards against arming a second observer on the same section — the
+  // movie's onComplete (which calls this) fires again on every replay,
+  // not just the first time.
+  let groundArmed = false;
   const armGroundTrigger = () => {
+    if (groundArmed) return;
+    groundArmed = true;
     const io = new IntersectionObserver(
       ([entry]) => {
         dispatchGround(entry.isIntersecting);
@@ -172,7 +230,7 @@ export function setupHero() {
   }
 
   gsap.set(stage, {
-    "--dot-k": 0, "--dot-op": 1, "--mark-op": 1, "--ring": 0,
+    "--dot-k": 1, "--dot-op": 1, "--mark-op": 1, "--ring": 0,
     "--wipe-l": 0, "--wipe-r": 1, "--flood": 0, "--head": 0,
   });
   navLogo?.classList.add("is-gone");
@@ -185,37 +243,39 @@ export function setupHero() {
        being smooth GSAP tweens) is what makes the whole dot->beats->bloom
        stretch read as one flowing reveal instead of three separate
        pop-in/pop-out stages. Runs every tick regardless of which "stage"
-       t is in below, since beat 0's fade-in bleeds slightly *before*
-       PRE_DUR (text emerging as the ring finishes opening) and beat 2's
+       t is in below, since beat 0's fade-in is anchored to its own
+       revealAt rather than its (much earlier) movie start, and beat 2's
        fade-out bleeds *after* OPEN_T (dissolving straight into the
-       bloom) — see each Beat's bleedInBefore/bleedOutAfter above.
+       bloom) — see BEATS[0]'s revealAt and BEATS[2]'s bleedOutAfter.
        Visual opacity is independent from what's exposed to assistive
        tech, though: mid-fade, two beats can both be partially visible
        on screen, but only one of them should ever be the "current" one
        a screen reader announces. */
-    const idx = t < PRE_DUR || t >= OPEN_T ? -1 : Math.min(BEATS.length - 1, Math.floor((t - PRE_DUR) / BEAT_DUR));
-    const beatFade = BEAT_DUR * BEAT_FADE_FRAC;
+    const idx = beatIndexAt(t);
     beats.forEach((b, i) => {
-      const start = PRE_DUR + i * BEAT_DUR;
-      const end = start + BEAT_DUR;
+      const revealAt = BEATS[i].revealAt ?? BEAT_STARTS[i];
+      const end = BEAT_STARTS[i] + BEATS[i].duration;
       const opacity = Math.min(
-        rampIn(t, start, beatFade, !!BEATS[i].bleedInBefore),
-        rampOut(t, end, beatFade, !!BEATS[i].bleedOutAfter),
+        rampIn(t, revealAt, BEATS[i].fadeIn),
+        rampOut(t, end, BEATS[i].fadeOut, !!BEATS[i].bleedOutAfter),
       );
       b.style.opacity = opacity.toFixed(3);
       if (i !== idx) b.setAttribute("aria-hidden", "true");
       else b.removeAttribute("aria-hidden");
     });
 
-    if (t < PRE_DUR) { stage.dataset.motion = "iris"; return; }
-
     if (t < OPEN_T) {
       const beat = BEATS[idx];
       stage.dataset.ring = beat.ring ? "on" : "off";
       stage.dataset.motion = beat.motion;
       if (beat.swap) {
-        const bt = (t - PRE_DUR - idx * BEAT_DUR) / BEAT_DUR;
-        beats[idx].toggleAttribute("data-swap-b", bt >= 0.5);
+        // Cycles "smarter" (0) -> "faster" (1) -> "better" (2) — each
+        // word gets its own explicit slice (SWAP_A/B/C_DUR above)
+        // rather than a plain three-way split, since "faster" and
+        // "better" each hold .3s longer than "smarter" does.
+        const elapsed = t - BEAT_STARTS[idx];
+        const step = elapsed < SWAP_A_DUR ? 0 : elapsed < SWAP_A_DUR + SWAP_B_DUR ? 1 : 2;
+        beats[idx].setAttribute("data-swap-step", String(step));
       }
     } else {
       stage.dataset.motion = "bloom";
@@ -233,38 +293,44 @@ export function setupHero() {
 
   const tl = gsap.timeline({ defaults: { ease: "none" }, onUpdate: handleUpdate, onComplete: onMovieComplete });
 
-  /* PRELUDE — the dot contracts (and takes the mark with it), then the
-     outlined iris opens back out of that same point. Used to be two
-     sequential tweens meeting at a hard seam: the contraction
-     accelerating (power2.in) right into a dead stop, opacity snapping
-     off instantly at that exact instant, then the ring starting from a
-     standstill (power2.out) — two separate motions relay-racing rather
-     than one continuous gesture. Now: both use a symmetric ease (slow
-     in, slow out, no velocity spike at either end), the ring starts
-     opening slightly *before* the contraction fully finishes (a short
-     overlap instead of a handoff), and the dot's opacity fades over a
-     brief window instead of popping off in a single frame. */
-  const PRE_OVERLAP = PRE_DUR * 0.12;
-  const preSplit = PRE_DUR * 0.58;
-  tl.to(stage, { "--dot-k": 1, duration: preSplit, ease: "sine.inOut" }, 0)
-    .to(stage, { "--mark-op": 0, duration: preSplit * 0.85, ease: "sine.in" }, 0)
-    .to(stage, { "--dot-op": 0, duration: PRE_DUR - preSplit, ease: "sine.in" }, preSplit - PRE_OVERLAP * 0.6)
-    .to(stage, { "--ring": 1, duration: PRE_DUR - preSplit + PRE_OVERLAP, ease: "sine.inOut" }, preSplit - PRE_OVERLAP);
+  /* BEAT 0 — the branded dot grows from nothing to full size, holds long
+     enough to actually register, then the outlined iris slowly opens
+     (the ring-open motion IS beat 0's own text fade-in — see BEATS[0]'s
+     revealAt above — so the copy arrives exactly in step with the shape
+     revealing it), then holds again once fully readable before fading
+     into beat 1 same as every other beat boundary (handleUpdate's
+     rampOut, anchored at this beat's own end). No explicit ring-close
+     tween is needed at that handoff: beat 0's text is already back to 0
+     opacity by then, so nothing visible sits inside the iris regardless
+     of --ring's value, and .hcb__ring's own stroke hides instantly the
+     moment data-ring flips to "off" for beat 1. */
+  tl.fromTo(stage, { "--dot-k": 1 }, { "--dot-k": 0, duration: GROW_DUR, ease: "sine.inOut" }, 0)
+    .to(stage, { "--ring": 1, duration: REVEAL_DUR, ease: "sine.inOut" }, B0_REVEAL_AT)
+    /* Mark and dot both dissolve together, fast, right as the reveal
+       starts — confirmed live that leaving the dot's own fade stretched
+       across most of REVEAL_DUR (as a slower, later tween) left it
+       still mostly opaque through the ring's whole opening, visually
+       colliding with the text emerging behind/within it instead of
+       clearing the way for it. This way the dot is gone within the
+       first ~40% of the reveal, so the ring spends the rest of it
+       opening onto a clean cream backdrop as the text fades in. */
+    .to(stage, { "--mark-op": 0, "--dot-op": 0, duration: REVEAL_DUR * 0.4, ease: "sine.in" }, B0_REVEAL_AT);
 
-  /* BEATS — iris / swipe / iris(+word swap), each its own slot. Discrete
-     state (which beat, which clip mechanic, the ring) is derived from
-     the timeline's own elapsed time in handleUpdate above; these tweens
-     only own the continuous numbers. */
+  /* BEATS 1/2 — swipe / iris(+word swap), each its own slot. Beat 0's
+     tweens are built separately above (its shape isn't the generic
+     hold-then-crossfade the other two share). Discrete state (which
+     beat, which clip mechanic, the ring) is derived from the timeline's
+     own elapsed time in handleUpdate above; these tweens only own the
+     continuous numbers. */
   BEATS.forEach((beat, i) => {
-    const start = PRE_DUR + i * BEAT_DUR;
+    if (i === 0) return;
+    const start = BEAT_STARTS[i];
     if (beat.motion === "swipe") {
-      tl.fromTo(stage, { "--wipe-r": 1 }, { "--wipe-r": 0, duration: BEAT_DUR * 0.5, ease: "power2.out" }, start)
-        .fromTo(stage, { "--wipe-l": 0 }, { "--wipe-l": 1, duration: BEAT_DUR * 0.5, ease: "power2.in" }, start + BEAT_DUR * 0.5);
+      tl.fromTo(stage, { "--wipe-r": 1 }, { "--wipe-r": 0, duration: beat.duration * 0.5, ease: "power2.out" }, start)
+        .fromTo(stage, { "--wipe-l": 0 }, { "--wipe-l": 1, duration: beat.duration * 0.5, ease: "power2.in" }, start + beat.duration * 0.5);
     } else if (beat.swap) {
-      tl.fromTo(stage, { "--ring": 0 }, { "--ring": 1, duration: BEAT_DUR * 0.25, ease: "power2.out" }, start)
-        .to(stage, { "--ring": 0, duration: BEAT_DUR * 0.25, ease: "power2.in" }, start + BEAT_DUR * 0.75);
-    } else {
-      tl.fromTo(stage, { "--ring": 1 }, { "--ring": 0, duration: BEAT_DUR, ease: "sine.in" }, start);
+      tl.fromTo(stage, { "--ring": 0 }, { "--ring": 1, duration: beat.duration * 0.25, ease: "power2.out" }, start)
+        .to(stage, { "--ring": 0, duration: beat.duration * 0.25, ease: "power2.in" }, start + beat.duration * 0.75);
     }
   });
 
@@ -308,6 +374,21 @@ export function setupHero() {
   // same as if it had actually played out. Harmless in production: one
   // extra object reference, nothing reads it outside tests.
   (section as HTMLElement & { heroTimeline?: gsap.core.Timeline }).heroTimeline = tl;
+
+  /* Replay — re-locks scroll and restarts the whole movie from the top.
+     Only reachable once the movie's actually done (see .hcb__replay's
+     visibility/pointer-events rules in Hero.astro, gated on the same
+     data-hero-done this clears). */
+  const replayBtn = section.querySelector<HTMLButtonElement>(".hcb__replay");
+  replayBtn?.addEventListener("click", () => {
+    section.dataset.heroDone = "false";
+    cueTl?.pause();
+    window.scrollTo(0, 0);
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    window.addEventListener("scroll", snapBackToTop);
+    tl.restart();
+  });
 
   tl.play();
 }

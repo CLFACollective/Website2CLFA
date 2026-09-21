@@ -126,6 +126,16 @@ export function setupBrandInMotionCards() {
       cards.forEach((c, j) => {
         const y = Math.min(j, k) * cardH + Math.max(0, j - k) * PEEK * cardH;
         c.style.transform = `translate(-50%, ${y.toFixed(1)}px)`;
+        // The fan (desktop) mode lights an icon up via :hover or the
+        // scroll-driven lead card, neither of which exists here — a
+        // touch device has no :hover, and the stack has no single
+        // "current" card (every dealt card stays visible at once). So
+        // instead: a card's icon lights up the moment it's finished
+        // sliding into its own resting spot (k >= j, same condition
+        // that pins its y above), and stays lit — this was previously
+        // never set at all in this mode, so no card's icon ever lit up
+        // here regardless of scroll position.
+        c.dataset.active = k >= j ? "true" : "false";
       });
     };
 
@@ -159,7 +169,7 @@ export function setupBrandInMotionCards() {
       window.removeEventListener("resize", onResize);
       gsap.killTweensOf(state);
       fan!.style.height = "";
-      cards.forEach((c) => { c.style.transform = ""; });
+      cards.forEach((c) => { c.style.transform = ""; c.dataset.active = "false"; });
     };
   }
 

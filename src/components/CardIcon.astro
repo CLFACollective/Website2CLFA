@@ -49,7 +49,9 @@ const d = ICONS[name];
   .ci--merge.is-drawn { animation: ciFloat 6s ease-in-out infinite; }
   .ci--acquired.is-drawn { animation: ciBreathe 7s ease-in-out infinite; }
   .ci--speed.is-drawn { animation: ciBreathe 9s ease-in-out infinite; }
-  .ci--pivot { opacity: 0.5; }
+  /* idle at half opacity — goes to 1 when the card is active/hovered,
+     see .bmc__card[data-active="true"]/:hover in BrandInMotionCards.astro */
+  .ci--pivot { opacity: 0.5; transition: opacity .45s var(--ease); }
   /* .bmc__stage toggles is-live off cardsFan.ts's own intro-reveal
      IntersectionObserver — reused here rather than a second observer,
      since these 4 infinite animations would otherwise keep running

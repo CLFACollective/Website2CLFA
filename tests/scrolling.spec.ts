@@ -93,6 +93,33 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     expect(errors).toEqual([]);
   });
 
+  test("BrandInMotionCards: a card's icon lights up once it's slid into its resting position", async ({ page }) => {
+    // Touch devices have no :hover, and the reveal-stack has no single
+    // "current" card the way the desktop arc does (every dealt card
+    // stays visible) — an icon lighting up here has to be driven by
+    // the card having finished sliding into place, not by hover or a
+    // scroll-driven "lead card" concept.
+    const rect = await docRect(page, "#motion .bmc__pin");
+    expect(rect).not.toBeNull();
+    const { top, height } = rect!;
+
+    const readActive = () =>
+      page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>("#motion .bmc__card")).map((c) => c.dataset.active));
+
+    // at rest (top of the stack): the first card starts already dealt
+    await page.evaluate((y) => window.scrollTo(0, y), top);
+    await page.waitForTimeout(150);
+    const atStart = await readActive();
+    expect(atStart[0]).toBe("true");
+    expect(atStart[4]).toBe("false");
+
+    // scrolled through the whole pile: every card has settled into place
+    await page.evaluate((y) => window.scrollTo(0, y), top + height);
+    await page.waitForTimeout(300);
+    const atEnd = await readActive();
+    expect(atEnd.every((v) => v === "true")).toBe(true);
+  });
+
   test("Momentum: vertical scroll through the pin drives the horizontal panel pan", async ({ page }) => {
     const rect = await docRect(page, "#momentum");
     expect(rect).not.toBeNull();

@@ -4,7 +4,8 @@
 // A rose prelude circle carrying the CLFA mark contracts to nothing, an
 // outlined iris opens back out of that same point, three beats of copy
 // play through an iris/swipe/iris cycle (the third holds open while its
-// middle word swaps "smarter" -> "faster"), then the whole frame blooms
+// middle word cycles "smarter" -> "faster" -> "better"), then the whole
+// frame blooms
 // into rose and the "We are the solve for brands in motion" headline
 // fades up. That's the whole movie — one GSAP timeline that just plays
 // once, at a fixed pace (see src/scripts/hero.ts), scroll locked for its
@@ -21,6 +22,7 @@ const CHARCOAL = "#252525";
 const COPPER = "#BE7837";
 const AZURE = "#527078";
 const ROSE = "#F06496";
+const OLIVE = "#A0A073";
 ---
 
 <section class="hcb" id="hero">
@@ -40,6 +42,7 @@ const ROSE = "#F06496";
         <span class="hcb__swap">
           <span class="hcb__emph hcb__emph--swap" data-word="a">smarter</span>
           <span class="hcb__emph hcb__emph--swap" data-word="b" style={`color:${AZURE}`}>faster</span>
+          <span class="hcb__emph hcb__emph--swap" data-word="c" style={`color:${OLIVE}`}>better</span>
         </span>
         <span class="hcb__emph">solve</span>
       </p>
@@ -63,6 +66,14 @@ const ROSE = "#F06496";
     </div>
 
     <span class="hcb__cue" aria-hidden="true">Scroll<i></i></span>
+
+    <button type="button" class="hcb__replay" aria-label="Replay intro">
+      <span>Replay</span>
+      <svg class="hcb__replay-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M20 4v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
   </div>
 </section>
 
@@ -122,10 +133,16 @@ const ROSE = "#F06496";
   }
   .hcb__beat[data-swap] .hcb__emph { font-size: clamp(44px, 7vw, 134px); }
   .hcb__swap { position: relative; display: block; }
-  .hcb__emph--swap { transition: opacity .32s var(--ease); }
-  .hcb__emph--swap[data-word="b"] { position: absolute; inset: 0; opacity: 0; }
-  .hcb__beat[data-swap-b] .hcb__emph--swap[data-word="a"] { opacity: 0; }
-  .hcb__beat[data-swap-b] .hcb__emph--swap[data-word="b"] { opacity: 1; }
+  /* "a" (word 1) sits in normal flow and sizes/positions the box; "b"
+     and "c" stack absolutely on top of it, at the ready to crossfade
+     in — see hero.ts's data-swap-step (0/1/2), which drives which one
+     is actually opaque. */
+  .hcb__emph--swap { transition: opacity .32s var(--ease); opacity: 1; }
+  .hcb__emph--swap[data-word="b"], .hcb__emph--swap[data-word="c"] { position: absolute; inset: 0; opacity: 0; }
+  .hcb__beat[data-swap-step="1"] .hcb__emph--swap[data-word="a"] { opacity: 0; }
+  .hcb__beat[data-swap-step="1"] .hcb__emph--swap[data-word="b"] { opacity: 1; }
+  .hcb__beat[data-swap-step="2"] .hcb__emph--swap[data-word="a"] { opacity: 0; }
+  .hcb__beat[data-swap-step="2"] .hcb__emph--swap[data-word="c"] { opacity: 1; }
 
   .hcb__dot {
     position: absolute; left: 50%; top: 50%;
@@ -184,7 +201,9 @@ const ROSE = "#F06496";
     position: relative; z-index: 2;
   }
   .hcb__solve {
-    font-weight: 800; letter-spacing: -.035em; line-height: .86;
+    /* SemiBold per Figma (node 3318:1173) — thinner than the 800 this
+       used to carry. */
+    font-weight: 600; letter-spacing: -.035em; line-height: .86;
     font-size: min(clamp(120px, calc(71px + 15.04vw), 360px), var(--solve-fit, 9999px));
     color: var(--CREAM);
   }
@@ -235,7 +254,10 @@ const ROSE = "#F06496";
   .hcb__cue {
     position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
     font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
-    color: var(--ROSE);
+    /* CREAM, not ROSE — this only ever shows once the frame has fully
+       flooded pink (see the opacity comment below), so a rose cue on a
+       rose background was invisible the whole time it was live. */
+    color: var(--CREAM);
     /* used to be the opposite (calc(1 - var(--flood)), visible during
        the dot/beats stretch, gone by the time the frame floods pink) —
        now it only arrives once the pink bleed is reached: --flood eases
@@ -247,7 +269,7 @@ const ROSE = "#F06496";
     display: flex; flex-direction: column; align-items: center; gap: 8px;
   }
   .hcb__cue i {
-    width: 1px; height: 32px; background: var(--ROSE); display: block;
+    width: 1px; height: 32px; background: var(--CREAM); display: block;
     transform-origin: top;
     /* the grow/shrink pulse itself is a GSAP timeline (see hero.ts) —
        matches the pause-when-scrolled-away treatment the rest of the
@@ -256,17 +278,47 @@ const ROSE = "#F06496";
        here didn't have. */
   }
 
+  .hcb__replay {
+    position: absolute; right: var(--gut); bottom: 26px;
+    display: flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--CREAM); background: none; border: 0; padding: 4px; margin: 0; cursor: pointer;
+    opacity: var(--flood);
+    /* same arrival as .hcb__cue (only relevant once the frame's fully
+       bloomed) but pointer-events AND visibility stay off until the
+       movie's actually done — pointer-events alone would still leave a
+       fully invisible button reachable by Tab mid-movie, a trap for
+       keyboard/AT users. hero.ts flips data-hero-done the instant the
+       movie's onComplete fires, by which point --flood (and this
+       opacity) is already at 1, so there's nothing to visibly snap. */
+    pointer-events: none;
+    visibility: hidden;
+  }
+  #hero[data-hero-done="true"] .hcb__replay { pointer-events: auto; visibility: visible; }
+  .hcb__replay-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+
+  @media (max-width: 599px) {
+    .hcb__replay span { display: none; }
+  }
+
   @media (max-width: 799px) {
     .hcb__lockup { padding: 0 32px; }
     .hcb__solve { font-size: var(--solve-fit, 34vw); line-height: .76; }
     .hcb__closing { max-width: min(20ch, 86vw); }
   }
 
-  /* No prefers-reduced-motion overrides needed here: hero.ts's reduced-
-     motion branch sets the same custom properties (--flood: 1, --head:
-     1, etc.) the completed movie ends at, straight away — the existing
-     property-driven rules above already render the correct resting
-     frame from those values alone, animated or not. .hcb__closing below
-     gets its reduced-motion handling for free too, from the sitewide
-     .reveal rule in global.css. */
+  /* No prefers-reduced-motion overrides needed for most of the above:
+     hero.ts's reduced-motion branch sets the same custom properties
+     (--flood: 1, --head: 1, etc.) the completed movie ends at, straight
+     away — the existing property-driven rules already render the
+     correct resting frame from those values alone, animated or not.
+     .hcb__closing below gets its reduced-motion handling for free too,
+     from the sitewide .reveal rule in global.css.
+     .hcb__replay is the one exception: that branch returns before ever
+     wiring a click handler (there's no timeline to restart), so without
+     this it would otherwise render as a live-looking, focusable button
+     that silently does nothing when activated. */
+  @media (prefers-reduced-motion: reduce) {
+    .hcb__replay { display: none; }
+  }
 </style>

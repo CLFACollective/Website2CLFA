@@ -206,7 +206,12 @@ body.menu-open .mega { pointer-events: auto; }
 .mega__link .no { font-size: 12px; font-weight: 700; letter-spacing: .2em; color: var(--pink); flex: 0 0 auto; }
 .mega__aside { align-self: end; display: grid; gap: 26px; }
 .mega__aside .eyebrow { margin-bottom: 8px; }
-.mega__aside p { margin: 0; font-size: clamp(15px, 1.3vw, 19px); font-weight: 300; line-height: 1.45; opacity: .8; }
+/* 27ch specifically so "to get started." lands as its own line — a
+   plain ch-based cap since this paragraph has no other width
+   constraint to inherit and the column it sits in was otherwise wide
+   enough to run it into an awkward mid-sentence wrap ("...to get
+   started. Either / way, we'll take it from here."). */
+.mega__aside p { margin: 0; max-width: 27ch; font-size: clamp(15px, 1.3vw, 19px); font-weight: 300; line-height: 1.45; opacity: .8; }
 .mega__aside a.plain { text-decoration: none; border-bottom: 1px solid rgba(248, 244, 238, .35); }
 @media (hover: hover) {
   .mega__aside a.plain:hover { color: var(--pink); border-color: var(--pink); }
@@ -354,6 +359,24 @@ body.menu-open .mega { pointer-events: auto; }
 .col p.revealed { opacity: 1 !important; transform: none !important; max-width: 69%; }
 @media (prefers-reduced-motion: reduce) { .col { opacity: 1; transform: none; } .col p { opacity: 1; transform: none; } }
 
+/* Desktop rail only (mobile's vertical timeline below is a different,
+   left-aligned layout) — each column used to sit fully laid out from
+   the moment the section scrolled into view, left-aligned within its
+   own grid track rather than centered under the stop it belongs to,
+   so nothing ever visibly arrived in sync with the travelling ball.
+   Now it starts off-position and slides/fades in, centered under its
+   own dot, the moment the ball reaches it (.is-rev, already toggled
+   by dayOne.ts — see .rail__stop's matching :nth-of-type thirds). */
+@media (min-width: 800px) and (prefers-reduced-motion: no-preference) {
+  .col {
+    text-align: center;
+    opacity: 0; transform: translateY(28px);
+    transition: opacity .7s var(--ease), transform .7s var(--ease);
+  }
+  .col.is-rev { opacity: 1; transform: translateY(0); }
+  .col p { margin-left: auto; margin-right: auto; }
+}
+
 /* Phones: the three columns become a vertical timeline — a single line down
    the left with a dot per step, the reached/active step filling pink. */
 @media (max-width: 799px) {
@@ -388,6 +411,20 @@ body.menu-open .mega { pointer-events: auto; }
 }
 .keepup .sec__inner { width: 100%; }
 .keepup__big { font-size: clamp(46px, 10.6vw, 196px); line-height: .9; letter-spacing: -.045em; margin: 0 0 clamp(34px, 5vw, 74px); max-width: 13ch; font-weight: 300; }
+/* "And after day one?" reads at its own smaller size per Figma (node
+   3318:3233 — 152px against "We don't let up."'s 196px, not the same
+   size the two used to share) with its own matching line-height ratio
+   (176.4/152 there, vs .bd's inherited 176.4/196 = .9) — sharing one
+   ratio across both was cramming the lead line's leading down to
+   whatever its now-larger-than-intended inherited size implied. */
+/* block, not relying on the <br class="mobile-br"> that follows it —
+   that break is conditional on mobile width (desktop used to fall
+   through to it "for free" as an incidental word-wrap side effect of
+   this text being wide enough, at its old shared font-size, to push
+   the next word onto its own line regardless). Now that this span has
+   its own smaller size, it no longer eats enough width to force that
+   wrap on its own, so the break needs to be unconditional. */
+.keepup__lead { display: block; font-size: clamp(36px, 8.22vw, 152px); line-height: 1.16; }
 .keepup__big .bd { letter-spacing: 0; color: var(--flare); }
 .keepup__body { margin: 0; max-width: 52ch; font-size: 48px; line-height: 55px; letter-spacing: -1.568px; font-weight: 300; opacity: 1; }
 .keepup__body strong { font-weight: 600; font-style: italic; }
@@ -398,6 +435,10 @@ body.menu-open .mega { pointer-events: auto; }
      measured, not guessed) — white-space:nowrap is a hard guarantee on
      top of that; the <br> between the two phrases is unaffected by it. */
   .keepup__big { font-size: 44px; line-height: 1.06; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; white-space: nowrap; }
+  /* the desktop-only size split (.keepup__lead vs .bd) doesn't apply at
+     this width — both lines go back to sharing .keepup__big's own
+     mobile-tuned size (see the nowrap comment above) */
+  .keepup__lead { font-size: inherit; line-height: inherit; }
   .keepup__body {
     font-size: 19px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
@@ -607,7 +648,10 @@ body.menu-open .mega { pointer-events: auto; }
    class selector here is LOWER specificity than ".win__copy h2" above
    (which also matches this same element) and was silently losing to
    it, so this rule was dead code. */
-h2.win__partnering-head { font-size: clamp(32px, 8.4vw, 88px); }
+/* Figma node 3318:1953 — 152.6px, not 88px, with matching line-height
+   (137.38/152.6 = .9) and letter-spacing (-6.869/152.6 = -.045em)
+   ratios. */
+h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: .9; letter-spacing: -.045em; }
 .win__partnering-head .bd { color: #FFA235; letter-spacing: 0; }
 @media (max-width: 799px) {
   .win--flat .win__copy { align-items: center; text-align: center; }

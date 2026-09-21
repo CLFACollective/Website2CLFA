@@ -16,6 +16,8 @@ import { test, expect, type Page } from "@playwright/test";
 const PRE_DUR = 1.3;
 const BEAT_DUR = 2.3;
 const BEAT_COUNT = 3;
+const OPEN_T = PRE_DUR + BEAT_COUNT * BEAT_DUR;
+const BLOOM_DUR = 1.2;
 
 /** Jumps hero.ts's exposed timeline straight to `seconds` — fires
  *  onUpdate/onComplete synchronously, same as if it had actually
@@ -66,6 +68,28 @@ test.describe("Hero movie: plays once, locks scroll, hands off cleanly", () => {
 
     await seekHero(page, 999); // movie complete
     expect(await readCueOpacity()).toBeGreaterThan(0.9);
+  });
+
+  test("the cue's pulse starts the moment the frame finishes flooding, not after the whole movie completes", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    // The flood tween (--flood: 0 -> 1) finishes noticeably before the
+    // rest of the movie does (the headline still has to fade up after
+    // it) — the pulse used to only start once the *whole* timeline's
+    // onComplete fired, leaving the cue's line sitting at its
+    // fromTo()'s "from" value (scaleY(0), i.e. flat/invisible) for that
+    // whole gap even though .hcb__cue's opacity was already fully
+    // visible by then. Confirmed live before fixing it.
+    const floodCompleteAt = OPEN_T + BLOOM_DUR * 0.75;
+    const movieCompleteAt = OPEN_T + BLOOM_DUR * 0.95; // ~tl.duration()
+    expect(floodCompleteAt).toBeLessThan(movieCompleteAt); // sanity: there really is a gap to test within
+
+    await seekHero(page, floodCompleteAt + 0.02);
+    const readTransform = () =>
+      page.evaluate(() => getComputedStyle(document.querySelector(".hcb__cue i")!).transform);
+    const t1 = await readTransform();
+    await page.waitForTimeout(200);
+    const t2 = await readTransform();
+    expect(t2, "cue line should already be animating before the whole movie has completed").not.toBe(t1);
   });
 
   test("adjacent beats never hard-cut — both sit at 0 exactly on the boundary, not a snap from 1 to the next", async ({ page }) => {

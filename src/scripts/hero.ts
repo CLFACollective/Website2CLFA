@@ -234,10 +234,22 @@ export function setupHero() {
   const tl = gsap.timeline({ defaults: { ease: "none" }, onUpdate: handleUpdate, onComplete: onMovieComplete });
 
   /* PRELUDE — the dot contracts (and takes the mark with it), then the
-     outlined iris opens back out of that same point. */
-  tl.to(stage, { "--dot-k": 1, "--mark-op": 0, duration: PRE_DUR * 0.5, ease: "power2.in" }, 0)
-    .set(stage, { "--dot-op": 0 }, PRE_DUR * 0.5)
-    .to(stage, { "--ring": 1, duration: PRE_DUR * 0.5, ease: "power2.out" }, PRE_DUR * 0.5);
+     outlined iris opens back out of that same point. Used to be two
+     sequential tweens meeting at a hard seam: the contraction
+     accelerating (power2.in) right into a dead stop, opacity snapping
+     off instantly at that exact instant, then the ring starting from a
+     standstill (power2.out) — two separate motions relay-racing rather
+     than one continuous gesture. Now: both use a symmetric ease (slow
+     in, slow out, no velocity spike at either end), the ring starts
+     opening slightly *before* the contraction fully finishes (a short
+     overlap instead of a handoff), and the dot's opacity fades over a
+     brief window instead of popping off in a single frame. */
+  const PRE_OVERLAP = PRE_DUR * 0.12;
+  const preSplit = PRE_DUR * 0.58;
+  tl.to(stage, { "--dot-k": 1, duration: preSplit, ease: "sine.inOut" }, 0)
+    .to(stage, { "--mark-op": 0, duration: preSplit * 0.85, ease: "sine.in" }, 0)
+    .to(stage, { "--dot-op": 0, duration: PRE_DUR - preSplit, ease: "sine.in" }, preSplit - PRE_OVERLAP * 0.6)
+    .to(stage, { "--ring": 1, duration: PRE_DUR - preSplit + PRE_OVERLAP, ease: "sine.inOut" }, preSplit - PRE_OVERLAP);
 
   /* BEATS — iris / swipe / iris(+word swap), each its own slot. Discrete
      state (which beat, which clip mechanic, the ring) is derived from
@@ -258,9 +270,16 @@ export function setupHero() {
 
   /* BLOOM — the frame floods rose, the lockup fades up into it. Movie
      ends here; the cream-rise + closing copy that used to follow are
-     ordinary scroll content below now (see Hero.astro's .hcb__after). */
+     ordinary scroll content below now (see Hero.astro's .hcb__after).
+     The cue's pulse starts the moment the flood tween itself finishes
+     (--flood hits 1, so .hcb__cue's opacity:var(--flood) is fully
+     visible) rather than waiting for the *whole* timeline's onComplete
+     — that's ~0.3s later (the --head fade-up still has to run), and a
+     cueTl.fromTo() sits at its "from" value (scaleY:0, i.e. an
+     invisible flat line) until it's actually played, so the cue's text
+     was appearing with a dead, pulse-less line for that whole gap. */
   tl.to(stage, { "--ring": 0, "--dot-op": 0, duration: 0.0001 }, OPEN_T)
-    .to(stage, { "--flood": 1, duration: BLOOM_DUR * 0.75, ease: "power1.out" }, OPEN_T)
+    .to(stage, { "--flood": 1, duration: BLOOM_DUR * 0.75, ease: "power1.out", onComplete: () => cueTl?.play() }, OPEN_T)
     .to(stage, { "--head": 1, duration: BLOOM_DUR * 0.55, ease: "power2.out" }, OPEN_T + BLOOM_DUR * 0.4);
 
   /* The movie owns the page until it's done — "resume the site's

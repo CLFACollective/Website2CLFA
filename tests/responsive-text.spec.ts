@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { skipHeroMovie } from "./helpers";
 
 /**
  * A handful of headings/phrases were explicitly required to never wrap
@@ -26,8 +27,15 @@ async function docTop(page: import("@playwright/test").Page, selector: string) {
 }
 
 test.describe("required one-line phrases", () => {
+  // Every test here scrolls, and Hero plays a locked ~9.5s intro movie
+  // on load before scrolling works at all (see hero-movie.spec.ts) —
+  // fast-forward it once, up front, for the whole file.
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+  });
+
   test("KeepUp heading: both lines stay on one line each", async ({ page }) => {
-    await page.goto("/");
     const y = await docTop(page, "[data-keep]");
     await scrollToDoc(page, (y ?? 0) - 100);
 
@@ -52,7 +60,6 @@ test.describe("required one-line phrases", () => {
   });
 
   test('Who: "All of them are moving fast." is a single line', async ({ page }) => {
-    await page.goto("/");
     const y = await docTop(page, "#who");
     await scrollToDoc(page, (y ?? 0) - 100);
 
@@ -63,9 +70,7 @@ test.describe("required one-line phrases", () => {
   });
 
   test('Hero closing copy: "strategy, creative, and execution" is a single line', async ({ page }) => {
-    await page.goto("/");
-    const heroH = await page.evaluate(() => document.getElementById("hero")?.offsetHeight ?? 0);
-    await scrollToDoc(page, heroH * 0.9);
+    await page.locator(".hcb__closing").scrollIntoViewIfNeeded();
 
     const strong = page.locator(".hcb__closing strong");
     const lines = await strong.evaluate((el) => el.getClientRects().length);
@@ -73,7 +78,6 @@ test.describe("required one-line phrases", () => {
   });
 
   test('BrandInMotionCards: "Ready to launch" breaks before "(or..."', async ({ page }) => {
-    await page.goto("/");
     // this card isn't required to scroll into view for its DOM/CSS to
     // be present — .bmc__copy always renders, only its animated
     // position depends on scroll

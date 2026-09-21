@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { skipHeroMovie } from "./helpers";
 
 /**
  * ShineField, the ribbon/logo marquees, the shimmer dust, the
@@ -36,6 +37,15 @@ async function scrollToFooter(page: Page) {
   await page.waitForTimeout(500);
 }
 
+// Every test in this file scrolls at some point, and Hero plays a
+// locked ~9.5s intro movie on load before scrolling works at all (see
+// hero-movie.spec.ts) — fast-forward it once, up front, for the whole
+// file rather than repeating that in every single test.
+test.beforeEach(async ({ page }) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+  await skipHeroMovie(page);
+});
+
 /**
  * ShineField used to be an SVG <pattern> of ~760 squares (~30 of them
  * individually CSS-animated for the sparkle twinkle) masked with
@@ -51,7 +61,6 @@ async function scrollToFooter(page: Page) {
  */
 test.describe("ShineField is canvas-drawn, not SVG/mask-image", () => {
   test("every instance is a canvas with no mask-image, no SVG pattern", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     const info = await page.evaluate(() => {
       const wraps = Array.from(document.querySelectorAll<HTMLElement>(".shine-wrap"));
       return wraps.map((el) => ({
@@ -87,8 +96,6 @@ async function canvasChecksum(page: Page, selector: string): Promise<number> {
 
 test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () => {
   test("ShineField sweep/sparkle redraw freezes once scrolled far away, resumes in view", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
-
     // in view first, to confirm it's actually redrawing at all
     await page.locator("#partnering").scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
@@ -113,7 +120,6 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
   });
 
   test("Ribbons marquee tracks freeze once scrolled far away, resume in view", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     await scrollToFooter(page);
 
     const readTransform = () =>
@@ -126,7 +132,6 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
   });
 
   test("Day One rail-ball halo pulse freezes once scrolled far away", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     // desktop-only feature (.rail is display:none under 799px)
     const railVisible = await page.locator(".rail").isVisible().catch(() => false);
     test.skip(!railVisible, "rail is desktop-only");
@@ -141,8 +146,6 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
   });
 
   test("Hero's SCROLL cue pulse freezes once scrolled far away, resumes back at top", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
-
     const readTransform = () =>
       page.evaluate(() => getComputedStyle(document.querySelector(".hcb__cue i")!).transform);
 
@@ -170,16 +173,15 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
   // the footer — on a tall viewport (e.g. iPad Pro's 1194px), scrolling
   // to the absolute bottom of the page can still leave Momentum within
   // the 200px IntersectionObserver rootMargin, so "at the footer" isn't
-  // reliably "far from both" there. Hero's own height (620vh) makes the
-  // very top of the page unambiguously far from both instances on any
-  // viewport, so use that instead.
+  // reliably "far from both" there. The very top of the page (above
+  // Hero, BrandInMotionCards, Ribbons and WindowA) is unambiguously far
+  // from both instances on any viewport, so use that instead.
   async function scrollFarFromShimmerHosts(page: Page) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(500);
   }
 
   test("shimmer dust dots are paused when far from both instances", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     await scrollFarFromShimmerHosts(page);
     const { total, running } = await countRunning(page, ".shimmer i");
     expect(total).toBeGreaterThan(0);
@@ -187,7 +189,6 @@ test.describe("off-screen animations pause (native CSS — getAnimations is vali
   });
 
   test("shimmer resumes for whichever instance is actually in view", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     await page.locator("#partnering").scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
     const { running } = await countRunning(page, ".shimmer i");
@@ -209,7 +210,6 @@ test.describe("GridField cursor-follow fade is GSAP-driven", () => {
   test.skip(({ isMobile }) => isMobile, "mouse-only decoration, not reliably emulated on mobile projects");
 
   test("lit cell fades in on hover and fades back out when the pointer leaves", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     const canvas = page.locator(".grid-field").first();
     await canvas.scrollIntoViewIfNeeded();
 

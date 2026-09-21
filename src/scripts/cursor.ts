@@ -39,13 +39,10 @@ export function mountPinkCursor() {
      white while it's actually over the pink flood circle (or the
      small prelude dot) — a geometric hit-test against those elements'
      live (scaled) circles, not the coarser "whole screen has gone
-     pink" scroll-progress flag other fixed UI (the nav logo dot, the
-     kickoff CTA) uses, since those don't move around the way a cursor
-     does. The rising cream circle wins over the flood where the two
-     overlap, since that's what's actually visible there. */
+     pink" flag other fixed UI (the nav logo dot, the kickoff CTA)
+     uses, since those don't move around the way a cursor does. */
   const heroFlood = document.querySelector<HTMLElement>("#hero .hcb__flood");
   const heroDot = document.querySelector<HTMLElement>("#hero .hcb__dot");
-  const heroRise = document.querySelector<HTMLElement>("#hero .hcb__rise");
 
   const onMove = (e: MouseEvent) => {
     setX(e.clientX);
@@ -54,13 +51,12 @@ export function mountPinkCursor() {
 
     let onInvert: boolean;
     if (under?.closest("#hero")) {
-      const overRise = !!heroRise && withinCircle(heroRise, e.clientX, e.clientY);
       const overFlood = !!heroFlood && withinCircle(heroFlood, e.clientX, e.clientY);
       const overDot =
         !!heroDot &&
         parseFloat(getComputedStyle(heroDot).opacity) > 0.01 &&
         withinCircle(heroDot, e.clientX, e.clientY);
-      onInvert = (overFlood || overDot) && !overRise;
+      onInvert = overFlood || overDot;
     } else {
       onInvert = !!under?.closest('[data-cursor="invert"]');
     }

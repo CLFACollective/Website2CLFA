@@ -26,3 +26,18 @@ export function collectErrors(page: Page): string[] {
   });
   return errors;
 }
+
+/**
+ * Hero plays a locked ~9.5s intro movie on load (see hero.ts) — scroll
+ * doesn't work at all until it completes. Fast-forwards it via the
+ * timeline hero.ts exposes for exactly this, for any test that isn't
+ * actually about the movie itself (see hero-movie.spec.ts for tests
+ * that are, which need the real thing). No-ops harmlessly under
+ * reduced motion, where the movie never runs in the first place.
+ */
+export async function skipHeroMovie(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const hero = document.getElementById("hero") as (HTMLElement & { heroTimeline?: { progress: (p: number) => void } }) | null;
+    hero?.heroTimeline?.progress(1);
+  });
+}

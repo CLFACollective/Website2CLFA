@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { skipHeroMovie } from "./helpers";
 
 /**
  * Mobile-only behavior (src/scripts/navLogoMobile.ts, <599px): the nav
@@ -17,7 +18,11 @@ test.describe("mobile nav logo", () => {
   );
 
   test("visible at top, visible mid-page, hidden only at the footer", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "networkidle" });
+    // Hero plays a locked ~9.5s intro movie on load (see hero-movie.spec.ts)
+    // before scrolling works at all — fast-forward it rather than
+    // burning that time on a test that isn't about the movie itself.
+    await skipHeroMovie(page);
 
     await expect(page.locator(".nav__logo")).toBeVisible();
 

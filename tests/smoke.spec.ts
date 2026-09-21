@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { collectErrors } from "./helpers";
+import { collectErrors, skipHeroMovie } from "./helpers";
 
 /**
  * Baseline: the page loads clean, every major section is present, and
@@ -35,6 +35,7 @@ test.describe("homepage smoke", () => {
   test("full scroll-through produces no console or page errors", async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
     const viewportHeight = page.viewportSize()?.height ?? 900;
     const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
     for (let y = 0; y <= scrollHeight; y += viewportHeight / 2) {

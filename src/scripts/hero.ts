@@ -12,11 +12,11 @@ type Beat = {
    *  across it would show the *next* beat's text still confined to the
    *  *current* beat's clip-path — e.g. beat 1's text, meant to reveal
    *  via a rectangular swipe, briefly visible squeezed inside beat 0's
-   *  closing iris circle instead. Confirmed live: exactly this glitch,
-   *  before adding these flags. Where it's false, that fade is confined
-   *  entirely within the beat's own slice instead — no crossfade
-   *  overlap with the neighbour, just a smooth ramp to/from transparent
-   *  that never shows through the wrong shape. */
+   *  closing iris circle instead. Confirmed live: exactly this glitch.
+   *  Where it's false, that fade is confined entirely within the
+   *  beat's own slice instead — no crossfade overlap with the
+   *  neighbour, just a smooth ramp to/from transparent that never
+   *  shows through the wrong shape. */
   bleedInBefore?: boolean;
   bleedOutAfter?: boolean;
 };
@@ -24,48 +24,45 @@ type Beat = {
 // Mirrors the copy already in Hero.astro's markup — only the timing/motion
 // metadata lives here.
 const BEATS: Beat[] = [
-  // prelude and beat 0 are both "iris", the ring settled at the same
-  // place either side of PRE — safe to bleed the fade-in back into the
-  // prelude, so the text emerges as the ring finishes opening rather
-  // than popping in only once it's fully open.
   { ring: true, motion: "iris", bleedInBefore: true },
   { ring: false, motion: "swipe" },
-  // beat 2's ring collapses back to 0 by the end of its own slice
-  // (same as the bloom stage's fixed circle(0) clip) — safe to bleed
-  // the fade-out into the bloom, dissolving straight into it.
   { swap: true, ring: false, motion: "iris", bleedOutAfter: true },
 ];
 
-const PRE = 0.1; // the rose dot
-const OPEN = 0.53; // beats run to here
-const RISE = 0.78; // the cream circle starts climbing here
-const SLICE = (OPEN - PRE) / BEATS.length;
-
-// Fraction of a beat's own slice spent fading in/out, rather than
-// holding solid — the higher this is, the more of the PRE->OPEN
-// stretch is spent mid-transition (more "continuous"), the lower it
-// is, the longer each beat holds still and readable.
-const BEAT_FADE_FRAC = 0.3;
+/**
+ * Real seconds, not scroll-progress fractions. This used to be a
+ * 620vh ScrollTrigger-scrubbed timeline — the dot/beats/bloom pacing
+ * was however fast a given visitor happened to scroll, and a fast
+ * scroll made the beats unreadable. It's a plain GSAP timeline now: it
+ * plays once, at a fixed pace chosen so each beat actually holds long
+ * enough to read, and it owns the page (scroll is locked) until it's
+ * done — see setupHero's onMovieComplete for what "done" hands back.
+ */
+const PRE_DUR = 1.3; // dot contracts, ring opens
+const BEAT_DUR = 2.3; // each beat's own total on-screen time
+const OPEN_T = PRE_DUR + BEATS.length * BEAT_DUR; // movie time the bloom starts at
+const BLOOM_DUR = 1.2; // frame floods pink, headline fades up
+const BEAT_FADE_FRAC = 0.3; // fraction of a beat's own on-screen time spent fading in/out
 
 /** Ramps 0->1 over `dur`, ending exactly at `at` (or starting exactly
  *  at `at` if `bleedBefore` is false — i.e. confined to *after* `at`
  *  instead of straddling it). */
-function rampIn(p: number, at: number, dur: number, bleedBefore: boolean): number {
+function rampIn(t: number, at: number, dur: number, bleedBefore: boolean): number {
   const lo = bleedBefore ? at - dur : at;
   const hi = bleedBefore ? at : at + dur;
-  if (p <= lo) return 0;
-  if (p >= hi) return 1;
-  return (p - lo) / (hi - lo);
+  if (t <= lo) return 0;
+  if (t >= hi) return 1;
+  return (t - lo) / (hi - lo);
 }
 
 /** Ramps 1->0 over `dur`, starting exactly at `at` (or ending exactly
  *  at `at` if `bleedAfter` is false — confined to *before* `at`). */
-function rampOut(p: number, at: number, dur: number, bleedAfter: boolean): number {
+function rampOut(t: number, at: number, dur: number, bleedAfter: boolean): number {
   const lo = bleedAfter ? at : at - dur;
   const hi = bleedAfter ? at + dur : at;
-  if (p <= lo) return 1;
-  if (p >= hi) return 0;
-  return 1 - (p - lo) / (hi - lo);
+  if (t <= lo) return 1;
+  if (t >= hi) return 0;
+  return 1 - (t - lo) / (hi - lo);
 }
 
 export function setupHero() {
@@ -77,7 +74,7 @@ export function setupHero() {
   /* --solve-fit: the font size at which "solve" exactly fills its column,
      measured off the live text rather than guessed, so it survives the
      webfont landing and a change of face. A layout concern, independent
-     of the scroll choreography below. */
+     of the movie below. */
   const syncSolveFit = () => {
     const lockup = section.querySelector<HTMLElement>(".hcb__lockup");
     if (!lockup) return;
@@ -94,173 +91,204 @@ export function setupHero() {
   document.fonts?.ready.then(syncSolveFit).catch(() => {});
   window.addEventListener("resize", syncSolveFit);
 
-  if (prefersReducedMotion()) return;
-
-  const { gsap, ScrollTrigger } = useGsap();
+  const { gsap } = useGsap();
   const beats = Array.from(section.querySelectorAll<HTMLElement>(".hcb__beat"));
-
-  /* The "SCROLL" cue's tick mark: grows down from the top, then shrinks
-     away from the bottom — a plain infinite CSS @keyframes animation
-     before, converted to GSAP so it can pause/resume the same way every
-     other infinite animation on the page does (see onLeave/onEnterBack
-     below), which the CSS version never had. Two scaleY tweens (matching
-     the original keyframe's 0%-45%-100% stops) plus a third, parallel
-     tween sliding transformOrigin from top to bottom across the full
-     duration — the original's timing function (a fast-rise, long-tail
-     curve) only ever had transformOrigin set at 0%/100%, so CSS eased
-     it across the *whole* duration while scaleY eased across each of
-     its two sub-segments independently. "power3.out" is a built-in
-     stand-in for that same fast-rise/long-tail shape — close enough for
-     a 1px decorative tick that pulling in the CustomEase plugin (and
-     its own several KB) just for exact bezier fidelity here isn't
-     worth the extra payload. */
-  const cueLine = section.querySelector<HTMLElement>(".hcb__cue i");
-  let cueTl: gsap.core.Timeline | null = null;
-  if (cueLine) {
-    const DUR = 1.9;
-    cueTl = gsap.timeline({ repeat: -1 })
-      .fromTo(cueLine, { scaleY: 0 }, { scaleY: 1, duration: DUR * 0.45, ease: "power3.out" }, 0)
-      .to(cueLine, { scaleY: 0, duration: DUR * 0.55, ease: "power3.out" }, DUR * 0.45)
-      .fromTo(cueLine, { transformOrigin: "50% 0%" }, { transformOrigin: "50% 100%", duration: DUR, ease: "power3.out" }, 0);
-  }
-
-  gsap.set(stage, {
-    "--dot-k": 0, "--dot-op": 1, "--mark-op": 1, "--ring": 0,
-    "--wipe-l": 0, "--wipe-r": 1, "--flood": 0, "--head": 0, "--rise": 0, "--copy": 0,
-  });
-
-  const tl = gsap.timeline({ defaults: { ease: "none" } });
-
-  /* PRELUDE — the dot contracts (and takes the mark with it), then the
-     outlined iris opens back out of that same point. */
-  tl.to(stage, { "--dot-k": 1, "--mark-op": 0, duration: PRE * 0.5, ease: "power2.in" }, 0)
-    .set(stage, { "--dot-op": 0 }, PRE * 0.5)
-    .to(stage, { "--ring": 1, duration: PRE * 0.5, ease: "power2.out" }, PRE * 0.5);
-
-  /* BEATS — iris / swipe / iris(+word swap), each its own slice. Discrete
-     state (which beat, which clip mechanic, the ring) is derived from
-     scroll progress directly in the ScrollTrigger onUpdate below, so it
-     stays correct even if the page loads already scrolled mid-hero;
-     these tweens only own the continuous numbers. */
-  BEATS.forEach((beat, i) => {
-    const start = PRE + i * SLICE;
-    if (beat.motion === "swipe") {
-      tl.fromTo(stage, { "--wipe-r": 1 }, { "--wipe-r": 0, duration: SLICE * 0.5, ease: "power2.out" }, start)
-        .fromTo(stage, { "--wipe-l": 0 }, { "--wipe-l": 1, duration: SLICE * 0.5, ease: "power2.in" }, start + SLICE * 0.5);
-    } else if (beat.swap) {
-      tl.fromTo(stage, { "--ring": 0 }, { "--ring": 1, duration: SLICE * 0.25, ease: "power2.out" }, start)
-        .to(stage, { "--ring": 0, duration: SLICE * 0.25, ease: "power2.in" }, start + SLICE * 0.75);
-    } else {
-      tl.fromTo(stage, { "--ring": 1 }, { "--ring": 0, duration: SLICE, ease: "sine.in" }, start);
-    }
-  });
-
-  /* BLOOM — the frame floods rose, the lockup fades up into it. */
-  tl.to(stage, { "--ring": 0, "--dot-op": 0, duration: 0.0001 }, OPEN)
-    .to(stage, { "--flood": 1, duration: (RISE - OPEN) * 0.55, ease: "power1.out" }, OPEN)
-    .to(stage, { "--head": 1, duration: (RISE - OPEN) * 0.35, ease: "power2.out" }, OPEN + (RISE - OPEN) * 0.35);
-
-  /* RISE — a cream circle climbs from below and takes the screen back to
-     ground; the closing subcopy rises into it. */
-  tl.to(stage, { "--rise": 1, duration: (1 - RISE) * 0.6, ease: "power2.out" }, RISE)
-    .to(stage, { "--copy": 1, duration: (1 - RISE) * 0.4, ease: "power1.out" }, RISE + (1 - RISE) * 0.45);
-
   const navLogo = document.querySelector<HTMLElement>(".nav__logo");
-  navLogo?.classList.add("is-gone");
+  const reduce = prefersReducedMotion();
 
-  /* Once the bloom has flooded the frame rose and before the cream rise
-     has covered much of it back up, the whole screen reads as pink —
-     anything sitting on top (the nav logo dot, the cursor, the sticky
-     kickoff CTA) needs the light "on dark/saturated ground" treatment
-     for that stretch. Read the live --flood/--rise values GSAP is
-     already writing rather than re-deriving the same easing here. */
-  let wasPink = false;
-  const checkPinkGround = () => {
-    const flood = parseFloat(stage.style.getPropertyValue("--flood")) || 0;
-    const rise = parseFloat(stage.style.getPropertyValue("--rise")) || 0;
-    const isPink = flood > 0.85 && rise < 0.5;
-    if (isPink !== wasPink) {
-      wasPink = isPink;
-      document.dispatchEvent(new CustomEvent("clfa:hero-ground", { detail: { pink: isPink } }));
-    }
-  };
-
-  /* .hcb__iris/.hcb__flood/.hcb__rise are will-change'd for the
-     transform/clip-path work below — necessary while the hero is
-     actually animating, but each one is a huge layer (a full-viewport
-     clip-path, two ~150vmax circles) that a browser will otherwise
-     keep composited/promoted for the rest of the page's lifetime once
-     set, since nothing ever tells it the hero is done. On a memory-
-     constrained device that's tens of MB of GPU texture held for no
-     reason for the remaining 5+ sections of scroll — dropped once
-     scrolled past (restored on scrolling back up, in case the
-     animation needs to run smoothly again). */
+  /* .hcb__iris/.hcb__flood are will-change'd for the clip-path/transform
+     work below — necessary while the movie is actually playing, but
+     each one is a large layer (a full-viewport clip-path, a ~150vmax
+     circle) that a browser will otherwise keep composited/promoted for
+     the rest of the page's lifetime once set, since nothing ever tells
+     it the movie is done. Dropped once hero's scrolled past (restored
+     scrolling back up, in case it needs to look right again — the
+     resting bloom frame still uses these elements, just statically). */
   const heavyLayers = [
     document.querySelector<HTMLElement>(".hcb__iris"),
     document.querySelector<HTMLElement>(".hcb__flood"),
-    document.querySelector<HTMLElement>(".hcb__rise"),
   ].filter((el): el is HTMLElement => !!el);
   const setLayers = (on: boolean) => {
     heavyLayers.forEach((el) => { el.style.willChange = on ? "" : "auto"; });
   };
 
-  ScrollTrigger.create({
-    trigger: section,
-    start: "top top",
-    end: "bottom bottom",
-    scrub: true,
-    animation: tl,
-    onLeave: () => { setLayers(false); cueTl?.pause(); },
-    onEnterBack: () => { setLayers(true); cueTl?.play(); },
-    onUpdate: (self) => {
-      const p = self.progress;
-      navLogo?.classList.toggle("is-gone", p < PRE);
-      checkPinkGround();
+  const dispatchGround = (pink: boolean) =>
+    document.dispatchEvent(new CustomEvent("clfa:hero-ground", { detail: { pink } }));
 
-      /* Smooth fade for all three beat texts, independent of the
-         discrete iris/swipe/ring state below — this (plus the dot and
-         ring already being smooth GSAP tweens) is what makes the whole
-         dot->beats->bloom stretch read as one flowing reveal instead of
-         three separate pop-in/pop-out stages. Runs every tick
-         regardless of which "stage" p is in below, since beat 0's
-         fade-in bleeds slightly *before* PRE (text emerging as the
-         ring finishes opening) and beat 2's fade-out bleeds *after*
-         OPEN (dissolving straight into the bloom) — see each Beat's
-         bleedInBefore/bleedOutAfter above for why only those two edges
-         are safe to cross.
-         Visual opacity is independent from what's exposed to assistive
-         tech, though: mid-fade, two beats can both be partially visible
-         on screen, but only one of them should ever be the "current"
-         one a screen reader announces — same one-at-a-time behaviour
-         the old display:none toggle gave for free. */
-      const idx = p < PRE || p >= OPEN ? -1 : Math.min(BEATS.length - 1, Math.floor((p - PRE) / SLICE));
-      const beatFade = SLICE * BEAT_FADE_FRAC;
-      beats.forEach((b, i) => {
-        const start = PRE + i * SLICE;
-        const end = start + SLICE;
-        const opacity = Math.min(
-          rampIn(p, start, beatFade, !!BEATS[i].bleedInBefore),
-          rampOut(p, end, beatFade, !!BEATS[i].bleedOutAfter),
-        );
-        b.style.opacity = opacity.toFixed(3);
-        if (i !== idx) b.setAttribute("aria-hidden", "true");
-        else b.removeAttribute("aria-hidden");
-      });
+  /* Once the movie's done (or immediately, for reduced motion — there's
+     no movie to wait for), the resting pink-bloom frame behaves like
+     any other static section: a plain IntersectionObserver just reports
+     whether it's still visible at all (a ScrollTrigger created this
+     late — after the movie's own onComplete — never actually fired its
+     onToggle in testing, on any scroll direction, for reasons that
+     didn't resolve with a refresh or a deferred creation; this is the
+     same "is this section still around" check every other pause/resume
+     spot on the page already uses successfully). Drives three things
+     at once from that one signal: the nav logo dot / sticky CTA's "on
+     pink ground" treatment, the heavy layers' will-change, and the
+     cue's pulse (no reason to keep animating it once it's fully
+     scrolled out of view). */
+  const armGroundTrigger = () => {
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        dispatchGround(entry.isIntersecting);
+        setLayers(entry.isIntersecting);
+        if (entry.isIntersecting) cueTl?.play(); else cueTl?.pause();
+      },
+      { threshold: 0 },
+    );
+    io.observe(section);
+  };
 
-      if (p < PRE) { stage.dataset.motion = "iris"; return; }
+  /* The "SCROLL" cue's tick mark: grows down from the top, then shrinks
+     away from the bottom — see Hero.astro's .hcb__cue for the opacity
+     side (tracks --flood, so it arrives exactly as the bleed lands and
+     stays for the rest of the resting frame). Skipped entirely under
+     reduced motion, same as every other infinite animation on the page. */
+  const cueLine = section.querySelector<HTMLElement>(".hcb__cue i");
+  let cueTl: gsap.core.Timeline | null = null;
+  if (cueLine && !reduce) {
+    const DUR = 1.9;
+    cueTl = gsap.timeline({ repeat: -1, paused: true })
+      .fromTo(cueLine, { scaleY: 0 }, { scaleY: 1, duration: DUR * 0.45, ease: "power3.out" }, 0)
+      .to(cueLine, { scaleY: 0, duration: DUR * 0.55, ease: "power3.out" }, DUR * 0.45)
+      .fromTo(cueLine, { transformOrigin: "50% 0%" }, { transformOrigin: "50% 100%", duration: DUR, ease: "power3.out" }, 0);
+  }
 
-      if (p < OPEN) {
-        const beat = BEATS[idx];
-        stage.dataset.ring = beat.ring ? "on" : "off";
-        stage.dataset.motion = beat.motion;
-        if (beat.swap) {
-          const t = (p - PRE - idx * SLICE) / SLICE;
-          beats[idx].toggleAttribute("data-swap-b", t >= 0.5);
-        }
-      } else {
-        stage.dataset.motion = "bloom";
-        stage.dataset.ring = "off";
-      }
-    },
+  if (reduce) {
+    // Straight to the resting frame — dot gone, ring gone, beats never
+    // shown, frame fully bloomed, headline up. No movie, no lock.
+    gsap.set(stage, {
+      "--dot-k": 1, "--dot-op": 0, "--mark-op": 0, "--ring": 0,
+      "--wipe-l": 0, "--wipe-r": 0, "--flood": 1, "--head": 1,
+    });
+    stage.dataset.motion = "bloom";
+    stage.dataset.ring = "off";
+    beats.forEach((b) => b.setAttribute("aria-hidden", "true"));
+    navLogo?.classList.remove("is-gone");
+    section.dataset.heroDone = "true";
+    armGroundTrigger();
+    return;
+  }
+
+  gsap.set(stage, {
+    "--dot-k": 0, "--dot-op": 1, "--mark-op": 1, "--ring": 0,
+    "--wipe-l": 0, "--wipe-r": 1, "--flood": 0, "--head": 0,
   });
+  navLogo?.classList.add("is-gone");
+
+  const handleUpdate = () => {
+    const t = tl.time();
+
+    /* Smooth fade for all three beat texts, independent of the discrete
+       iris/swipe/ring state below — this (plus the dot and ring already
+       being smooth GSAP tweens) is what makes the whole dot->beats->bloom
+       stretch read as one flowing reveal instead of three separate
+       pop-in/pop-out stages. Runs every tick regardless of which "stage"
+       t is in below, since beat 0's fade-in bleeds slightly *before*
+       PRE_DUR (text emerging as the ring finishes opening) and beat 2's
+       fade-out bleeds *after* OPEN_T (dissolving straight into the
+       bloom) — see each Beat's bleedInBefore/bleedOutAfter above.
+       Visual opacity is independent from what's exposed to assistive
+       tech, though: mid-fade, two beats can both be partially visible
+       on screen, but only one of them should ever be the "current" one
+       a screen reader announces. */
+    const idx = t < PRE_DUR || t >= OPEN_T ? -1 : Math.min(BEATS.length - 1, Math.floor((t - PRE_DUR) / BEAT_DUR));
+    const beatFade = BEAT_DUR * BEAT_FADE_FRAC;
+    beats.forEach((b, i) => {
+      const start = PRE_DUR + i * BEAT_DUR;
+      const end = start + BEAT_DUR;
+      const opacity = Math.min(
+        rampIn(t, start, beatFade, !!BEATS[i].bleedInBefore),
+        rampOut(t, end, beatFade, !!BEATS[i].bleedOutAfter),
+      );
+      b.style.opacity = opacity.toFixed(3);
+      if (i !== idx) b.setAttribute("aria-hidden", "true");
+      else b.removeAttribute("aria-hidden");
+    });
+
+    if (t < PRE_DUR) { stage.dataset.motion = "iris"; return; }
+
+    if (t < OPEN_T) {
+      const beat = BEATS[idx];
+      stage.dataset.ring = beat.ring ? "on" : "off";
+      stage.dataset.motion = beat.motion;
+      if (beat.swap) {
+        const bt = (t - PRE_DUR - idx * BEAT_DUR) / BEAT_DUR;
+        beats[idx].toggleAttribute("data-swap-b", bt >= 0.5);
+      }
+    } else {
+      stage.dataset.motion = "bloom";
+      stage.dataset.ring = "off";
+    }
+  };
+
+  const onMovieComplete = () => {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    window.removeEventListener("scroll", snapBackToTop);
+    section.dataset.heroDone = "true";
+    armGroundTrigger();
+  };
+
+  const tl = gsap.timeline({ defaults: { ease: "none" }, onUpdate: handleUpdate, onComplete: onMovieComplete });
+
+  /* PRELUDE — the dot contracts (and takes the mark with it), then the
+     outlined iris opens back out of that same point. */
+  tl.to(stage, { "--dot-k": 1, "--mark-op": 0, duration: PRE_DUR * 0.5, ease: "power2.in" }, 0)
+    .set(stage, { "--dot-op": 0 }, PRE_DUR * 0.5)
+    .to(stage, { "--ring": 1, duration: PRE_DUR * 0.5, ease: "power2.out" }, PRE_DUR * 0.5);
+
+  /* BEATS — iris / swipe / iris(+word swap), each its own slot. Discrete
+     state (which beat, which clip mechanic, the ring) is derived from
+     the timeline's own elapsed time in handleUpdate above; these tweens
+     only own the continuous numbers. */
+  BEATS.forEach((beat, i) => {
+    const start = PRE_DUR + i * BEAT_DUR;
+    if (beat.motion === "swipe") {
+      tl.fromTo(stage, { "--wipe-r": 1 }, { "--wipe-r": 0, duration: BEAT_DUR * 0.5, ease: "power2.out" }, start)
+        .fromTo(stage, { "--wipe-l": 0 }, { "--wipe-l": 1, duration: BEAT_DUR * 0.5, ease: "power2.in" }, start + BEAT_DUR * 0.5);
+    } else if (beat.swap) {
+      tl.fromTo(stage, { "--ring": 0 }, { "--ring": 1, duration: BEAT_DUR * 0.25, ease: "power2.out" }, start)
+        .to(stage, { "--ring": 0, duration: BEAT_DUR * 0.25, ease: "power2.in" }, start + BEAT_DUR * 0.75);
+    } else {
+      tl.fromTo(stage, { "--ring": 1 }, { "--ring": 0, duration: BEAT_DUR, ease: "sine.in" }, start);
+    }
+  });
+
+  /* BLOOM — the frame floods rose, the lockup fades up into it. Movie
+     ends here; the cream-rise + closing copy that used to follow are
+     ordinary scroll content below now (see Hero.astro's .hcb__after). */
+  tl.to(stage, { "--ring": 0, "--dot-op": 0, duration: 0.0001 }, OPEN_T)
+    .to(stage, { "--flood": 1, duration: BLOOM_DUR * 0.75, ease: "power1.out" }, OPEN_T)
+    .to(stage, { "--head": 1, duration: BLOOM_DUR * 0.55, ease: "power2.out" }, OPEN_T + BLOOM_DUR * 0.4);
+
+  /* The movie owns the page until it's done — "resume the site's
+     functionality" means scrolling stays locked for its ~10s runtime.
+     overflow:hidden on the root (and body, for Safari) disables wheel/
+     touch/keyboard scroll input, but doesn't reliably stop a
+     *programmatic* window.scrollTo() in every engine (confirmed: it
+     doesn't in Chromium) — a scroll listener that snaps straight back
+     to 0 is what actually makes the lock airtight, belt-and-suspenders
+     over the CSS. Always starts from the very top, regardless of where
+     a reload/deep-link landed — this is meant to read as a splash
+     intro seen from the top once per load, not something that can be
+     scrolled mid-way into first. */
+  window.scrollTo(0, 0);
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  const snapBackToTop = () => window.scrollTo(0, 0);
+  window.addEventListener("scroll", snapBackToTop);
+
+  // Exposed for automated tests, which otherwise have to burn this
+  // movie's real ~9.5s runtime on every single test that just needs
+  // Hero out of the way first (most of them don't care about Hero
+  // itself) — a test can fast-forward via
+  // `document.getElementById("hero").heroTimeline.progress(1)`, which
+  // synchronously fires the remaining tweens' end state and onComplete,
+  // same as if it had actually played out. Harmless in production: one
+  // extra object reference, nothing reads it outside tests.
+  (section as HTMLElement & { heroTimeline?: gsap.core.Timeline }).heroTimeline = tl;
+
+  tl.play();
 }

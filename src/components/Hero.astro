@@ -1,18 +1,19 @@
 ---
-// Hero — the opening scrollytelling sequence.
+// Hero — the opening movie, then a normal page.
 //
 // A rose prelude circle carrying the CLFA mark contracts to nothing, an
 // outlined iris opens back out of that same point, three beats of copy
 // play through an iris/swipe/iris cycle (the third holds open while its
 // middle word swaps "smarter" -> "faster"), then the whole frame blooms
-// into rose and a cream circle climbs up from below to close on the
-// offer copy.
-//
-// The whole thing is one GSAP timeline scrubbed 1:1 against this
-// section's scroll distance (see src/scripts/hero.ts) — every property
-// below is a plain 0..1 progress value; the CSS turns that into an
-// actual size via calc(), so it stays correct at any viewport without
-// the timeline needing to know pixels.
+// into rose and the "We are the solve for brands in motion" headline
+// fades up. That's the whole movie — one GSAP timeline that just plays
+// once, at a fixed pace (see src/scripts/hero.ts), scroll locked for its
+// ~10s runtime so it's actually watched rather than however fast someone
+// happens to scroll past it. Once it completes, the pink bloom becomes
+// this section's resting frame, the "Scroll" cue arrives, and scrolling
+// unlocks — .hcb__after below (the old cream-circle-rise stage) is
+// ordinary scroll content from there, ridden in via the site's normal
+// .reveal fade-up, not part of the movie.
 import ClfaMark from "./ClfaMark.astro";
 
 const CREAM = "#FEFCF4";
@@ -61,16 +62,16 @@ const ROSE = "#F06496";
       </h1>
     </div>
 
-    <span class="hcb__rise" aria-hidden="true"></span>
-
-    <p class="hcb__closing">
-      We&rsquo;re an adaptable healthcare B2B agency network of highly
-      experienced thinkers who connect <strong>strategy, creative, and execution</strong> to
-      tackle it head-on.
-    </p>
-
     <span class="hcb__cue" aria-hidden="true">Scroll<i></i></span>
   </div>
+</section>
+
+<section class="hcb__after">
+  <p class="hcb__closing reveal">
+    We&rsquo;re an adaptable healthcare B2B agency network of highly
+    experienced thinkers who connect <strong>strategy, creative, and execution</strong> to
+    tackle it head-on.
+  </p>
 </section>
 
 <script>
@@ -79,14 +80,14 @@ const ROSE = "#F06496";
 </script>
 
 <style define:vars={{ CREAM, CHARCOAL, COPPER, AZURE, ROSE }}>
-  .hcb { position: relative; height: 620vh; }
+  .hcb { position: relative; }
   .hcb__stage {
-    position: sticky; top: 0; height: 100svh; overflow: hidden;
+    position: relative; height: 100svh; overflow: hidden;
     background: var(--CREAM); color: var(--CHARCOAL);
     display: grid; place-items: center;
     --dot-k: 0; --dot-op: 0; --mark-op: 0; --ring: 0;
     --wipe-l: 0; --wipe-r: 1;
-    --flood: 0; --head: 0; --rise: 0; --copy: 0;
+    --flood: 0; --head: 0;
     --hc-lead: clamp(20px, calc(9.25px + 2.85vw), 64px);
   }
 
@@ -166,8 +167,6 @@ const ROSE = "#F06496";
     will-change: transform;
   }
 
-  .hcb__lockup, .hcb__closing { grid-area: 1 / 1; }
-
   .hcb__lockup {
     position: relative; z-index: 3;
     display: inline-grid; justify-items: stretch;
@@ -213,26 +212,23 @@ const ROSE = "#F06496";
     color: var(--CHARCOAL);
   }
 
-  .hcb__rise {
-    position: absolute; left: 50%; top: 50%;
-    /* same diagonal-coverage requirement as .hcb__flood above (~141.4vmax
-       for a square viewport), but this one only has ~1.8% margin over
-       that already — left as-is rather than trimmed further; there's no
-       safe headroom left to cut here without risking a corner gap. */
-    width: 144vmax; height: 144vmax; margin: -72vmax 0 0 -72vmax;
-    border-radius: 50%; background: var(--CREAM);
-    transform: translateY(calc((1 - var(--rise)) * (72vmax + 50svh)));
-    will-change: transform; z-index: 4; pointer-events: none;
+  /* The old cream-circle-rise stage — a big circle physically climbing
+     up to cover the pink — needed the scroll-scrubbed pin to work at
+     all (its position was a direct function of scroll progress). Now
+     that this is ordinary post-movie scroll content, it's just a plain
+     section with a cream background; the colour transition (pink ->
+     cream) still reads the same on scroll, it just isn't a bespoke
+     shape doing it. */
+  .hcb__after {
+    background: var(--CREAM); color: var(--CHARCOAL);
+    display: grid; place-items: center;
+    padding: clamp(72px, 10vw, 170px) var(--gut);
   }
-
   .hcb__closing {
-    position: relative; z-index: 5; margin: 0;
+    margin: 0;
     max-width: min(26ch, 90vw); text-align: center;
-    color: var(--CHARCOAL);
     font-weight: 300; letter-spacing: -.042em; line-height: 1.16;
     font-size: clamp(22px, 4.2vw, 80px);
-    opacity: var(--copy);
-    transform: translateY(calc((1 - var(--copy)) * 30px));
   }
   .hcb__closing strong { display: block; font-weight: 700; color: var(--COPPER); }
 
@@ -266,19 +262,11 @@ const ROSE = "#F06496";
     .hcb__closing { max-width: min(20ch, 86vw); }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .hcb { height: auto; }
-    /* the lockup and the closing copy normally overlap (stacked in the
-       same grid cell so the scroll-driven crossfade can swap between
-       them) — with no scroll to drive that swap, stack them in normal
-       flow instead so both are simply readable, one after the other. */
-    .hcb__stage { position: static; height: auto; padding: 18vh 0; background: var(--ROSE); display: block; }
-    .hcb__iris { position: static; clip-path: none !important; margin-bottom: 8vh; }
-    .hcb__beat { display: none !important; }
-    .hcb__dot, .hcb__ring, .hcb__flood, .hcb__cue { display: none; }
-    .hcb__lockup, .hcb__closing { grid-area: auto; }
-    .hcb__head { opacity: 1; transform: none; }
-    .hcb__rise { display: none; }
-    .hcb__closing { opacity: 1; transform: none; margin: 8vh auto 0; }
-  }
+  /* No prefers-reduced-motion overrides needed here: hero.ts's reduced-
+     motion branch sets the same custom properties (--flood: 1, --head:
+     1, etc.) the completed movie ends at, straight away — the existing
+     property-driven rules above already render the correct resting
+     frame from those values alone, animated or not. .hcb__closing below
+     gets its reduced-motion handling for free too, from the sitewide
+     .reveal rule in global.css. */
 </style>

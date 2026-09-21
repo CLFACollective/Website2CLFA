@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { collectErrors } from "./helpers";
+import { collectErrors, skipHeroMovie } from "./helpers";
 
 /**
  * Scroll mechanics on iPad/iPhone specifically — this is where the
@@ -33,34 +33,34 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     return page.evaluate((sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? null, selector);
   }
 
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+  });
+
   // BrandInMotionCards drops its sticky pin entirely under 1000px (see
   // BrandInMotionCards.astro's `@media (max-width: 999px)` block) in
   // favor of a JS-driven reveal-stack — every mobile/tablet project this
   // describe runs on is under that width, so it's not a pin candidate
-  // here at all and is checked separately below.
+  // here at all and is checked separately below. Hero itself no longer
+  // pins at all (see hero-movie.spec.ts) so it's dropped from this list
+  // entirely rather than given a noBeforeCheck escape hatch.
   const PINS = [
-    { name: "Hero", wrapper: "#hero", stage: "#hero .hcb__stage", noBeforeCheck: true },
     { name: "DayOne", wrapper: "#partnering", stage: "#partnering .pinday__stage" },
     { name: "Momentum", wrapper: "#momentum", stage: "#momentum .pin__stage" },
   ];
 
-  for (const { name, wrapper, stage, noBeforeCheck } of PINS) {
+  for (const { name, wrapper, stage } of PINS) {
     test(`${name}: sticky stage pins while its section is active, releases after`, async ({ page }) => {
-      await page.goto("/", { waitUntil: "networkidle" });
       const rect = await docRect(page, wrapper);
       expect(rect, `${wrapper} should exist`).not.toBeNull();
       const { top, height } = rect!;
 
-      // before entering: not yet pinned (stage sits below the viewport
-      // top). Hero is the first thing on the page, so there's no
-      // "before" scroll position to test from — at scroll 0 it's
-      // already pinned by definition.
-      if (!noBeforeCheck) {
-        await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, top - 50));
-        await page.waitForTimeout(150);
-        const beforeTop = await stageTop(page, stage);
-        expect(beforeTop, `${name} should not be pinned before its section`).toBeGreaterThan(20);
-      }
+      // before entering: not yet pinned (stage sits below the viewport top)
+      await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, top - 50));
+      await page.waitForTimeout(150);
+      const beforeTop = await stageTop(page, stage);
+      expect(beforeTop, `${name} should not be pinned before its section`).toBeGreaterThan(20);
 
       // mid-section: pinned to the top of the viewport
       await page.evaluate((y) => window.scrollTo(0, y), top + height * 0.5);
@@ -78,7 +78,6 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
 
   test("BrandInMotionCards: uses the static reveal-stack (not sticky pin) at this width", async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto("/", { waitUntil: "networkidle" });
     const position = await page.evaluate(
       () => getComputedStyle(document.querySelector("#motion .bmc__stage")!).position,
     );
@@ -95,7 +94,6 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
   });
 
   test("Momentum: vertical scroll through the pin drives the horizontal panel pan", async ({ page }) => {
-    await page.goto("/", { waitUntil: "networkidle" });
     const rect = await docRect(page, "#momentum");
     expect(rect).not.toBeNull();
     const { top, height } = rect!;
@@ -115,7 +113,6 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
 
   test("gradual scroll never stalls across the full page, forward and back", async ({ page, browserName }) => {
     const errors = collectErrors(page);
-    await page.goto("/", { waitUntil: "networkidle" });
 
     const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const positions: number[] = [];

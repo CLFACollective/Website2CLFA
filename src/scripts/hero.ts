@@ -1,19 +1,72 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-type Beat = { swap?: boolean; ring: boolean; motion: "iris" | "swipe" };
+type Beat = {
+  swap?: boolean;
+  ring: boolean;
+  motion: "iris" | "swipe";
+  /** Whether this beat's own text fade can bleed across its start/end
+   *  boundary into the neighbouring stage — only safe where the clip
+   *  geometry on both sides is actually the same shape at that instant
+   *  (both "iris", both settled on the same circle radius). Where the
+   *  shape changes at the boundary (iris <-> swipe), bleeding the fade
+   *  across it would show the *next* beat's text still confined to the
+   *  *current* beat's clip-path — e.g. beat 1's text, meant to reveal
+   *  via a rectangular swipe, briefly visible squeezed inside beat 0's
+   *  closing iris circle instead. Confirmed live: exactly this glitch,
+   *  before adding these flags. Where it's false, that fade is confined
+   *  entirely within the beat's own slice instead — no crossfade
+   *  overlap with the neighbour, just a smooth ramp to/from transparent
+   *  that never shows through the wrong shape. */
+  bleedInBefore?: boolean;
+  bleedOutAfter?: boolean;
+};
 
 // Mirrors the copy already in Hero.astro's markup — only the timing/motion
 // metadata lives here.
 const BEATS: Beat[] = [
-  { ring: true, motion: "iris" },
+  // prelude and beat 0 are both "iris", the ring settled at the same
+  // place either side of PRE — safe to bleed the fade-in back into the
+  // prelude, so the text emerges as the ring finishes opening rather
+  // than popping in only once it's fully open.
+  { ring: true, motion: "iris", bleedInBefore: true },
   { ring: false, motion: "swipe" },
-  { swap: true, ring: false, motion: "iris" },
+  // beat 2's ring collapses back to 0 by the end of its own slice
+  // (same as the bloom stage's fixed circle(0) clip) — safe to bleed
+  // the fade-out into the bloom, dissolving straight into it.
+  { swap: true, ring: false, motion: "iris", bleedOutAfter: true },
 ];
 
 const PRE = 0.1; // the rose dot
 const OPEN = 0.53; // beats run to here
 const RISE = 0.78; // the cream circle starts climbing here
 const SLICE = (OPEN - PRE) / BEATS.length;
+
+// Fraction of a beat's own slice spent fading in/out, rather than
+// holding solid — the higher this is, the more of the PRE->OPEN
+// stretch is spent mid-transition (more "continuous"), the lower it
+// is, the longer each beat holds still and readable.
+const BEAT_FADE_FRAC = 0.3;
+
+/** Ramps 0->1 over `dur`, ending exactly at `at` (or starting exactly
+ *  at `at` if `bleedBefore` is false — i.e. confined to *after* `at`
+ *  instead of straddling it). */
+function rampIn(p: number, at: number, dur: number, bleedBefore: boolean): number {
+  const lo = bleedBefore ? at - dur : at;
+  const hi = bleedBefore ? at : at + dur;
+  if (p <= lo) return 0;
+  if (p >= hi) return 1;
+  return (p - lo) / (hi - lo);
+}
+
+/** Ramps 1->0 over `dur`, starting exactly at `at` (or ending exactly
+ *  at `at` if `bleedAfter` is false — confined to *before* `at`). */
+function rampOut(p: number, at: number, dur: number, bleedAfter: boolean): number {
+  const lo = bleedAfter ? at : at - dur;
+  const hi = bleedAfter ? at + dur : at;
+  if (p <= lo) return 1;
+  if (p >= hi) return 0;
+  return 1 - (p - lo) / (hi - lo);
+}
 
 export function setupHero() {
   const section = document.getElementById("hero");
@@ -164,12 +217,40 @@ export function setupHero() {
       navLogo?.classList.toggle("is-gone", p < PRE);
       checkPinkGround();
 
+      /* Smooth fade for all three beat texts, independent of the
+         discrete iris/swipe/ring state below — this (plus the dot and
+         ring already being smooth GSAP tweens) is what makes the whole
+         dot->beats->bloom stretch read as one flowing reveal instead of
+         three separate pop-in/pop-out stages. Runs every tick
+         regardless of which "stage" p is in below, since beat 0's
+         fade-in bleeds slightly *before* PRE (text emerging as the
+         ring finishes opening) and beat 2's fade-out bleeds *after*
+         OPEN (dissolving straight into the bloom) — see each Beat's
+         bleedInBefore/bleedOutAfter above for why only those two edges
+         are safe to cross.
+         Visual opacity is independent from what's exposed to assistive
+         tech, though: mid-fade, two beats can both be partially visible
+         on screen, but only one of them should ever be the "current"
+         one a screen reader announces — same one-at-a-time behaviour
+         the old display:none toggle gave for free. */
+      const idx = p < PRE || p >= OPEN ? -1 : Math.min(BEATS.length - 1, Math.floor((p - PRE) / SLICE));
+      const beatFade = SLICE * BEAT_FADE_FRAC;
+      beats.forEach((b, i) => {
+        const start = PRE + i * SLICE;
+        const end = start + SLICE;
+        const opacity = Math.min(
+          rampIn(p, start, beatFade, !!BEATS[i].bleedInBefore),
+          rampOut(p, end, beatFade, !!BEATS[i].bleedOutAfter),
+        );
+        b.style.opacity = opacity.toFixed(3);
+        if (i !== idx) b.setAttribute("aria-hidden", "true");
+        else b.removeAttribute("aria-hidden");
+      });
+
       if (p < PRE) { stage.dataset.motion = "iris"; return; }
 
       if (p < OPEN) {
-        const idx = Math.min(BEATS.length - 1, Math.floor((p - PRE) / SLICE));
         const beat = BEATS[idx];
-        beats.forEach((b, n) => b.classList.toggle("is-on", n === idx));
         stage.dataset.ring = beat.ring ? "on" : "off";
         stage.dataset.motion = beat.motion;
         if (beat.swap) {
@@ -179,7 +260,6 @@ export function setupHero() {
       } else {
         stage.dataset.motion = "bloom";
         stage.dataset.ring = "off";
-        beats.forEach((b) => b.classList.remove("is-on"));
       }
     },
   });

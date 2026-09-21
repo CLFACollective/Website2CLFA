@@ -100,10 +100,15 @@ const ROSE = "#F06496";
   .hcb__stage[data-motion="bloom"] .hcb__iris { clip-path: circle(0 at 50% 50%); }
 
   .hcb__beat {
-    grid-area: 1 / 1; margin: 0; display: none; justify-items: center; text-align: center; gap: .06em;
+    /* display stays grid at all times now (not toggled with display:none
+       per active beat) — opacity is a continuous per-frame value from
+       hero.ts's scroll-scrubbed cross-fade, so all three sit stacked in
+       this shared grid cell (grid-area: 1/1) the whole time, and only
+       the currently-relevant one is ever above ~0 opacity (or two,
+       briefly, mid cross-fade — the whole point). */
+    grid-area: 1 / 1; margin: 0; display: grid; justify-items: center; text-align: center; gap: .06em;
     opacity: 0;
   }
-  .hcb__beat.is-on { display: grid; opacity: 1; }
   .hcb__lead {
     font-weight: 300; letter-spacing: -.02em; line-height: 1.1;
     font-size: var(--hc-lead);
@@ -234,7 +239,15 @@ const ROSE = "#F06496";
   .hcb__cue {
     position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
     font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
-    color: var(--ROSE); opacity: calc(1 - var(--flood));
+    color: var(--ROSE);
+    /* used to be the opposite (calc(1 - var(--flood)), visible during
+       the dot/beats stretch, gone by the time the frame floods pink) —
+       now it only arrives once the pink bleed is reached: --flood eases
+       to 1 as the bloom completes and then holds there for the rest of
+       the timeline (rise + closing copy), so tracking it directly both
+       brings the cue in exactly as the bleed lands and keeps it visible
+       for the remainder of the section. */
+    opacity: var(--flood);
     display: flex; flex-direction: column; align-items: center; gap: 8px;
   }
   .hcb__cue i {

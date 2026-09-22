@@ -1,6 +1,6 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-const CHARCOAL = "#232323";
+const WHITE = "#FFFFFF";
 const PINK = "#F06996";
 
 /**
@@ -10,17 +10,14 @@ const PINK = "#F06996";
  * - The wordmark's dot is pink on every ground except the hero's own
  *   pink bloom, where a pink dot disappears into a pink screen — GSAP
  *   tweens its fill directly (see ClfaWordmark/clfaLogo.ts for why this
- *   is a plain inline path now rather than a <use> reference). Charcoal,
- *   not cream/white, on pink ground: the dot sits mostly *behind* the
- *   wordmark's own big C/L/F/A strokes in paint order (see clfaLogo.ts —
- *   those letters are the last paths in the source, so they draw on top
- *   of the dot), so a pale fill there read as faint, fragmented slivers
- *   peeking between the letters rather than a clean shape — confirmed
- *   live, hard to make out at real nav size even though the colour
- *   value itself was technically correct. Charcoal matches the
- *   letterforms' own already-good contrast against pink instead,
- *   reading as one consistent dark mark rather than fighting the
- *   letters for attention.
+ *   is a plain inline path now rather than a <use> reference). Pure
+ *   white there, deliberately not the site's off-white cream — the dot
+ *   sits mostly *behind* the wordmark's own big C/L/F/A strokes in
+ *   paint order (see clfaLogo.ts — those letters are the last paths in
+ *   the source, so they draw on top of the dot), so it only ever reads
+ *   as fragments peeking between the letters rather than a full shape;
+ *   full white against pink keeps those fragments crisp rather than
+ *   fading toward invisible the way the softer cream did.
  * - The wordmark's letterforms (currentColor, via nav's own `color`)
  *   go cream over the azure "partnering" window and the forest "don't
  *   let up" section, where charcoal reads too dark against too-dark
@@ -43,7 +40,7 @@ export function setupNavTint() {
 
   let onPinkGround = false;
   const applyDot = () => {
-    const color = onPinkGround ? CHARCOAL : PINK;
+    const color = onPinkGround ? WHITE : PINK;
     if (reduce) gsap.set(dots, { fill: color });
     else gsap.to(dots, { fill: color, duration: 0.35, ease: "power2.out" });
   };

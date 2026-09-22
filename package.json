@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "astro": "^5.2.0",
-    "gsap": "^3.12.7"
+    "gsap": "^3.12.7",
+    "three": "^0.169.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"

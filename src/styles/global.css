@@ -465,6 +465,12 @@ body.menu-open .mega { pointer-events: auto; }
 
 /* ============================================================
    MOMENTUM — horizontal scroll
+   RETIRED — superseded by MomentumGallery.astro/momentumGallery.ts.
+   Left in place (Momentum.astro/momentum.ts are kept unused, not
+   deleted) so this block still works correctly if that component is
+   ever reinstated — the MOMENTUM GALLERY block below overrides what
+   it needs to (#momentum's own height, specifically) via cascade
+   order, not by editing anything here.
    ============================================================ */
 #momentum { height: 360vh; }
 #momentum .pin__stage {
@@ -543,17 +549,24 @@ body.menu-open .mega { pointer-events: auto; }
 
 .hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
 .mquote__wrap { position: relative; width: max-content; max-width: 100%; }
-/* sits outside the text block's own top-right corner (negative
-   offsets), clear of every line, rather than overlapping the quote —
-   only actually true when every line's own box is sized to its own
-   text (see .mquote span's width below); the wrap itself is sized to
-   the *widest* line, so positioning the badge off the wrap alone let
-   it drift over a shorter first line at wider viewports where the
-   badge (still scaling) had outgrown the text (capped at its clamp
-   ceiling) — confirmed happening from ~1600px up, checked pixel gap
-   at 8 widths from 800-2560px, not just eyeballed at one size. */
+/* MomentumGallery.astro nests the badge as the *last child inside*
+   .mquote__l1 itself (no whitespace between "move" and the badge's own
+   opening tag — see the markup — a stray text node there would inflate
+   l1's own width:fit-content measurement by a few px and throw the gap
+   off). left:calc(100% + 20px) — not `right` — since the badge's own
+   width is itself responsive (the clamp() below): `right:-20px` would
+   anchor the badge's *right* edge 20px past the text and let it extend
+   backward over the text by (badge width - 20px), not sit clear of it;
+   anchoring by `left` instead makes the badge's *left* edge sit exactly
+   20px past wherever "They move" ends, at any breakpoint/font-size,
+   regardless of how wide the badge itself currently is. (The retired
+   Momentum.astro instead wraps the whole blockquote in .mquote__wrap,
+   sized to its *widest* line, and sits the badge as its sibling there —
+   a different structure this rule no longer targets, since that
+   component is unused.) */
+.mquote__l1 { position: relative; }
 .mquote__badge {
-  position: absolute; top: -14px; right: -25.5px;
+  position: absolute; top: -14px; left: calc(100% + 20px);
   width: clamp(44px, 3.6vw, 68px); height: auto; display: block; pointer-events: none;
 }
 .mquote__badge svg { display: block; width: 100%; height: auto; }
@@ -572,8 +585,15 @@ body.menu-open .mega { pointer-events: auto; }
 }
 /* width:fit-content, not the stretched-to-wrap default a block span
    gets — each line needs to end where its own text ends (used by the
-   badge positioning above), not all share the widest line's width. */
-.mquote span { display: block; width: fit-content; }
+   badge positioning above), not all share the widest line's width.
+   Direct-child combinator, not a bare descendant selector — .mquote__l1
+   now nests .mquote__badge inside it (see MomentumGallery.astro), and a
+   bare ".mquote span" would also match that nested span: width:fit-content
+   on an element whose only child is an SVG at width:100% is circular, and
+   the browser falls back to the SVG's classic 300×150 default intrinsic
+   size — a real, previously-hit bug in this same way elsewhere in this
+   codebase (canvas elements with no explicit size). */
+.mquote > span { display: block; width: fit-content; }
 .mquote__l1, .mquote__l3 { color: var(--charcoal); }
 .mquote__l2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 .mquote__by {
@@ -598,7 +618,54 @@ body.menu-open .mega { pointer-events: auto; }
   .mfig { font-size: 88px; }
   .mcap { font-size: 16px; }
   .mquote { font-size: 27px; }
-  .mquote__badge { width: 30px; top: -8px; right: -14px; }
+  .mquote__badge { width: 30px; top: -8px; } /* left:calc(100% + 20px) inherited from the base rule — same gap at every breakpoint */
+}
+
+/* ============================================================
+   MOMENTUM GALLERY — back-to-front depth-of-field carousel
+   ============================================================ */
+/* overrides the retired block's fixed 360vh — this section is a plain
+   single-viewport panel now, no scroll-scrub distance to pin through;
+   .pin__stage's own sticky rule just supplies the background/flex-column
+   layout, not an actual pin (nothing here is taller than the viewport). */
+#momentum { height: auto; }
+
+.mg__scene { flex: 1 1 auto; min-height: 0; position: relative; }
+.mg__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.mg__slide {
+  /* position/scale/opacity/filter/z-index are all written by JS every
+     frame (desktop, via momentumGallery.ts's Three.js projection sync) or
+     by GSAP tweens (mobile's CSS 3D transform approximation) — nothing
+     here sets them declaratively. */
+  position: absolute; top: 0; left: 0;
+  width: min(560px, 80vw);
+}
+.mg__slide--stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.mg__slide--stat .mcap, .mg__slide--stat h4 { margin-left: auto; margin-right: auto; }
+.mg__slide--quote { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+/* duplicated from the retired .hs__panel h4, deliberately not shared —
+   keeps this component decoupled from the old track's own box model */
+.mg__slide h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
+
+.mg__hint {
+  position: absolute; left: 0; right: 0; bottom: clamp(20px, 4vh, 40px);
+  text-align: center; font-size: 12px; letter-spacing: .24em; text-transform: uppercase; opacity: .55;
+  pointer-events: none;
+}
+.mg__hint span { display: block; margin-top: 6px; opacity: .75; }
+
+/* mobile/touch: no WebGL, a plain CSS 3D transform stack instead */
+@media (max-width: 999px) {
+  .mg__scene { perspective: 1000px; }
+  .mg__canvas { display: none; }
+  /* desktop's JS computes each slide's full on-screen position itself
+     (projected from its mesh, top:0/left:0 as the reference corner), but
+     mobile's momentumGallery.ts positions with GSAP's xPercent/yPercent
+     plus a small x/y nudge — that math needs the untransformed anchor to
+     already sit at the scene's centre, not its corner. */
+  .mg__slide { width: min(320px, 82vw); top: 50%; left: 50%; }
+  .mg__hint { font-size: 10px; }
 }
 
 /* ============================================================
@@ -726,4 +793,9 @@ h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: 
   .hs__spine { display: none; }
   .rail__ball { display: none; }
   .mega { transition: none; }
+
+  .mg__scene { position: static; height: auto; display: flex; flex-direction: column; gap: 40px; align-items: center; perspective: none; }
+  .mg__canvas { display: none; }
+  .mg__slide { position: static; transform: none !important; filter: none !important; opacity: 1 !important; width: 100%; max-width: 560px; }
+  .mg__hint { display: none; }
 }

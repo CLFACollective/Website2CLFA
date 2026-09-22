@@ -1,3 +1,5 @@
+// RETIRED — superseded by momentumGallery.ts/MomentumGallery.astro. Kept
+// unused, per request, for reference. No longer imported anywhere.
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
 /**

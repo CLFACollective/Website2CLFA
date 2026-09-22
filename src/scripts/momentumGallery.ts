@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-const N = 4;
+const N = 5;
 const DESKTOP_QUERY = "(min-width: 1000px)";
 // world-space distance from the camera to the z=0 "front" plane — fov is
 // recomputed off this each resize so 1 Three.js unit at z=0 == 1 css px,
@@ -9,65 +9,77 @@ const DESKTOP_QUERY = "(min-width: 1000px)";
 // units instead of hand-derived ones.
 const CAMERA_Z = 1000;
 const AUTOPLAY_DELAY = 4;
-const RESUME_DELAY = 3;
+// how many full autoplay loops (every slide, once each) play out before
+// the carousel stops on its own and just leaves the page free to scroll
+// on — a passive visitor isn't expected to sit through this forever.
+const MAX_AUTO_LOOPS = 3;
 
 /* A slide's whole lifecycle is one continuous, never-quite-stopping curve
-   rather than three separate phases stitched together with a hard stop in
-   between (an approach tween completes, the slide sits dead still, then
-   later a completely unrelated departure tween begins from scratch) — that
+   rather than phases stitched together with a hard stop in between — that
    stitched-together shape is exactly what reads as "start / stop / start".
-   Instead:
-     - DEPTH_APPROACH_DUR is a finite, decelerating ("power3.out") depth
-       tween that carries a slide from the waiting depth to just past its
-       readable resting point (HOLD_Z).
-     - it's chained straight into an INFINITE ambient breathe (yoyo,
-       repeat:-1) oscillating gently around HOLD_Z — this is the literal
-       fix for "never let it pause": a finite tween, however long, still
-       eventually reaches zero velocity and sits dead still if genuinely
-       left alone (no autoplay, no gesture, ever) — an unbounded one
-       physically cannot. "The pause" is this breathe: still moving, just
-       very slowly, forever, until a departure interrupts it.
+     - ARRIVE_DUR is ONE tween — lateral (x/y), depth (z), rotation, and
+       opacity all animate together, same duration, same ease. This is
+       deliberate: two independently-timed tweens (the old design split
+       lateral from depth) can't help drifting out of sync with each
+       other even when their durations are close, and that mismatch is
+       exactly what read as a sudden pop to one side rather than a
+       continuous, gradual emergence — the item would visibly "arrive"
+       laterally while still mostly transparent/small, or vice versa.
+       One tween can't drift out of sync with itself.
+     - every slide goes through this arrival — including the very first
+       one ever shown. It does not start pre-placed at full size; it
+       starts at the shared waiting lane like everything else and only
+       becomes prominent once activateInitial() promotes it, the same
+       call every later slide gets.
+     - count-up fires at a literal, fixed checkpoint: 3/4 of the way
+       through this same tween (this.progress(), its own time-fraction),
+       not a scale-derived proximity guess.
+     - once ARRIVE_DUR completes, depth keeps creeping forward forever at
+       a small but clearly-visible CONSTANT speed (linear, one direction,
+       never yoyo'd) — not a decelerating tail, and not an oscillating
+       breathe either: both of those spend time near-zero-velocity (a
+       decelerating tail approaches stillness by definition; a yoyo
+       breathe is momentarily still at each turnaround), which is exactly
+       what read as "stuck". A constant hand-off speed never slows
+       further and never reverses, so there is no instant, ever, where
+       the number/quote is not visibly still moving.
      - departure (DEPART_DUR) doesn't reset anything — it takes over from
-       wherever the breathe currently sits and eases IN (slow to fast)
+       wherever that creep currently sits and eases IN (slow to fast)
        toward the overshoot point, so it visibly picks up speed rather
-       than snapping straight to full velocity.
-     - SETTLE_DUR governs only the lateral (x/y/rotation) arrival, which
-       has no reason to keep drifting once it's reached its lane — it
-       settles well before DEPTH_APPROACH_DUR finishes.
-   Lateral and depth are deliberately two separate, differently-timed
-   tweens for exactly this reason: a single tween can't be "settled" in
-   one dimension and "still slowly creeping" in another. */
-const DEPTH_APPROACH_DUR = 3.7; // 0.3s faster than the original 4s — keeps momentum through the approach/pause without dragging
-const SETTLE_DUR = 3;
-// how long `transitioning` blocks a new gesture — tied to when a slide
-// reads as arrived (SETTLE_DUR), not to the depth breathe, which by design
-// never finishes.
-const GUARD_DUR = SETTLE_DUR;
+       than snapping straight to full velocity. */
+const ARRIVE_DUR = 2.5; // ~50% faster than the original 3.7s+3s split
+// how long `transitioning` blocks a new advance — tied to the arrival
+// itself, not to the depth creep, which by design never finishes on its
+// own.
+const GUARD_DUR = ARRIVE_DUR;
 const DEPART_DUR = 1.0; // departure: picks up from the live creep, accelerates hard, gone
+// how far into its own arrival (0-1, the tween's own time-progress) a
+// slide has to be before its number starts counting up — a literal,
+// fixed checkpoint (see the top-of-file comment), not a proximity guess.
+const COUNT_START_PROGRESS = 0.75;
 // how deep a waiting slide sits — invisible (opacity 0), so its exact
 // depth barely matters visually; one shared constant is enough, no need
 // for a pool of distinct spots the way the old visible background did.
 const WAIT_Z = -1700;
-// where DEPTH_APPROACH_DUR lands and the infinite hold-breathe then
-// oscillates around (see the comment above) — a bit past prominent's z:0,
-// so the slide still reads as very slightly larger than "arrived".
+// where ARRIVE_DUR lands and the infinite hold-creep then continues from
+// — a bit past prominent's z:0, so the slide still reads as very
+// slightly larger than "arrived".
 const HOLD_Z = 90;
-const HOLD_BREATHE_DUR = 5;
-const HOLD_BREATHE_Z_RANGE = 70;
+// constant world-units/second the depth keeps creeping forward at, once
+// arrived, forever — a real, clearly-visible amount (not just
+// technically-nonzero) so it never reads as stuck. CREEP_TAIL_DUR is
+// just long enough that a departure (which always arrives well before
+// it in practice) is what ends it, not the tween running out on its
+// own, while keeping HOLD_Z + HOLD_CREEP_SPEED*CREEP_TAIL_DUR safely
+// short of CAMERA_Z (dividing by zero territory).
+const HOLD_CREEP_SPEED = 30;
+const CREEP_TAIL_DUR = 20;
 // how close to the camera a departing slide overshoots to before it's
 // reset — short of CAMERA_Z itself (which would divide by zero) but close
 // enough that scale = CAMERA_Z/(CAMERA_Z-z) blows up dramatically, i.e.
 // it visibly keeps growing as it fades, rather than just holding still
 // and fading in place.
 const OVERSHOOT_Z = 920;
-// how far into its own approach a slide has to be before its number
-// starts counting up — "as it gets closer" is a proximity thing, not a
-// fixed delay. Desktop checks this against live depth every frame (see
-// renderFrame); mobile has no per-frame projection to read, so it checks
-// live scale directly instead (see checkMobileCount) — not timed to fire
-// at some fixed point through the tween regardless of how front-loaded
-// the easing actually is.
-const COUNT_THRESHOLD = 0.72;
 // a waiting slide isn't perfectly frozen either — a slow, barely-visible
 // ambient drift (see startDesktopWaitBreathe/startMobileWaitBreathe) keeps
 // it faintly alive in the background, so the next slide promoted doesn't
@@ -80,19 +92,20 @@ const WAIT_BREATHE_Z_RANGE = 180;
 
 type Lane = { x: number; y: number; z: number; rotY: number; rotX: number };
 
-// the quote (see QUOTE_INDEX below) — fixed, not drawn from the pool the
-// three stat slides randomly share (see pickProminentLane). Its own
-// left-aligned text block reads better anchored well right of centre, so
-// its emphasis (the word "move" in "They move") lands around 60% across
-// the frame rather than wherever a randomly-picked lane happens to put it.
-const QUOTE_INDEX = 3;
+// the two quote slides (see QUOTE_INDICES below) — fixed, not drawn from
+// the pool the three stat slides randomly share (see pickProminentLane).
+// A left-aligned text block reads better anchored well right of centre,
+// so its emphasis (the word "move" in "They move") lands around 60%
+// across the frame rather than wherever a randomly-picked lane happens
+// to put it. Both quotes share the same lane for consistency.
+const QUOTE_INDICES = [3, 4];
 const QUOTE_LANE: Lane = { x: 220, y: 30, z: 0, rotY: -7, rotX: 2 };
 
 /* Where an *active stat* slide pauses, readable — three options (never
    repeating the same one twice running, see pickProminentLane) so
    consecutive active slides don't always settle in the same spot. z:0 for
    all three — "prominent" means close/in-focus, only the lateral position
-   varies. The quote slide doesn't draw from this pool at all — see
+   varies. The quote slides don't draw from this pool at all — see
    QUOTE_LANE. */
 const PROMINENT_LANES: Lane[] = [
   { x: 0, y: 0, z: 0, rotY: 0, rotX: 0 },
@@ -116,15 +129,14 @@ const MOBILE_QUOTE_LANE: MobileLane = { x: "13vw", y: "8px", z: 0, rotY: -6, rot
 // matters, it's at opacity 0" reasoning as WAIT_Z above.
 const MOBILE_WAIT: MobileLane = { x: "0px", y: "0px", z: -480, rotY: 0, rotX: 0, scale: 0.22, blur: 14, opacity: 0 };
 // mobile has no live projection to grow "scale" out of depth the way
-// desktop's z does — so scale plays that same role directly: a finite,
-// front-loaded rise from MOBILE_WAIT's tiny scale to MOBILE_HOLD_SCALE
-// (mirrors DEPTH_APPROACH_DUR/HOLD_Z), then an infinite ambient breathe
-// around it (mirrors HOLD_BREATHE_DUR) — see checkMobileCount for how
-// count-up reuses COUNT_THRESHOLD against this live value.
+// desktop's z does — so scale plays that same role directly: it animates
+// alongside x/y/rotation/opacity in ARRIVE_DUR's single combined tween up
+// to MOBILE_HOLD_SCALE, then an infinite constant-speed creep past it
+// (mirrors HOLD_CREEP_SPEED).
 const MOBILE_HOLD_SCALE = 1.1;
 const MOBILE_HOLD_Z = 40;
-const MOBILE_HOLD_BREATHE_SCALE_RANGE = 0.08;
-const MOBILE_HOLD_BREATHE_Z_RANGE = 70;
+const MOBILE_HOLD_CREEP_SCALE_SPEED = 0.045; // scale units/second
+const MOBILE_HOLD_CREEP_Z_SPEED = 30; // css-px-equivalent/second
 // how far/large a departing slide overshoots to before resetting — mobile
 // has no real projection, so this is just an authored end-of-tween value.
 const MOBILE_OVERSHOOT: MobileLane = { x: "0px", y: "0px", z: 260, rotY: 0, rotX: 0, scale: 2.4, blur: 0, opacity: 0 };
@@ -133,43 +145,51 @@ const MOBILE_OVERSHOOT: MobileLane = { x: "0px", y: "0px", z: 260, rotY: 0, rotX
 const MOBILE_WAIT_BREATHE_SCALE_BONUS = 0.06;
 const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
 
-const TINTS = ["#F06496", "#BE7837", "#506E78", "#A0A073"];
+const TINTS = ["#F06496", "#BE7837", "#506E78", "#A0A073", "#BE7837"];
 
 /**
  * MomentumGallery — a "back to front" depth-of-field carousel replacing the
  * old horizontally-panning Momentum track (see Momentum.astro, retired).
  * Only ever two slides are visible at once: the active one, paused large
  * and readable up front, and whichever one is mid-transition. A slide
- * promoted to active emerges from dead centre and grows forward into its
- * lane; once its turn is over it doesn't recede into a visible background
- * — it keeps riding forward past the reader (growing further, per real
- * perspective) while fading to nothing, then resets invisibly to wait for
- * its next turn. Nothing is ever left visibly parked in the background.
- * Desktop renders the depth with a real Three.js scene (camera + soft
- * "card" meshes behind the real DOM text — the canvas itself stays
- * genuinely transparent so the ShineField dust field behind it keeps
- * showing through, see makeCardTexture's comment for why there's no
- * BokehPass/EffectComposer here) and syncs that DOM text's position/scale
- * to the mesh every frame; the actual stat/quote copy never lives inside
- * the canvas. Below 1000px, no WebGL context is ever created at all — a
- * plain CSS 3D transform stack approximates the same look, both because
- * touch devices are this codebase's own documented source of GPU-effect
- * crashes (ShineField/Day One's prior iPad history) and because a
- * mouse-only interaction (wheel) isn't the primary input there anyway.
+ * promoted to active emerges from dead centre, small and invisible, and
+ * grows forward into its lane over one coordinated tween (see ARRIVE_DUR
+ * above) — including the very first slide ever shown, which gets the
+ * exact same entrance the moment the section activates, not a pre-placed
+ * starting state. Once its turn is over it doesn't recede into a visible
+ * background — it keeps riding forward past the reader (growing further,
+ * per real perspective) while fading to nothing, then resets invisibly to
+ * wait for its next turn. Nothing is ever left visibly parked in the
+ * background. Desktop renders the depth with a real Three.js scene
+ * (camera + soft "card" meshes behind the real DOM text — the canvas
+ * itself stays genuinely transparent so the ShineField dust field behind
+ * it keeps showing through, see makeCardTexture's comment for why there's
+ * no BokehPass/EffectComposer here) and syncs that DOM text's
+ * position/scale to the mesh every frame; the actual stat/quote copy
+ * never lives inside the canvas. Below 1000px, no WebGL context is ever
+ * created at all — a plain CSS 3D transform stack approximates the same
+ * look, both because touch devices are this codebase's own documented
+ * source of GPU-effect crashes (ShineField/Day One's prior iPad history)
+ * and because a mouse-only interaction isn't relevant there anyway.
  *
- * Navigation — wheel, arrow keys, or touch — is captured only while the
- * section fills the viewport (Hero's own overflow:hidden + scroll-snapback
- * lock, reused verbatim: a plain overflow:hidden alone doesn't reliably
- * block a programmatic/momentum scroll in Chromium). One gesture = one
- * slide. Auto-play advances on its own timer, pausing on any interaction
- * and resuming 3s later. Advancing past the last slide (or retreating
- * before the first) releases the lock and hands scroll to the next/previous
- * section instead of wrapping.
+ * There is no gesture navigation at all — no scroll-lock, no wheel/arrow-
+ * key/touch capture. This is a passive, autoplay-only carousel that lives
+ * in the normal page flow and never blocks scrolling. An IntersectionObserver
+ * starts it playing once the section is fully in view (also the moment its
+ * first arrival plays and its first count-up can fire — see
+ * activateInitial); a window `scroll` listener pauses it the instant the
+ * visitor starts scrolling at all, and a short settle-debounce resumes it
+ * — from exactly where it left off, no reset — once they've stopped
+ * scrolling with the section still fully in view. After MAX_AUTO_LOOPS
+ * complete loops through every slide with nobody scrolling away in
+ * between, it stops on its own and just leaves the page free to scroll
+ * on, rather than looping forever for a purely passive visitor.
  */
 export function setupMomentumGallery() {
   const section = document.getElementById("momentum");
   const sceneEl = document.getElementById("mgScene");
   const canvas = document.getElementById("mgCanvas") as HTMLCanvasElement | null;
+  const cue = document.getElementById("mgCue");
   if (!section || !sceneEl || !canvas) return;
 
   const slides = Array.from(section.querySelectorAll<HTMLElement>(".mg__slide")).sort(
@@ -185,7 +205,7 @@ export function setupMomentumGallery() {
 
   if (prefersReducedMotion()) {
     // static stacked layout (CSS handles the geometry) — every number just
-    // shows its final value, no tween, no lock, no canvas ever created.
+    // shows its final value, no tween, no autoplay, no canvas ever created.
     slides.forEach((slide) => {
       const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
       if (fig) setCountText(fig, Number(fig.dataset.mgCount));
@@ -193,7 +213,7 @@ export function setupMomentumGallery() {
     return;
   }
 
-  const { gsap, Observer } = useGsap();
+  const { gsap } = useGsap();
 
   const countUp = (slide: HTMLElement) => {
     const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
@@ -205,39 +225,41 @@ export function setupMomentumGallery() {
     gsap.to(obj, { v: target, duration: 0.9 * 1.6, ease: "power3.out", onUpdate: () => setCountText(fig, obj.v) });
   };
 
-  /* ---------- shared state (survives lock cycles and mode switches) ---------- */
+  /* ---------- shared state ---------- */
   let idx = 0;
-  let locked = false;
   let transitioning = false;
-  let suppressEngage = false;
-  // has the section been scrolled 20% into view yet? Declared up here
-  // (not just before activateInitial's own definition further down)
-  // because initThree() paints — and renderFrame's count-up check reads —
-  // the seeded layout synchronously during setup, before activateInitial
-  // itself is ever defined; a `let` referenced from there earlier than
-  // this line would hit the temporal dead zone.
-  let activated = false;
+  let playing = false;
+  // has this ever fully activated — declared up here (not just before
+  // activateInitial's own definition further down) because initThree()
+  // paints the seeded layout synchronously during setup, before
+  // activateInitial itself is ever defined; a `let` referenced from
+  // there earlier than this line would hit the temporal dead zone. Also
+  // gates ensureActiveLaneIsProminent (see its own comment) — before
+  // activation, `idx` sitting at the waiting lane is correct, not a bug
+  // to "fix".
+  let everActivated = false;
+  // how many complete autoplay loops (every slide, once) have played with
+  // nobody scrolling away in between — see MAX_AUTO_LOOPS.
+  let autoLoopCount = 0;
+  let stoppedForever = false;
+  let cueShown = false;
+  let cueTl: gsap.core.Timeline | null = null;
+  // test-only: lets a test call goTo() deterministically (no live autoplay
+  // timer racing it) while leaving the ticker/rendering fully live for DOM
+  // assertions — unlike pause(), which also stops the ticker (the correct
+  // real-world behavior, but wrong for a test that still wants to read
+  // live transforms). See the exposed mgApi.disableAutoplay below.
+  let autoplayDisabledForTest = false;
   // has this slide's number ever counted up yet? Permanent, not reset on
   // each approach — a slide only counts up the very first time it's ever
   // shown; every later turn just displays the number it already landed on.
   const countedUp: boolean[] = new Array(N).fill(false);
 
-  // mobile has no per-frame projection to read a live "scale" off the way
-  // desktop's renderFrame does — this is the equivalent, called from
-  // mobileSwap's own tween onUpdate hooks instead of a render loop.
-  function checkMobileCount(i: number) {
-    if (countedUp[i]) return;
-    const scale = gsap.getProperty(slides[i], "scale") as number;
-    if (scale >= COUNT_THRESHOLD) {
-      countedUp[i] = true;
-      countUp(slides[i]);
-    }
-  }
-
   // a single shared "waiting" lane — where a slide sits invisibly (opacity
-  // 0) between its own turns. No pool of distinct spots is needed the way
-  // the old visible background lanes were: nothing should ever be seen
-  // resting back there, so its exact depth/position barely matters.
+  // 0) between its own turns, including before its very first turn. No
+  // pool of distinct spots is needed the way the old visible background
+  // lanes were: nothing should ever be seen resting back there, so its
+  // exact depth/position barely matters.
   const WAIT_LANE: Lane = { x: 0, y: 0, z: WAIT_Z, rotY: 0, rotX: 0 };
 
   // desktop lane bookkeeping (Three.js world units)
@@ -262,23 +284,14 @@ export function setupMomentumGallery() {
     return pick;
   }
 
-  // seed the initial lanes — slide 0 (the initial idx) starts already in a
-  // prominent lane, the other 3 invisible at the shared waiting lane, ready
-  // for their turn.
+  // seed every slide at the shared waiting lane, invisible — including
+  // idx 0. Nothing is prominent yet; activateInitial() promotes idx 0
+  // through the exact same arrival every later slide gets, once the
+  // section is actually fully in view (see play() below).
   for (let i = 0; i < N; i++) {
-    if (i === idx) {
-      laneOf.set(i, PROMINENT_LANES[0]);
-      mobileLaneOf.set(i, MOBILE_PROMINENT_LANES[0]);
-      lastProminentIdx = 0;
-      lastMobileProminentIdx = 0;
-    } else {
-      laneOf.set(i, WAIT_LANE);
-      mobileLaneOf.set(i, MOBILE_WAIT);
-    }
-    // opacity is fully explicit now (see renderFrame's comment) — nothing
-    // derives it from live scale/depth any more, so it has to be seeded
-    // here rather than falling out of the first render/apply pass.
-    gsap.set(slides[i], { opacity: i === idx ? 1 : 0 });
+    laneOf.set(i, WAIT_LANE);
+    mobileLaneOf.set(i, MOBILE_WAIT);
+    gsap.set(slides[i], { opacity: 0 });
   }
 
   function applyAria() {
@@ -345,28 +358,15 @@ export function setupMomentumGallery() {
       mat.opacity = Math.min(0.42, Math.max(0.12, scale * 0.42));
       const el = slides[i];
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
-      // opacity is NOT derived here — it's explicitly tweened by
-      // desktopSwap (fade in on approach, fade out on departure) so a
-      // slide can be simultaneously large (overshooting past the camera
-      // as it departs) AND fading to zero, which a scale-derived value
-      // could never represent (it would just clamp at opacity 1).
+      // DOM opacity is NOT derived here — it's explicitly tweened by
+      // promoteDesktop/departDesktop (fade in on arrival, fade out on
+      // departure) so a slide can be simultaneously large (overshooting
+      // past the camera as it departs) AND fading to zero, which a
+      // scale-derived value could never represent (it would just clamp
+      // at opacity 1). Count-up is likewise driven by the arrival tween's
+      // own progress (see promoteDesktop), not read here.
       el.style.filter = scale >= 0.98 ? "" : `blur(${((1 - Math.min(scale, 1)) * 12).toFixed(1)}px)`;
       el.style.zIndex = String(Math.round(scale * 100));
-
-      // "as it gets closer, start the count up" — driven by live proximity
-      // (this scale value), not a fixed delay, so it actually tracks how
-      // close/legible the number looks regardless of easing specifics.
-      // Gated on `activated`: initThree() paints the *seeded* layout with
-      // one synchronous renderFrame() call before the section has ever
-      // been scrolled into view — slide 0 starts there already at
-      // prominent scale (z:0, scale 1.0), which alone satisfies
-      // COUNT_THRESHOLD and would otherwise fire this instantly on page
-      // load, on desktop specifically, completely bypassing the 20%-
-      // scroll gate below.
-      if (activated && i === idx && !countedUp[i] && scale >= COUNT_THRESHOLD) {
-        countedUp[i] = true;
-        countUp(el);
-      }
     });
   }
 
@@ -405,7 +405,7 @@ export function setupMomentumGallery() {
     resize();
 
     three = { renderer, scene: scn, camera, meshes, vector: new THREE.Vector3(), ro, running: false };
-    renderFrame(); // paint the seeded layout immediately, don't wait for a tick
+    renderFrame(); // paint the seeded (all-waiting) layout immediately, don't wait for a tick
   }
 
   function startThreeTicker() {
@@ -443,48 +443,75 @@ export function setupMomentumGallery() {
       duration: WAIT_BREATHE_DUR, delay, ease: "sine.inOut", yoyo: true, repeat: -1,
     });
   }
-  // mirrors startDesktopHoldBreathe — once a slide has arrived, it keeps
-  // gently growing/shrinking around MOBILE_HOLD_SCALE forever instead of
-  // ever truly stopping. mobileSwap's departure overwrites this the
-  // moment it starts, same as it would the approach tween itself.
-  function startMobileHoldBreathe(i: number) {
+  // mirrors startDesktopHoldCreep — once a slide has arrived, it keeps
+  // growing at a small but clearly-visible constant speed forever instead
+  // of ever truly stopping. mobileSwap's departure overwrites this the
+  // moment it starts, same as it would the arrival tween itself.
+  function startMobileHoldCreep(i: number) {
     gsap.to(slides[i], {
-      scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_BREATHE_SCALE_RANGE,
-      z: MOBILE_HOLD_Z + MOBILE_HOLD_BREATHE_Z_RANGE,
-      duration: HOLD_BREATHE_DUR, ease: "sine.inOut", yoyo: true, repeat: -1,
+      scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_CREEP_SCALE_SPEED * CREEP_TAIL_DUR,
+      z: MOBILE_HOLD_Z + MOBILE_HOLD_CREEP_Z_SPEED * CREEP_TAIL_DUR,
+      duration: CREEP_TAIL_DUR, ease: "none",
     });
   }
 
-  /* Once a slide has arrived (DEPTH_APPROACH_DUR completed), it keeps
-     gently oscillating around HOLD_Z forever (repeat:-1) instead of ever
-     truly stopping — see the top-of-file comment. Departure (desktopSwap)
-     overwrites this the moment it starts, same as it would the approach
-     tween itself. */
-  function startDesktopHoldBreathe(i: number) {
+  // Once a slide has arrived (ARRIVE_DUR completed), its depth keeps
+  // creeping forward at a small but clearly-visible CONSTANT speed
+  // forever (linear, never yoyo'd) instead of ever truly slowing or
+  // stopping — see the top-of-file comment. Departure overwrites this the
+  // moment it starts, same as it would the arrival tween itself.
+  function startDesktopHoldCreep(i: number) {
     if (!three) return;
     gsap.to(three.meshes[i].position, {
-      z: HOLD_Z + HOLD_BREATHE_Z_RANGE, duration: HOLD_BREATHE_DUR, ease: "sine.inOut", yoyo: true, repeat: -1,
+      z: HOLD_Z + HOLD_CREEP_SPEED * CREEP_TAIL_DUR, duration: CREEP_TAIL_DUR, ease: "none",
     });
   }
 
-  /* A promoted slide's lateral position is reset to dead centre
-     *immediately*, while it's still at the waiting depth (small,
-     invisible, low visual cost) — the SETTLE_DUR tween then moves x and y
-     together, out from centre to its resting lane. That's what actually
-     produces "emerges from the centre, fans out to the left/right as it
-     comes forward" — snapping straight to the target lane and only
-     animating depth meant two out of three lanes never visibly passed
-     through centre at all, they just grew in place already off to the
-     side. Depth runs on its own timeline: a finite DEPTH_APPROACH_DUR
-     tween into HOLD_Z, chained straight into an infinite ambient breathe
-     around it (see startDesktopHoldBreathe and the top-of-file comment) —
-     "the pause" never actually reaches zero velocity, it just settles
-     into a very slow, endless oscillation. Opacity fades in over the
-     front portion of the lateral settle.
+  /* One coordinated arrival — lateral (x/y), depth (z), and rotation all
+     animate together in a single tween (same duration, same ease), with
+     opacity fading in over that identical window — see the top-of-file
+     comment for why splitting these into separately-timed tweens is what
+     used to read as a sudden pop to one side rather than a continuous
+     emergence. Depth keeps going once this completes (startDesktopHold
+     Creep) — "the pause" is that creep, never a dead stop. Every slide
+     goes through this, including the very first one ever shown — see
+     activateInitial. */
+  function promoteDesktop(inIndex: number) {
+    initThree();
+    if (!three) return;
+    const mesh = three.meshes[inIndex];
 
-     Departure is not a mirror of the approach — it doesn't recede back
+    const prominent = QUOTE_INDICES.includes(inIndex) ? QUOTE_LANE : PROMINENT_LANES[pickProminentLane()];
+    laneOf.set(inIndex, prominent);
+    gsap.killTweensOf(mesh.position);
+    gsap.killTweensOf(mesh.rotation);
+    gsap.killTweensOf(slides[inIndex]);
+    // countedUp is intentionally NOT reset here — a slide only ever counts
+    // up once, the very first time it's shown (see the shared-state
+    // comment above). Every later approach just displays its already-
+    // final number.
+    gsap.to(mesh.position, {
+      x: prominent.x, y: prominent.y, z: HOLD_Z, duration: ARRIVE_DUR, ease: "power1.out",
+      onUpdate: function () {
+        // "as it gets closer, start the count up" — a fixed checkpoint
+        // against this tween's own time-progress (this.progress()), not
+        // a scale-derived proximity guess.
+        if (!countedUp[inIndex] && this.progress() >= COUNT_START_PROGRESS) {
+          countedUp[inIndex] = true;
+          countUp(slides[inIndex]);
+        }
+      },
+      onComplete: () => startDesktopHoldCreep(inIndex),
+    });
+    gsap.to(mesh.rotation, {
+      x: (prominent.rotX * Math.PI) / 180, y: (prominent.rotY * Math.PI) / 180, duration: ARRIVE_DUR, ease: "power1.out",
+    });
+    gsap.fromTo(slides[inIndex], { opacity: 0 }, { opacity: 1, duration: ARRIVE_DUR, ease: "power1.out" });
+  }
+
+  /* Departure is not a mirror of the arrival — it doesn't recede back
      into the depths. Once a slide has had its moment paused and readable,
-     it picks up from wherever that depth breathe currently has it (no
+     it picks up from wherever its depth creep currently has it (no
      reset, no jump) and eases IN — slow at first, then visibly
      accelerating — toward OVERSHOOT_Z, growing dramatically larger per
      the perspective formula, while its opacity fades to zero over the
@@ -495,54 +522,40 @@ export function setupMomentumGallery() {
      until its next turn. Nothing is ever visibly parked in the
      background; the only slides on screen at any moment are the one
      paused up front and whichever one is mid-transition. */
-  function desktopSwap(outIndex: number, inIndex: number) {
-    initThree();
+  function departDesktop(outIndex: number) {
     if (!three) return;
-    const meshes = three.meshes;
-
-    const prominent = inIndex === QUOTE_INDEX ? QUOTE_LANE : PROMINENT_LANES[pickProminentLane()];
-    laneOf.set(inIndex, prominent);
-    const inMesh = meshes[inIndex];
-    gsap.killTweensOf(inMesh.position);
-    gsap.killTweensOf(inMesh.rotation);
-    gsap.killTweensOf(slides[inIndex]);
-    inMesh.position.x = 0;
-    inMesh.position.y = 0;
-    inMesh.rotation.x = 0;
-    inMesh.rotation.y = 0;
-    // countedUp is intentionally NOT reset here — a slide only ever counts
-    // up once, the very first time it's shown (see the shared-state
-    // comment above). Every later approach just displays its already-
-    // final number.
-    // lateral position/rotation settle on their own, shorter timeline —
-    // once arrived there's no reason for them to keep drifting.
-    gsap.to(inMesh.position, { x: prominent.x, y: prominent.y, duration: SETTLE_DUR, ease: "power3.out" });
-    gsap.to(inMesh.rotation, { x: (prominent.rotX * Math.PI) / 180, y: (prominent.rotY * Math.PI) / 180, duration: SETTLE_DUR, ease: "power3.out" });
-    // depth: a finite approach into HOLD_Z, chained straight into an
-    // infinite ambient breathe around it (see the top-of-file comment) —
-    // it never actually stops, picking up from wherever this slide's own
-    // wait-breathe last left it.
-    gsap.to(inMesh.position, {
-      z: HOLD_Z, duration: DEPTH_APPROACH_DUR, ease: "power3.out",
-      onComplete: () => startDesktopHoldBreathe(inIndex),
-    });
-    gsap.fromTo(slides[inIndex], { opacity: 0 }, { opacity: 1, duration: SETTLE_DUR * 0.6, ease: "power1.out" });
-
-    // outgoing: keep riding forward on the same line it was already on
-    // (no snapping back toward centre — this is a continuation, not a
-    // retreat), picking up from whatever depth its own creep/breathe had
-    // already reached, easing IN toward a hard accelerate.
-    const outMesh = meshes[outIndex];
+    const mesh = three.meshes[outIndex];
     laneOf.set(outIndex, WAIT_LANE);
-    gsap.to(outMesh.position, { z: OVERSHOOT_Z, duration: DEPART_DUR, ease: "power3.in" });
+    // promoteDesktop always kills prior tweens on this mesh before
+    // starting its own — departure needs the same defensive kill: this
+    // slide could be departing straight out of its own long-running hold
+    // creep (up to CREEP_TAIL_DUR = 20s) or, on a repeat turn, still have
+    // remnants of an even earlier ambient wait-breathe (repeat:-1,
+    // genuinely infinite) that a relied-on auto-overwrite didn't
+    // reliably catch — a real bug that showed up as a slide's *later*
+    // turns getting stuck at a large, "already zoomed in" depth instead
+    // of arriving from small again, because its own departure's z-tween
+    // was fighting a stale one instead of running cleanly to OVERSHOOT_Z
+    // and resetting via onComplete below.
+    gsap.killTweensOf(mesh.position);
+    gsap.to(mesh.position, { z: OVERSHOOT_Z, duration: DEPART_DUR, ease: "power3.in" });
     gsap.to(slides[outIndex], {
       opacity: 0, duration: DEPART_DUR, ease: "power3.in",
       onComplete: () => {
-        outMesh.position.set(0, 0, WAIT_Z);
-        outMesh.rotation.set(0, 0, 0);
+        mesh.position.set(0, 0, WAIT_Z);
+        mesh.rotation.set(0, 0, 0);
         startDesktopWaitBreathe(outIndex);
       },
     });
+  }
+
+  function desktopSwap(outIndex: number, inIndex: number) {
+    // triggered together, same instant, from the same goTo() call — one
+    // group arriving and the other departing at once is what makes this
+    // read as a single coordinated changeover rather than two unrelated
+    // animations that happen to overlap.
+    promoteDesktop(inIndex);
+    departDesktop(outIndex);
   }
 
   /* ================= CSS transform (mobile) ================= */
@@ -558,41 +571,49 @@ export function setupMomentumGallery() {
     });
   }
 
-  /* Mirrors desktopSwap's intent and its SETTLE_DUR/DEPTH_APPROACH_DUR
-     split, authored explicitly since mobile has no live perspective
-     projection to lean on. Both tweens use plain `.to()` (not `.fromTo()`)
-     so they pick up from whatever the slide's own ambient wait-breathe
-     already had it at — no reset, no jump. Lateral position/rotation/
-     opacity/blur settle on their own short timeline; `scale` plays the
-     role desktop's depth does — a finite, front-loaded approach into
-     MOBILE_HOLD_SCALE, chained straight into an infinite ambient breathe
-     around it (startMobileHoldBreathe) — "the pause" never actually
-     reaches zero velocity, it just settles into a very slow, endless
-     oscillation. Departure is NOT a mirror of the approach — the outgoing
-     slide picks up from wherever that scale breathe currently has it and
-     eases IN (slow, then visibly accelerating) toward MOBILE_OVERSHOOT on
-     the same line it was already on, opacity fading to zero over the same
-     window, then snaps back invisibly to MOBILE_WAIT once gone, where its
-     own ambient breathe resumes. Nothing is ever left visibly parked in
-     the background. */
-  function mobileSwap(outIndex: number, inIndex: number) {
-    const prominent = inIndex === QUOTE_INDEX ? MOBILE_QUOTE_LANE : MOBILE_PROMINENT_LANES[pickMobileProminentLane()];
+  /* Mirrors promoteDesktop's intent — one coordinated arrival tween, not
+     separately-timed pieces that can drift out of sync (see the
+     top-of-file comment). `scale` plays the role desktop's depth does —
+     it animates alongside x/y/rotation/opacity in the same tween up to
+     MOBILE_HOLD_SCALE, then an infinite constant-speed creep past it
+     (startMobileHoldCreep) — never reaching zero velocity, so "the
+     pause" never reads as a stop. Uses a plain `.to()` (not `.fromTo()`)
+     so it picks up from whatever the slide's own ambient wait-breathe
+     already had it at — no reset, no jump. */
+  function promoteMobile(inIndex: number) {
+    const prominent = QUOTE_INDICES.includes(inIndex) ? MOBILE_QUOTE_LANE : MOBILE_PROMINENT_LANES[pickMobileProminentLane()];
     mobileLaneOf.set(inIndex, prominent);
-    // countedUp is intentionally NOT reset here — see desktopSwap's
+    // countedUp is intentionally NOT reset here — see promoteDesktop's
     // comment; a slide only ever counts up once, the first time shown.
     gsap.killTweensOf(slides[inIndex]);
     slides[inIndex].style.zIndex = "100";
     gsap.to(slides[inIndex], {
       x: prominent.x, y: prominent.y, rotationX: prominent.rotX, rotationY: prominent.rotY,
-      opacity: prominent.opacity, filter: "none",
-      duration: SETTLE_DUR, ease: "power3.out",
+      scale: MOBILE_HOLD_SCALE, z: MOBILE_HOLD_Z, opacity: prominent.opacity, filter: "none",
+      duration: ARRIVE_DUR, ease: "power1.out",
+      onUpdate: function () {
+        if (!countedUp[inIndex] && this.progress() >= COUNT_START_PROGRESS) {
+          countedUp[inIndex] = true;
+          countUp(slides[inIndex]);
+        }
+      },
+      onComplete: () => startMobileHoldCreep(inIndex),
     });
-    gsap.to(slides[inIndex], {
-      scale: MOBILE_HOLD_SCALE, z: MOBILE_HOLD_Z, duration: DEPTH_APPROACH_DUR, ease: "power3.out",
-      onUpdate: () => checkMobileCount(inIndex),
-      onComplete: () => startMobileHoldBreathe(inIndex),
-    });
+  }
 
+  /* Departure is NOT a mirror of the arrival — the outgoing slide picks
+     up from wherever its scale creep currently has it and eases IN
+     (slow, then visibly accelerating) toward MOBILE_OVERSHOOT on the same
+     line it was already on, opacity fading to zero over the same window,
+     then snaps back invisibly to MOBILE_WAIT once gone, where its own
+     ambient breathe resumes. Nothing is ever left visibly parked in the
+     background. */
+  function departMobile(outIndex: number) {
+    // see departDesktop's comment — the same defensive kill promoteMobile
+    // already does for its own start, needed here too so a stale
+    // long-running hold creep or infinite wait-breathe can't fight this
+    // departure's own tween across repeat turns.
+    gsap.killTweensOf(slides[outIndex]);
     slides[outIndex].style.zIndex = "90";
     gsap.to(slides[outIndex], {
       scale: MOBILE_OVERSHOOT.scale, z: MOBILE_OVERSHOOT.z, opacity: MOBILE_OVERSHOOT.opacity,
@@ -608,6 +629,11 @@ export function setupMomentumGallery() {
     mobileLaneOf.set(outIndex, MOBILE_WAIT);
   }
 
+  function mobileSwap(outIndex: number, inIndex: number) {
+    promoteMobile(inIndex);
+    departMobile(outIndex);
+  }
+
   /* ================= mode switching ================= */
   const desktopQuery = window.matchMedia(DESKTOP_QUERY);
   type Mode = "desktop" | "mobile";
@@ -620,13 +646,17 @@ export function setupMomentumGallery() {
   // lane. Cheap to guard against directly rather than keep both maps in
   // lockstep on every single transition.
   function ensureActiveLaneIsProminent() {
+    // before the very first activation, idx correctly sits at the
+    // waiting lane (see the seed loop) — that's not a staleness bug to
+    // fix, it's the deliberate "hasn't arrived yet" state.
+    if (!everActivated) return;
     const isProminent = laneOf.get(idx) === QUOTE_LANE || PROMINENT_LANES.includes(laneOf.get(idx)!);
     if (!isProminent) {
-      laneOf.set(idx, idx === QUOTE_INDEX ? QUOTE_LANE : PROMINENT_LANES[lastProminentIdx >= 0 ? lastProminentIdx : 0]);
+      laneOf.set(idx, QUOTE_INDICES.includes(idx) ? QUOTE_LANE : PROMINENT_LANES[lastProminentIdx >= 0 ? lastProminentIdx : 0]);
     }
     const isMobileProminent = mobileLaneOf.get(idx) === MOBILE_QUOTE_LANE || MOBILE_PROMINENT_LANES.includes(mobileLaneOf.get(idx)!);
     if (!isMobileProminent) {
-      mobileLaneOf.set(idx, idx === QUOTE_INDEX ? MOBILE_QUOTE_LANE : MOBILE_PROMINENT_LANES[lastMobileProminentIdx >= 0 ? lastMobileProminentIdx : 0]);
+      mobileLaneOf.set(idx, QUOTE_INDICES.includes(idx) ? MOBILE_QUOTE_LANE : MOBILE_PROMINENT_LANES[lastMobileProminentIdx >= 0 ? lastMobileProminentIdx : 0]);
     }
   }
 
@@ -640,8 +670,10 @@ export function setupMomentumGallery() {
         s.style.filter = "";
         // explicit, not cleared to "" — clearing would fall back to the
         // CSS default (opacity:1) and flash every waiting slide visible
-        // until the next transition's tween overwrote it.
-        s.style.opacity = i === idx ? "1" : "0";
+        // until the next transition's tween overwrote it. Before
+        // activation, nothing is visible yet at all (everActivated is
+        // false), matching the seed loop.
+        s.style.opacity = everActivated && i === idx ? "1" : "0";
       });
       initThree();
       if (three) {
@@ -656,7 +688,7 @@ export function setupMomentumGallery() {
         mesh.rotation.set((lane.rotX * Math.PI) / 180, (lane.rotY * Math.PI) / 180, 0);
       }
       renderFrame();
-      if (locked) startThreeTicker();
+      if (playing) startThreeTicker();
     } else {
       stopThreeTicker();
       slides.forEach((s) => { s.style.transform = ""; });
@@ -665,17 +697,27 @@ export function setupMomentumGallery() {
   }
   enterMode(mode);
 
-  // Nothing animates yet — no count-up, no ambient wait-breathe — until
-  // the section is actually 20% into view (see the IntersectionObserver
-  // below). The resting layout is already painted (enterMode/initThree
-  // do that unconditionally), but its number stays at its unanimated
-  // placeholder until then, so nothing plays out invisibly while the
-  // visitor is still scrolling through earlier sections.
+  // Nothing animates yet — no arrival, no count-up, no ambient wait-
+  // breathe — until the section is actually fully scrolled into view
+  // (see play() below). idx 0 gets promoted through the exact same
+  // arrival every later slide gets, not pre-placed at full size — see
+  // promoteDesktop/promoteMobile.
+  //
+  // Sets `transitioning` itself, same as goTo() does — this promotion
+  // doesn't go through goTo() (there's no outgoing slide to depart on
+  // the very first activation), so without this a goTo() call arriving
+  // before the arrival settles wouldn't be blocked by the guard the way
+  // every later transition is, and could start departing idx 0 while its
+  // own arrival opacity tween is still fighting to reach 1 — a real race
+  // that in practice AUTOPLAY_DELAY (4s) being longer than ARRIVE_DUR
+  // (2.5s) usually masks, but shouldn't rely on that.
   function activateInitial() {
-    if (activated) return;
-    activated = true;
-    countedUp[idx] = true;
-    countUp(slides[idx]);
+    if (everActivated) return;
+    everActivated = true;
+    transitioning = true;
+    if (mode === "desktop") promoteDesktop(idx);
+    else promoteMobile(idx);
+    gsap.delayedCall(GUARD_DUR, () => { transitioning = false; });
     for (let i = 0; i < N; i++) {
       if (i === idx) continue;
       if (mode === "desktop") startDesktopWaitBreathe(i);
@@ -688,26 +730,57 @@ export function setupMomentumGallery() {
     if (next !== mode) enterMode(next);
   });
 
-  /* ================= navigation ================= */
-  let observerGesture: ReturnType<typeof Observer.create> | null = null;
-  let autoplayCall: gsap.core.Tween | null = null;
-  let resumeCall: gsap.core.Tween | null = null;
-  let snapback: (() => void) | null = null;
+  /* ================= scroll cue ================= */
+  // mirrors Hero's own cueTl (hero.ts) — a paused, infinitely-repeating
+  // pulse built once and played/paused rather than recreated, so
+  // play()/pause() (see below) can cheaply resume it exactly where it
+  // left off the same way they do everything else in this component.
+  function initCueTimeline() {
+    if (!cue || cueTl) return;
+    const line = cue.querySelector("i");
+    if (!line) return;
+    cueTl = gsap.timeline({ repeat: -1, paused: true })
+      .fromTo(line, { scaleY: 0, transformOrigin: "top" }, { scaleY: 1, duration: 0.95, ease: "power2.inOut" })
+      .to(line, { scaleY: 0, transformOrigin: "bottom", duration: 0.95, ease: "power2.inOut" });
+  }
 
-  function armAutoplay() {
-    autoplayCall?.kill();
-    autoplayCall = gsap.delayedCall(AUTOPLAY_DELAY, advanceAuto);
+  // Fades the "Scroll" cue in the first time the visitor has actually
+  // seen every slide once (see advanceAuto's own autoLoopCount check) —
+  // there's nothing to invite them onward from before that.
+  function showScrollCue() {
+    if (!cue || cueShown) return;
+    cueShown = true;
+    initCueTimeline();
+    gsap.to(cue, { opacity: 1, duration: 0.8, ease: "power1.out" });
+    if (playing) cueTl?.play();
   }
-  function registerInteraction() {
-    autoplayCall?.kill();
-    resumeCall?.kill();
-    resumeCall = gsap.delayedCall(RESUME_DELAY, armAutoplay);
+
+  // Once MAX_AUTO_LOOPS finishes with nobody interrupting, hand scroll
+  // off to the next section rather than looping forever for a purely
+  // passive visitor — but only if they're still actually here; if
+  // `playing` is already false they scrolled away under their own steam
+  // and this would be an unwelcome surprise arriving later.
+  function autoScrollToNextSection() {
+    if (!playing) return;
+    const h = section!.getBoundingClientRect().height;
+    gsap.to(window, {
+      duration: 0.9, ease: "power2.inOut", overwrite: true,
+      scrollTo: { y: `+=${h}`, autoKill: true },
+    });
   }
+
+  /* ================= autoplay ================= */
+  let autoplayCall: gsap.core.Tween | null = null;
+
   function killTimers() {
     autoplayCall?.kill();
-    resumeCall?.kill();
     autoplayCall = null;
-    resumeCall = null;
+  }
+
+  function armAutoplay() {
+    if (stoppedForever || autoplayDisabledForTest) return;
+    autoplayCall?.kill();
+    autoplayCall = gsap.delayedCall(AUTOPLAY_DELAY, advanceAuto);
   }
 
   function goTo(next: number) {
@@ -716,126 +789,111 @@ export function setupMomentumGallery() {
     const out = idx;
     idx = next;
     applyAria();
-    // count-up is proximity-driven now (see renderFrame/mobileSwap's own
-    // progress check) — no immediate call here, it fires once the
-    // promoted slide is actually close enough to read.
+    // count-up is progress-driven now (see promoteDesktop/promoteMobile's
+    // own this.progress() check) — no immediate call here, it fires once
+    // the promoted slide's arrival is 3/4 of the way there.
     if (mode === "desktop") desktopSwap(out, idx);
     else mobileSwap(out, idx);
     gsap.delayedCall(GUARD_DUR, () => { transitioning = false; });
   }
 
   function advanceAuto() {
-    goTo((idx + 1) % N);
+    // belt-and-braces: in real usage armAutoplay() already refuses to
+    // schedule another call once stoppedForever, so this only matters if
+    // something (a test, a future caller) invokes advanceAuto directly.
+    if (stoppedForever) return;
+    const next = (idx + 1) % N;
+    goTo(next);
+    if (next === 0) {
+      autoLoopCount++;
+      // the visitor has now seen every slide once — invite them onward.
+      if (autoLoopCount === 1) showScrollCue();
+      // a purely passive visitor isn't expected to watch forever — after
+      // MAX_AUTO_LOOPS full loops, stop and, if they're still sitting
+      // here, scroll on to the next section for them. Scrolling away and
+      // back resets nothing here on purpose: once it's genuinely
+      // finished, re-entering the view shouldn't restart it from scratch.
+      if (autoLoopCount >= MAX_AUTO_LOOPS) {
+        stoppedForever = true;
+        killTimers();
+        autoScrollToNextSection();
+        return;
+      }
+    }
     armAutoplay();
   }
 
-  function release(direction: "next" | "prev") {
-    if (!locked) return;
-    suppressEngage = true;
-    teardownLock();
-    const h = section!.getBoundingClientRect().height;
-    gsap.to(window, {
-      duration: 0.7, ease: "power2.inOut", overwrite: true,
-      scrollTo: { y: direction === "next" ? `+=${h}` : `-=${h}`, autoKill: true },
-      onComplete: () => {
-        suppressEngage = false;
-        // IntersectionObserver only fires on threshold crossings, not
-        // continuously — if the user scrolled back into view during this
-        // tween (rare, but possible), no new crossing event will follow,
-        // so re-check directly rather than risk staying unlocked.
-        const r = section!.getBoundingClientRect();
-        const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) / r.height;
-        if (visible >= 0.9) setupLock();
-      },
-    });
+  /* ================= play / pause on scroll ================= */
+  function sectionVisibleRatio(): number {
+    const r = section!.getBoundingClientRect();
+    return Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) / Math.max(1, r.height);
   }
 
-  function userAdvance() {
-    registerInteraction();
-    if (transitioning) return;
-    if (idx === N - 1) release("next");
-    else goTo(idx + 1);
-  }
-  function userRetreat() {
-    registerInteraction();
-    if (transitioning) return;
-    if (idx === 0) release("prev");
-    else goTo(idx - 1);
-  }
-
-  function onKeydown(e: KeyboardEvent) {
-    const target = e.target as HTMLElement | null;
-    if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
-    if (target?.isContentEditable) return;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); userAdvance(); }
-    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); userRetreat(); }
-  }
-
-  function setupLock() {
-    if (locked) return;
-    locked = true;
-    const startY = window.scrollY;
-    snapback = () => window.scrollTo(0, startY);
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    window.addEventListener("scroll", snapback);
-    document.addEventListener("keydown", onKeydown);
-    observerGesture = Observer.create({
-      target: section!,
-      type: "wheel,touch",
-      preventDefault: true,
-      tolerance: 10,
-      dragMinimum: 60,
-      onDown: userAdvance,
-      onLeft: userAdvance,
-      onUp: userRetreat,
-      onRight: userRetreat,
-    });
+  function play() {
+    if (playing || stoppedForever) return;
+    playing = true;
+    activateInitial();
     if (mode === "desktop") startThreeTicker();
     armAutoplay();
+    // resume the cue's pulse exactly where it left off, same as
+    // everything else pause()/play() drive — no-op if it was never shown.
+    if (cueShown) cueTl?.play();
   }
-
-  function teardownLock() {
-    if (!locked) return;
-    locked = false;
-    if (snapback) window.removeEventListener("scroll", snapback);
-    snapback = null;
-    document.documentElement.style.overflow = "";
-    document.body.style.overflow = "";
-    document.removeEventListener("keydown", onKeydown);
-    observerGesture?.kill();
-    observerGesture = null;
+  function pause() {
+    if (!playing) return;
+    playing = false;
     stopThreeTicker();
     killTimers();
+    cueTl?.pause();
   }
 
-  // clicking any same-page anchor link while locked (mega menu, footer,
-  // kickoff CTA) needs to actually be able to scroll — overflow:hidden
-  // would otherwise silently swallow smoothAnchors.ts's own scrollTo.
-  document.addEventListener("click", (e) => {
-    if (!locked) return;
-    if ((e.target as HTMLElement).closest('a[href^="#"]')) teardownLock();
-  });
+  // The instant the visitor starts scrolling at all, pause — never fight
+  // or trap their scroll. A short settle-debounce after they stop again
+  // checks whether the section is now (still) fully in view and, if so,
+  // resumes exactly where it left off (idx/lane state is never reset by
+  // pause/resume) — this is what makes "scroll away, scroll back" pick
+  // back up instead of restarting.
+  let settleCall: gsap.core.Tween | null = null;
+  function onWindowScroll() {
+    pause();
+    settleCall?.kill();
+    settleCall = gsap.delayedCall(0.25, () => {
+      if (sectionVisibleRatio() >= 0.9) play();
+    });
+  }
+  window.addEventListener("scroll", onWindowScroll, { passive: true });
 
+  // Catches the section already being fully in view without requiring a
+  // scroll event first (e.g. a deep link, or a very short page).
   new IntersectionObserver(
     (entries) => {
-      const entry = entries[0];
-      // one-shot, not suppressEngage-gated — this has nothing to do with
-      // the lock, it's the visitor scrolling into the section at all.
-      if (entry.intersectionRatio >= 0.2) activateInitial();
-      if (suppressEngage) return;
-      if (entry.intersectionRatio >= 0.9) setupLock();
-      else if (entry.intersectionRatio <= 0.1) teardownLock();
+      if (entries[0].intersectionRatio >= 0.9) play();
     },
-    { threshold: [0, 0.1, 0.2, 0.9, 1] },
+    { threshold: [0.9] },
   ).observe(section);
 
   // test hook — mirrors hero.ts's exposed heroTimeline, lets Playwright
-  // jump straight to a slide or force the lock off without burning real
-  // gesture/timer time.
-  (section as HTMLElement & { mgApi?: { goTo: (i: number) => void; forceUnlock: () => void } }).mgApi = {
+  // drive state directly without burning real scroll/timer time.
+  // advanceAuto specifically exists so a test can simulate MAX_AUTO_LOOPS
+  // full loops (3 * N * AUTOPLAY_DELAY would otherwise be over a minute
+  // of real waiting) without faking the underlying loop-counting logic.
+  (section as HTMLElement & {
+    mgApi?: {
+      goTo: (i: number) => void;
+      play: () => void;
+      pause: () => void;
+      activateInitial: () => void;
+      advanceAuto: () => void;
+      disableAutoplay: () => void;
+      getState: () => { idx: number; playing: boolean; autoLoopCount: number; stoppedForever: boolean };
+    };
+  }).mgApi = {
     goTo,
-    forceUnlock: () => { suppressEngage = true; teardownLock(); },
+    play,
+    pause,
+    advanceAuto,
     activateInitial,
+    disableAutoplay: () => { autoplayDisabledForTest = true; killTimers(); },
+    getState: () => ({ idx, playing, autoLoopCount, stoppedForever }),
   };
 }

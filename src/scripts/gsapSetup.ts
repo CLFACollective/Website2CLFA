@@ -1,15 +1,14 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
-import { Observer } from "gsap/Observer";
 
 let registered = false;
 export function useGsap() {
   if (!registered) {
-    gsap.registerPlugin(ScrollTrigger, ScrollToPlugin, Observer);
+    gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
     registered = true;
   }
-  return { gsap, ScrollTrigger, Observer };
+  return { gsap, ScrollTrigger };
 }
 
 export const prefersReducedMotion = () =>

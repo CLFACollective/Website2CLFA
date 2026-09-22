@@ -41,16 +41,3 @@ export async function skipHeroMovie(page: Page): Promise<void> {
     hero?.heroTimeline?.progress(1);
   });
 }
-
-/**
- * Momentum's gallery (see momentum-gallery.spec.ts) locks scroll the same
- * way Hero does the moment it's scrolled into view — a blind scroll-through
- * loop elsewhere (smoke.spec.ts) would otherwise get stuck fighting its
- * snapback listener. No-ops if the gallery isn't currently locked.
- */
-export async function releaseMomentumGallery(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const section = document.getElementById("momentum") as (HTMLElement & { mgApi?: { forceUnlock: () => void } }) | null;
-    section?.mgApi?.forceUnlock();
-  });
-}

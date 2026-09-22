@@ -601,6 +601,18 @@ body.menu-open .mega { pointer-events: auto; }
   font-size: clamp(18px, 1.8vw, 26px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
 }
 
+/* The Kaylen quote's own full text is several times longer than "They
+   move / at the speed / of business" — at .mquote's own size (tuned for
+   2-4 word lines) it would tower over every other slide. .mquote--long
+   scales the same treatment down to something proportionate to reading
+   five shorter lines instead of three. .mquote__k1/__k2 mirror
+   .mquote__l1,3/__l2's plain-vs-emphasis roles, reused across as many
+   lines as needed (k1 for every plain line, not just the first — unlike
+   .mquote__l1 which only ever appears once per quote). */
+.mquote--long { font-size: clamp(17px, 2.3vw, 31px); line-height: 1.16; }
+.mquote__k1 { color: var(--charcoal); position: relative; }
+.mquote__k2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
+
 /* Below 800px the section stops pinning/hijacking scroll entirely —
    the panel track still pans via the same pinned ScrollTrigger as
    desktop (see momentum.ts) — only the sizing/typography differ below
@@ -648,12 +660,19 @@ body.menu-open .mega { pointer-events: auto; }
    keeps this component decoupled from the old track's own box model */
 .mg__slide h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
 
-.mg__hint {
-  position: absolute; left: 0; right: 0; bottom: clamp(20px, 4vh, 40px);
-  text-align: center; font-size: 12px; letter-spacing: .24em; text-transform: uppercase; opacity: .55;
+/* Mirrors Hero's own .hcb__cue (a "Scroll" label over a pulsing tick
+   line) — hidden by default (opacity:0); momentumGallery.ts fades it in
+   via GSAP once the first full autoplay loop finishes, matching Hero's
+   own "reveal once there's actually something to invite scrolling
+   toward" idea. Hero's version sits on a pink background so it's cream;
+   this section is cream, so it's charcoal instead. */
+.mg__cue {
+  position: absolute; left: 50%; bottom: clamp(20px, 4vh, 32px); transform: translateX(-50%);
+  font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--charcoal);
+  opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
   pointer-events: none;
 }
-.mg__hint span { display: block; margin-top: 6px; opacity: .75; }
+.mg__cue i { width: 1px; height: 32px; background: currentColor; display: block; transform-origin: top; }
 
 /* mobile/touch: no WebGL, a plain CSS 3D transform stack instead */
 @media (max-width: 999px) {
@@ -665,7 +684,6 @@ body.menu-open .mega { pointer-events: auto; }
      plus a small x/y nudge — that math needs the untransformed anchor to
      already sit at the scene's centre, not its corner. */
   .mg__slide { width: min(320px, 82vw); top: 50%; left: 50%; }
-  .mg__hint { font-size: 10px; }
 }
 
 /* ============================================================
@@ -797,5 +815,4 @@ h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: 
   .mg__scene { position: static; height: auto; display: flex; flex-direction: column; gap: 40px; align-items: center; perspective: none; }
   .mg__canvas { display: none; }
   .mg__slide { position: static; transform: none !important; filter: none !important; opacity: 1 !important; width: 100%; max-width: 560px; }
-  .mg__hint { display: none; }
 }

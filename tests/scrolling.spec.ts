@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { collectErrors, skipHeroMovie, releaseMomentumGallery } from "./helpers";
+import { collectErrors, skipHeroMovie } from "./helpers";
 
 /**
  * Scroll mechanics on iPad/iPhone specifically — this is where the
@@ -140,13 +140,6 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     for (let i = 0; i < 60; i++) {
       await step();
       await page.waitForTimeout(40);
-      // Momentum's gallery locks scroll while it's in view and only
-      // releases after a few deliberate, individually-paced gestures (see
-      // momentum-gallery.spec.ts) — this test is a generic full-page
-      // stress check, not about that section's own interaction pacing, so
-      // force it open each step rather than let a real gesture-by-gesture
-      // traversal read as a stall here.
-      await releaseMomentumGallery(page);
       positions.push(await page.evaluate(() => window.scrollY));
       if (positions.at(-1)! >= scrollHeight - (page.viewportSize()?.height ?? 0) - 5) break;
     }
@@ -178,7 +171,6 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     for (let i = 0; i < 60; i++) {
       await stepBack();
       await page.waitForTimeout(40);
-      await releaseMomentumGallery(page);
       if ((await page.evaluate(() => window.scrollY)) <= 5) break;
     }
     const finalY = await page.evaluate(() => window.scrollY);

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { collectErrors, skipHeroMovie, releaseMomentumGallery } from "./helpers";
+import { collectErrors, skipHeroMovie } from "./helpers";
 
 /**
  * Baseline: the page loads clean, every major section is present, and
@@ -41,10 +41,6 @@ test.describe("homepage smoke", () => {
     for (let y = 0; y <= scrollHeight; y += viewportHeight / 2) {
       await page.evaluate((yy) => window.scrollTo(0, yy), y);
       await page.waitForTimeout(60);
-      // Momentum's gallery locks scroll the moment it comes into view
-      // (see momentum-gallery.spec.ts) — release it each step so this
-      // blind scroll-through actually reaches Who/WindowB/the footer.
-      await releaseMomentumGallery(page);
     }
     expect(errors).toEqual([]);
   });

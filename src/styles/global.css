@@ -597,7 +597,13 @@ body.menu-open .mega { pointer-events: auto; }
    the browser falls back to the SVG's classic 300×150 default intrinsic
    size — a real, previously-hit bug in this same way elsewhere in this
    codebase (canvas elements with no explicit size). */
-.mquote > span { display: block; width: fit-content; }
+.mquote > span { display: block; width: fit-content; max-width: 100%; }
+/* .mquote itself is a column-flex child with align-items:flex-start —
+   without an explicit cap it can grow past its own .mg__slide's width
+   to fit a long unbroken span rather than wrapping it, since flex-start
+   doesn't clip cross-axis overflow the way a plain block context would.
+   Confirmed live: exactly this let long lines run off-screen on mobile. */
+.mquote { max-width: 100%; }
 .mquote__l1, .mquote__l3 { color: var(--charcoal); }
 .mquote__l2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 .mquote__by {
@@ -660,6 +666,10 @@ body.menu-open .mega { pointer-events: auto; }
 .mg__slide--stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .mg__slide--stat .mcap, .mg__slide--stat h4 { margin-left: auto; margin-right: auto; }
 .mg__slide--quote { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+/* Kaylen's quote (5 sentences, vs the other quote's 3 short phrases) —
+   25% wider than the base .mg__slide so more of its own longer lines
+   fit per row without needing as many manual breaks. */
+.mg__slide--wide { width: min(700px, 90vw); }
 /* duplicated from the retired .hs__panel h4, deliberately not shared —
    keeps this component decoupled from the old track's own box model */
 .mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
@@ -688,6 +698,7 @@ body.menu-open .mega { pointer-events: auto; }
      plus a small x/y nudge — that math needs the untransformed anchor to
      already sit at the scene's centre, not its corner. */
   .mg__slide { width: min(320px, 82vw); top: 50%; left: 50%; }
+  .mg__slide--wide { width: min(400px, 88vw); }
 }
 
 /* ============================================================

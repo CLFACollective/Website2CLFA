@@ -68,11 +68,15 @@ const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // movie time the ring-open (and text
 // Beat 2's word cycles smarter -> faster -> better, each getting its
 // own on-screen slice rather than a plain three-way split of BEAT_DUR
 // — "faster" and "better" each hold .3s longer than "smarter" does, so
-// the cycle doesn't rush through the back half.
+// the cycle doesn't rush through the back half. SWAP_PACE slows every
+// word's own change down by a further .3s on top of that (feedback:
+// the changes felt too quick even with the above) — applied uniformly
+// to all three, not just B/C.
 const SWAP_SLOW = 0.3;
-const SWAP_A_DUR = BEAT_DUR / 3; // "smarter"
-const SWAP_B_DUR = BEAT_DUR / 3 + SWAP_SLOW; // "faster"
-const SWAP_C_DUR = BEAT_DUR / 3 + SWAP_SLOW; // "better"
+const SWAP_PACE = 0.3;
+const SWAP_A_DUR = BEAT_DUR / 3 + SWAP_PACE; // "smarter"
+const SWAP_B_DUR = BEAT_DUR / 3 + SWAP_SLOW + SWAP_PACE; // "faster"
+const SWAP_C_DUR = BEAT_DUR / 3 + SWAP_SLOW + SWAP_PACE; // "better"
 const SWAP_DUR = SWAP_A_DUR + SWAP_B_DUR + SWAP_C_DUR;
 
 // Mirrors the copy already in Hero.astro's markup — only the timing/motion
@@ -287,6 +291,7 @@ export function setupHero() {
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
     window.removeEventListener("scroll", snapBackToTop);
+    navLogo?.classList.remove("is-gone");
     section.dataset.heroDone = "true";
     armGroundTrigger();
   };
@@ -383,6 +388,7 @@ export function setupHero() {
   replayBtn?.addEventListener("click", () => {
     section.dataset.heroDone = "false";
     cueTl?.pause();
+    navLogo?.classList.add("is-gone");
     window.scrollTo(0, 0);
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";

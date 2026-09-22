@@ -8,20 +8,25 @@
 // it; narrower viewports fall back to a plain CSS 3D transform
 // approximation — see momentumGallery.ts.
 //
-// Purely autoplay-driven, no gesture navigation — it pauses the instant
-// the visitor starts scrolling (never traps scroll) and resumes exactly
-// where it left off once they settle back with the section fully in
-// view. A "Scroll" cue (mirroring Hero's own) fades in once the first
-// full loop finishes, inviting the visitor onward. After a few full loops
-// with nobody interrupting it, it stops on its own and, if the visitor is
-// still sitting there, scrolls on to the next section for them.
+// Purely autoplay-driven, no gesture navigation — a ScrollTrigger (not a
+// native scroll listener) pauses it once the visitor actually scrolls
+// away (never traps scroll) and replays the same slide's arrival once
+// they scroll back with the section fully in view again. A "Scroll" cue
+// (mirroring Hero's own) fades in once the first full loop finishes,
+// inviting the visitor onward. After a few full loops with nobody
+// interrupting it, it stops on its own and, if the visitor is still
+// sitting there, scrolls on to the next section for them.
 import ShineField from "./ShineField.astro";
 ---
 
 <section class="pin" id="momentum">
   <div class="pin__stage" id="mgStage">
     <ShineField class="shine-momentum" bandEnd={28} mobileBandEnd={19} bg="#FEFCF4" />
-    <div class="shimmer" aria-hidden="true"></div>
+    <!-- band-end/mobile-band-end mirror the ShineField props directly
+         above — keeps shimmer.ts's twinkle dots confined to the same
+         dusty band instead of scattering into the bare cream space
+         the 3D gallery sits in below it (see shimmer.ts). -->
+    <div class="shimmer" aria-hidden="true" data-band-end="28" data-mobile-band-end="19"></div>
 
     <div class="hs__head">
       <h2 class="hs__intro-head">
@@ -88,9 +93,9 @@ import ShineField from "./ShineField.astro";
             </span></span>
           <span class="mquote__k1">Michelle for a partner</span>
           <span class="mquote__k1">in the company.</span>
-          <span class="mquote__k2">She&rsquo;s always sending me ideas,</span>
-          <span class="mquote__k1">and she knows the strategy and</span>
-          <span class="mquote__k1">our business almost as well as I do.</span>
+          <span class="mquote__k2">She&rsquo;s always sending<br class="mobile-br" /> me ideas,</span>
+          <span class="mquote__k1">and she knows<br class="mobile-br" /> the strategy and</span>
+          <span class="mquote__k1">our business almost<br class="mobile-br" /> as well as I do.</span>
         </blockquote>
         <p class="mquote__by">Kaylen</p>
       </div>

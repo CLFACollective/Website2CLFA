@@ -442,8 +442,12 @@ body.menu-open .mega { pointer-events: auto; }
   .keepup__big { font-size: 44px; line-height: .8; letter-spacing: -.03em; max-width: none; text-align: center; margin-left: auto; margin-right: auto; white-space: nowrap; }
   /* the desktop-only size split (.keepup__lead vs .bd) doesn't apply at
      this width — both lines go back to sharing .keepup__big's own
-     mobile-tuned size (see the nowrap comment above) */
-  .keepup__lead { font-size: inherit; line-height: inherit; }
+     mobile-tuned size (see the nowrap comment above). line-height stays
+     its own, roomier value though (desktop's .bd-tuned .8 above reads
+     fine for a single line, but inheriting it here left both stacked
+     lines' ascenders/descenders nearly touching — confirmed live,
+     bounding boxes actually overlapped). */
+  .keepup__lead { font-size: inherit; line-height: 1.05; }
   .keepup__body {
     font-size: 19px !important; line-height: 38px !important;
     letter-spacing: 0; max-width: 340px; text-align: center; margin-left: auto; margin-right: auto;
@@ -609,7 +613,7 @@ body.menu-open .mega { pointer-events: auto; }
    .mquote__l1,3/__l2's plain-vs-emphasis roles, reused across as many
    lines as needed (k1 for every plain line, not just the first — unlike
    .mquote__l1 which only ever appears once per quote). */
-.mquote--long { font-size: clamp(17px, 2.3vw, 31px); line-height: 1.16; }
+.mquote--long { font-size: clamp(22px, 3.6vw, 54px); line-height: 1.14; }
 .mquote__k1 { color: var(--charcoal); position: relative; }
 .mquote__k2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 

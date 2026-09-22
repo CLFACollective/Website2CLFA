@@ -27,12 +27,14 @@ const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // 3.0 — ring-open/text-reveal begi
 const BEAT1_START = BEAT0_DUR; // 7.19
 const BEAT2_START = BEAT1_START + BEAT_DUR; // 9.49
 // beat 2's word cycle: "smarter" holds BEAT_DUR/3, "faster"/"better"
-// each hold .3s longer than that.
+// each hold .3s longer than that, and SWAP_PACE slows every word down
+// by a further .3s on top of that, uniformly.
 const SWAP_SLOW = 0.3;
-const SWAP_A_DUR = BEAT_DUR / 3;
-const SWAP_B_DUR = BEAT_DUR / 3 + SWAP_SLOW;
-const SWAP_C_DUR = BEAT_DUR / 3 + SWAP_SLOW;
-const SWAP_DUR = SWAP_A_DUR + SWAP_B_DUR + SWAP_C_DUR; // 2.9
+const SWAP_PACE = 0.3;
+const SWAP_A_DUR = BEAT_DUR / 3 + SWAP_PACE;
+const SWAP_B_DUR = BEAT_DUR / 3 + SWAP_SLOW + SWAP_PACE;
+const SWAP_C_DUR = BEAT_DUR / 3 + SWAP_SLOW + SWAP_PACE;
+const SWAP_DUR = SWAP_A_DUR + SWAP_B_DUR + SWAP_C_DUR; // 3.8
 const OPEN_T = BEAT2_START + SWAP_DUR; // 12.39 — bloom starts
 const BLOOM_DUR = 1.2;
 const MID_BEAT1 = BEAT1_START + BEAT_DUR * 0.5; // a safe "mid-movie" point, deep in beat 1
@@ -100,6 +102,31 @@ test.describe("Hero movie: plays once, locks scroll, hands off cleanly", () => {
     // ROSE (#F06496) on the fully-bloomed ROSE background was invisible —
     // the cue must render in a light colour (CREAM) once it arrives.
     expect(cue.color).toBe("rgb(254, 252, 244)");
+  });
+
+  test("the nav wordmark is hidden during the movie and reappears once it completes — including after a replay", async ({ page }) => {
+    // A real regression: the movie used to only ever ADD .is-gone to the
+    // nav logo (right before it starts), with nothing removing it again
+    // once onMovieComplete fired — only the reduced-motion branch did.
+    // The wordmark stayed permanently hidden after every normal
+    // (non-reduced-motion) page load. Confirmed live, fixed in hero.ts's
+    // onMovieComplete; the replay button needed the mirror-image fix
+    // (re-adding .is-gone before restarting) so a replay hides it again
+    // for the replayed run instead of leaving it visible throughout.
+    await page.goto("/", { waitUntil: "networkidle" });
+    const logo = page.locator(".nav__logo");
+
+    await seekHero(page, MID_BEAT1);
+    await expect(logo, "hidden while the movie is still playing").toHaveClass(/is-gone/);
+
+    await seekHero(page, 999);
+    await expect(logo, "visible once the movie completes").not.toHaveClass(/is-gone/);
+
+    await page.click(".hcb__replay");
+    await expect(logo, "hidden again for the replayed run").toHaveClass(/is-gone/);
+
+    await seekHero(page, 999);
+    await expect(logo, "visible again once the replay completes").not.toHaveClass(/is-gone/);
   });
 
   test("the cue's pulse starts the moment the frame finishes flooding, not after the whole movie completes", async ({ page }) => {

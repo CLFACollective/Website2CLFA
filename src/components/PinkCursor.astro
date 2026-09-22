@@ -19,10 +19,18 @@
     margin-left: -12px;
     margin-top: -12px;
     border-radius: 50%;
-    background: var(--rose, #f06496);
+    background: var(--rose, #f06996);
     pointer-events: none;
     will-change: transform;
     transform: translate(-200px, -200px);
+    box-shadow: 0 0 0 0 rgba(254, 252, 244, 0);
+    transition: box-shadow .18s ease-out;
+  }
+  /* a visible ring grown around the dot over small interactive targets
+     that otherwise give no hover feedback under this custom cursor —
+     see cursor.ts's data-cursor="ring" handling. */
+  #pink-cursor.pink-cursor--ring {
+    box-shadow: 0 0 0 7px rgba(254, 252, 244, .55);
   }
   @media (pointer: fine) {
     #pink-cursor { display: block; }

@@ -21,10 +21,21 @@ export function setupShimmer() {
 
   document.querySelectorAll<HTMLElement>(".shimmer:not([data-mounted])").forEach((host) => {
     host.dataset.mounted = "true";
+    // Optional data-band-end/data-mobile-band-end cap how far down these
+    // dots may land, as a % of the container's own height — matching a
+    // sibling ShineField instance's own bandEnd keeps the two dust
+    // layers reading as one field. Default (unset) is the original
+    // full-height scatter Day One still uses, where content fills most
+    // of the section so strays there don't read as out of place; Momentum's
+    // lower ~70% is bare background, so it opts into a matching cap —
+    // see MomentumGallery.astro's own ShineField bandEnd/mobileBandEnd.
+    const bandEnd = Number(host.dataset.bandEnd) || 100;
+    const mobileBandEnd = Number(host.dataset.mobileBandEnd) || bandEnd;
+    const topMax = window.matchMedia("(max-width: 799px)").matches ? mobileBandEnd : bandEnd;
     for (let i = 0; i < 22; i++) {
       const dot = document.createElement("i");
       dot.style.left = `${(Math.random() * 100).toFixed(2)}%`;
-      dot.style.top = `${(Math.random() * 100).toFixed(2)}%`;
+      dot.style.top = `${(Math.random() * topMax).toFixed(2)}%`;
       dot.style.animationDelay = `${(Math.random() * 5.5).toFixed(2)}s`;
       dot.style.color = Math.random() > 0.8 ? "var(--pink)" : "var(--fg)";
       host.appendChild(dot);

@@ -29,8 +29,8 @@ const MAX_AUTO_LOOPS = 3;
      - every slide goes through this arrival — including the very first
        one ever shown. It does not start pre-placed at full size; it
        starts at the shared waiting lane like everything else and only
-       becomes prominent once activateInitial() promotes it, the same
-       call every later slide gets.
+       becomes prominent once activateCurrent() promotes it, the same
+       call every later slide (and every later resume) gets.
      - count-up fires at a literal, fixed checkpoint: 3/4 of the way
        through this same tween (this.progress(), its own time-fraction),
        not a scale-derived proximity guess.
@@ -174,16 +174,23 @@ const TINTS = ["#F06496", "#BE7837", "#506E78", "#A0A073", "#BE7837"];
  *
  * There is no gesture navigation at all — no scroll-lock, no wheel/arrow-
  * key/touch capture. This is a passive, autoplay-only carousel that lives
- * in the normal page flow and never blocks scrolling. An IntersectionObserver
- * starts it playing once the section is fully in view (also the moment its
- * first arrival plays and its first count-up can fire — see
- * activateInitial); a window `scroll` listener pauses it the instant the
- * visitor starts scrolling at all, and a short settle-debounce resumes it
- * — from exactly where it left off, no reset — once they've stopped
- * scrolling with the section still fully in view. After MAX_AUTO_LOOPS
- * complete loops through every slide with nobody scrolling away in
- * between, it stops on its own and just leaves the page free to scroll
- * on, rather than looping forever for a purely passive visitor.
+ * in the normal page flow and never blocks scrolling. Scroll state is
+ * entirely GSAP's own — a single ScrollTrigger spanning the section's
+ * whole transit through the viewport (see the "play / pause on scroll"
+ * section below), not a native `scroll` listener plus a separate
+ * IntersectionObserver. play() fires once that trigger's progress sits
+ * within a narrow band around the section roughly filling the viewport
+ * (also the moment its first arrival plays and its first count-up can
+ * fire — see activateCurrent); pause() fires once progress leaves that
+ * band in either direction — actually scrolling away, not just any small
+ * in-place scroll. Scrolling back resumes — on the same slide it was on
+ * (idx is never reset by pause/resume), but replaying that slide's own
+ * arrival from scratch rather than resuming wherever its tweens silently
+ * ended up while off-screen and unrendered (see activateCurrent). After
+ * MAX_AUTO_LOOPS complete loops through every slide with nobody
+ * scrolling away in between, it stops on its own and just leaves the
+ * page free to scroll on, rather than looping forever for a purely
+ * passive visitor.
  */
 export function setupMomentumGallery() {
   const section = document.getElementById("momentum");
@@ -213,7 +220,7 @@ export function setupMomentumGallery() {
     return;
   }
 
-  const { gsap } = useGsap();
+  const { gsap, ScrollTrigger } = useGsap();
 
   const countUp = (slide: HTMLElement) => {
     const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
@@ -230,9 +237,9 @@ export function setupMomentumGallery() {
   let transitioning = false;
   let playing = false;
   // has this ever fully activated — declared up here (not just before
-  // activateInitial's own definition further down) because initThree()
+  // activateCurrent's own definition further down) because initThree()
   // paints the seeded layout synchronously during setup, before
-  // activateInitial itself is ever defined; a `let` referenced from
+  // activateCurrent itself is ever defined; a `let` referenced from
   // there earlier than this line would hit the temporal dead zone. Also
   // gates ensureActiveLaneIsProminent (see its own comment) — before
   // activation, `idx` sitting at the waiting lane is correct, not a bug
@@ -285,7 +292,7 @@ export function setupMomentumGallery() {
   }
 
   // seed every slide at the shared waiting lane, invisible — including
-  // idx 0. Nothing is prominent yet; activateInitial() promotes idx 0
+  // idx 0. Nothing is prominent yet; activateCurrent() promotes idx 0
   // through the exact same arrival every later slide gets, once the
   // section is actually fully in view (see play() below).
   for (let i = 0; i < N; i++) {
@@ -474,8 +481,8 @@ export function setupMomentumGallery() {
      used to read as a sudden pop to one side rather than a continuous
      emergence. Depth keeps going once this completes (startDesktopHold
      Creep) — "the pause" is that creep, never a dead stop. Every slide
-     goes through this, including the very first one ever shown — see
-     activateInitial. */
+     goes through this, including the very first one ever shown and every
+     later resume — see activateCurrent. */
   function promoteDesktop(inIndex: number) {
     initThree();
     if (!three) return;
@@ -699,22 +706,62 @@ export function setupMomentumGallery() {
 
   // Nothing animates yet — no arrival, no count-up, no ambient wait-
   // breathe — until the section is actually fully scrolled into view
-  // (see play() below). idx 0 gets promoted through the exact same
+  // (see play() below). idx gets promoted through the exact same
   // arrival every later slide gets, not pre-placed at full size — see
-  // promoteDesktop/promoteMobile.
+  // promoteDesktop/promoteMobile. Shared by the very first activation
+  // AND by every later resume (see play()): scrolling back in should
+  // visibly replay idx's own arrival from a clean, invisible slate —
+  // not silently resume wherever its tweens ended up while off-screen
+  // and unrendered (that read as "stuck": promoteDesktop/promoteMobile
+  // pick up from a mesh/slide's *current* values rather than resetting,
+  // so without this reset a resume would jump straight to whatever
+  // the hold-creep/wait-breathe tweens had already reached in the
+  // background, often already fully settled with nothing left to
+  // animate toward).
   //
   // Sets `transitioning` itself, same as goTo() does — this promotion
   // doesn't go through goTo() (there's no outgoing slide to depart on
-  // the very first activation), so without this a goTo() call arriving
-  // before the arrival settles wouldn't be blocked by the guard the way
-  // every later transition is, and could start departing idx 0 while its
-  // own arrival opacity tween is still fighting to reach 1 — a real race
+  // activation), so without this a goTo() call arriving before the
+  // arrival settles wouldn't be blocked by the guard the way every
+  // later transition is, and could start departing idx while its own
+  // arrival opacity tween is still fighting to reach 1 — a real race
   // that in practice AUTOPLAY_DELAY (4s) being longer than ARRIVE_DUR
   // (2.5s) usually masks, but shouldn't rely on that.
-  function activateInitial() {
-    if (everActivated) return;
+  function activateCurrent() {
     everActivated = true;
     transitioning = true;
+    for (let i = 0; i < N; i++) {
+      gsap.killTweensOf(slides[i]);
+      if (mode === "desktop" && three) {
+        gsap.killTweensOf(three.meshes[i].position);
+        gsap.killTweensOf(three.meshes[i].rotation);
+      }
+    }
+    // clean invisible slate for every slide, idx included — idx needs
+    // this as much as the others: promoteDesktop/promoteMobile tween
+    // from a mesh/slide's *current* values (never a fromTo reset,
+    // "picks up from wherever it already was" is deliberate for a
+    // normal departure→arrival handoff), so without resetting idx here
+    // too, re-promoting it would tween from wherever it was already
+    // sitting — likely still prominent — to that exact same prominent
+    // lane again, invisible, not the visible "grows in from small"
+    // replay this whole function exists to produce. Mirrors exactly
+    // what departDesktop/departMobile's own onComplete already resets a
+    // slide to after a normal departure.
+    for (let i = 0; i < N; i++) {
+      if (mode === "desktop" && three) {
+        const mesh = three.meshes[i];
+        mesh.position.set(0, 0, WAIT_Z);
+        mesh.rotation.set(0, 0, 0);
+        gsap.set(slides[i], { opacity: 0 });
+      } else if (mode === "mobile") {
+        gsap.set(slides[i], {
+          x: MOBILE_WAIT.x, y: MOBILE_WAIT.y, z: MOBILE_WAIT.z,
+          rotationX: MOBILE_WAIT.rotX, rotationY: MOBILE_WAIT.rotY,
+          scale: MOBILE_WAIT.scale, opacity: MOBILE_WAIT.opacity, filter: `blur(${MOBILE_WAIT.blur}px)`,
+        });
+      }
+    }
     if (mode === "desktop") promoteDesktop(idx);
     else promoteMobile(idx);
     gsap.delayedCall(GUARD_DUR, () => { transitioning = false; });
@@ -824,15 +871,13 @@ export function setupMomentumGallery() {
   }
 
   /* ================= play / pause on scroll ================= */
-  function sectionVisibleRatio(): number {
-    const r = section!.getBoundingClientRect();
-    return Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) / Math.max(1, r.height);
-  }
-
   function play() {
     if (playing || stoppedForever) return;
     playing = true;
-    activateInitial();
+    // always a full activateCurrent(), first time or resume alike — see
+    // its own comment for why re-promoting idx needs the reset that
+    // implies, not just picking up wherever things silently ended up.
+    activateCurrent();
     if (mode === "desktop") startThreeTicker();
     armAutoplay();
     // resume the cue's pulse exactly where it left off, same as
@@ -845,32 +890,48 @@ export function setupMomentumGallery() {
     stopThreeTicker();
     killTimers();
     cueTl?.pause();
+    // don't leave arrival/hold-creep/wait-breathe tweens silently running
+    // in the background while off-screen — activateCurrent() resets and
+    // replays everything on the next play() regardless, so there's
+    // nothing to preserve, only wasted work to cut short.
+    for (let i = 0; i < N; i++) {
+      gsap.killTweensOf(slides[i]);
+      if (mode === "desktop" && three) {
+        gsap.killTweensOf(three.meshes[i].position);
+        gsap.killTweensOf(three.meshes[i].rotation);
+      }
+    }
   }
 
-  // The instant the visitor starts scrolling at all, pause — never fight
-  // or trap their scroll. A short settle-debounce after they stop again
-  // checks whether the section is now (still) fully in view and, if so,
-  // resumes exactly where it left off (idx/lane state is never reset by
-  // pause/resume) — this is what makes "scroll away, scroll back" pick
-  // back up instead of restarting.
-  let settleCall: gsap.core.Tween | null = null;
-  function onWindowScroll() {
-    pause();
-    settleCall?.kill();
-    settleCall = gsap.delayedCall(0.25, () => {
-      if (sectionVisibleRatio() >= 0.9) play();
-    });
-  }
-  window.addEventListener("scroll", onWindowScroll, { passive: true });
-
-  // Catches the section already being fully in view without requiring a
-  // scroll event first (e.g. a deep link, or a very short page).
-  new IntersectionObserver(
-    (entries) => {
-      if (entries[0].intersectionRatio >= 0.9) play();
+  // Scroll-driven, via ScrollTrigger rather than a native `scroll`
+  // listener + IntersectionObserver pair (the old approach — GSAP owns
+  // scroll state everywhere else in this codebase, this should be no
+  // different). `start`/`end` span the section's entire transit through
+  // the viewport (its first pixel entering to its last pixel leaving),
+  // so `self.progress` runs 0 -> 1 across that whole transit and sits at
+  // exactly 0.5 the instant the section perfectly fills the viewport —
+  // the same "fully in view" the old 0.9 IntersectionObserver ratio
+  // approximated, just computed continuously instead of at fixed
+  // ratio-crossing events. play() fires once progress enters that
+  // narrow near-0.5 band, pause() once it leaves it in either direction
+  // — scrolling down past the section and scrolling back up into it
+  // both resume the same way (see activateCurrent's own comment: each
+  // resume replays the current slide's arrival from scratch, so
+  // re-entering from either direction reads as genuinely alive again,
+  // never a freeze-frame of wherever it silently ended up off-screen).
+  // Both play() and pause() are no-ops when already in that state, so
+  // onUpdate firing on every scroll tick within the band is cheap.
+  const FULLY_IN_VIEW_BAND = 0.05; // +/- around progress 0.5
+  ScrollTrigger.create({
+    trigger: section,
+    start: "top bottom",
+    end: "bottom top",
+    onUpdate: (self) => {
+      const fullyInView = Math.abs(self.progress - 0.5) <= FULLY_IN_VIEW_BAND;
+      if (fullyInView) play();
+      else pause();
     },
-    { threshold: [0.9] },
-  ).observe(section);
+  });
 
   // test hook — mirrors hero.ts's exposed heroTimeline, lets Playwright
   // drive state directly without burning real scroll/timer time.
@@ -882,7 +943,7 @@ export function setupMomentumGallery() {
       goTo: (i: number) => void;
       play: () => void;
       pause: () => void;
-      activateInitial: () => void;
+      activateCurrent: () => void;
       advanceAuto: () => void;
       disableAutoplay: () => void;
       getState: () => { idx: number; playing: boolean; autoLoopCount: number; stoppedForever: boolean };
@@ -892,7 +953,7 @@ export function setupMomentumGallery() {
     play,
     pause,
     advanceAuto,
-    activateInitial,
+    activateCurrent,
     disableAutoplay: () => { autoplayDisabledForTest = true; killTimers(); },
     getState: () => ({ idx, playing, autoLoopCount, stoppedForever }),
   };

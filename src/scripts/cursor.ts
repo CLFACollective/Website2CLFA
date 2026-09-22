@@ -60,7 +60,13 @@ export function mountPinkCursor() {
     } else {
       onInvert = !!under?.closest('[data-cursor="invert"]');
     }
-    dot.style.background = onInvert ? "#FFFCF5" : "#F06496";
+    dot.style.background = onInvert ? "#FFFCF5" : "#F06996";
+
+    // a plain hover affordance for small interactive targets that don't
+    // otherwise change appearance under this custom cursor (e.g. Hero's
+    // Replay button, easy to miss whether you're actually on it) — see
+    // #pink-cursor.pink-cursor--ring in PinkCursor.astro.
+    dot.classList.toggle("pink-cursor--ring", !!under?.closest('[data-cursor="ring"]'));
   };
 
   window.addEventListener("mousemove", onMove);

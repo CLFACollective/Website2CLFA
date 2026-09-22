@@ -658,7 +658,7 @@ body.menu-open .mega { pointer-events: auto; }
 .mg__slide--quote { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 /* duplicated from the retired .hs__panel h4, deliberately not shared —
    keeps this component decoupled from the old track's own box model */
-.mg__slide h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
+.mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
 
 /* Mirrors Hero's own .hcb__cue (a "Scroll" label over a pulsing tick
    line) — hidden by default (opacity:0); momentumGallery.ts fades it in

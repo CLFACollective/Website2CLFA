@@ -22,7 +22,7 @@ import { useGsap, prefersReducedMotion } from "./gsapSetup";
  * just reads it" shape as GridField's cursor-follow fade.
  */
 
-const PINK = "#F06496";
+const PINK = "#F06996";
 const ACCENT_CHANCE = 0.04;
 // Scaled to 60% of the originally-measured 0.4–6.5px range — the full
 // size read as too prominent/heavy once seen on the page.
@@ -30,8 +30,13 @@ const SIZE_SCALE = 0.6;
 const MIN_SIZE_SCALE = 0.85;
 const MIN_SIZE = 0.4 * MIN_SIZE_SCALE;
 const MAX_SIZE = 6.5 * SIZE_SCALE;
-const MIN_ALPHA = 0.3;
-const MAX_ALPHA = 0.56;
+// Softened further (0.3–0.56 -> 0.16–0.4) — visible squares next to a
+// heading's dark text read as a stark, high-contrast "wall" against the
+// plain background beside it; feedback called this a "hard line."
+// Lower opacity throughout takes the edge off that contrast without
+// changing density/placement.
+const MIN_ALPHA = 0.16;
+const MAX_ALPHA = 0.4;
 const ROW_GROWTH = 2.5;
 const ROUNDED_CHANCE = 0.35;
 const ROUNDED_RADIUS_FRAC = 0.3;

@@ -244,6 +244,12 @@ body.menu-open .mega { pointer-events: auto; }
 @media (hover: hover) {
   .kickoff--alt:hover { background: var(--flare); color: var(--cream); }
 }
+/* on narrow phones the pill's default corner sits right on top of
+   Hero's centred "Scroll" cue (both anchored near the same bottom
+   edge) — raised clear of it. */
+@media (max-width: 799px) {
+  .kickoff { bottom: 84px; }
+}
 
 .btn, .btn--fill {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
@@ -496,6 +502,10 @@ body.menu-open .mega { pointer-events: auto; }
    than the other two stats — not an oversight, Figma has it that way */
 .mfig--wide { letter-spacing: -1px; }
 .mfig .unit { font-size: .4em; font-weight: 800; }
+/* true superscript, not just a smaller trailing unit like .unit above —
+   raised above the baseline via vertical-align, for the "$" leading
+   $4M (the only stat with a currency prefix). */
+.mfig .mfig__prefix { font-size: .4em; font-weight: 800; vertical-align: super; }
 .mcap {
   margin: 0 0 clamp(20px, 2.4vw, 46px); color: var(--flare); font-weight: 600; letter-spacing: 0;
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);

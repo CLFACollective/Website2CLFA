@@ -27,9 +27,9 @@ const CARDS: Card[] = [
     bg: "#344338", fg: "#FEFCF4", hot: "#FF981E", icon: "acquired", idle: "#858D83", hover: "#FF981E" },
   { emph: "Ready to launch", rest: " (or should be ready to launch).", breakAfterEmph: true,
     bg: "#506E78", fg: "#FEFCF4", hot: "#FF981E", icon: "launch", idle: "#9EBBC4", hover: "#FF981E" },
-  { emph: "Mid-merger", rest: " and the brand story hasn’t caught up yet.",
+  { emph: "Mid-merger", rest: " and the brand story hasn’t caught up yet.", breakAfterEmph: true,
     bg: "#252525", fg: "#FEFCF4", hot: "#FF981E", icon: "merge", idle: "#7C7B78", hover: "#FF981E" },
-  { emph: "Pivoting", rest: " because the tech stack changed.",
+  { emph: "Pivoting", rest: " because the tech stack changed.", breakAfterEmph: true,
     bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "pivot", idle: "#A5B7BE", hover: "#BE7837" },
 ];
 ---
@@ -259,6 +259,8 @@ const CARDS: Card[] = [
        indicate at this width — drop them rather than leave a row of
        static, never-updating circles. */
     .bmc__dots { display: none; }
+
+    .bmc__payoff { margin-top: 20px; }
   }
 
   @media (prefers-reduced-motion: reduce) {

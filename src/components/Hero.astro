@@ -22,7 +22,6 @@ const CHARCOAL = "#252525";
 const COPPER = "#BE7837";
 const AZURE = "#527078";
 const ROSE = "#F06996";
-const OLIVE = "#A0A073";
 ---
 
 <section class="hcb" id="hero">
@@ -42,7 +41,7 @@ const OLIVE = "#A0A073";
         <span class="hcb__swap">
           <span class="hcb__emph hcb__emph--swap" data-word="a">smarter</span>
           <span class="hcb__emph hcb__emph--swap" data-word="b" style={`color:${AZURE}`}>faster</span>
-          <span class="hcb__emph hcb__emph--swap" data-word="c" style={`color:${OLIVE}`}>better</span>
+          <span class="hcb__emph hcb__emph--swap" data-word="c" style={`color:${CHARCOAL}`}>better</span>
         </span>
         <span class="hcb__emph">solve</span>
       </p>
@@ -198,6 +197,11 @@ const OLIVE = "#A0A073";
   .hcb__head .hcb__lead {
     margin-left: 7.4%;
     margin-bottom: -4.4vw;
+    /* nudges "We are the" down so its own cap-height top lines up with
+       the top of "solve"'s ascender ("l") — measured directly (pixel-
+       scanned screenshot), not eyeballed; margin-bottom above only
+       controls the gap after this element, not its own position. */
+    transform: translateY(.9vw);
     position: relative; z-index: 2;
   }
   .hcb__solve {
@@ -303,6 +307,7 @@ const OLIVE = "#A0A073";
 
   @media (max-width: 799px) {
     .hcb__lockup { padding: 0 32px; }
+    .hcb__head .hcb__lead { font-size: 25px; }
     .hcb__solve { font-size: var(--solve-fit, 34vw); line-height: .76; }
     .hcb__closing { max-width: min(20ch, 86vw); }
   }

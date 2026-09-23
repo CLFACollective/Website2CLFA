@@ -145,8 +145,6 @@ const MOBILE_OVERSHOOT: MobileLane = { x: "0px", y: "0px", z: 260, rotY: 0, rotX
 const MOBILE_WAIT_BREATHE_SCALE_BONUS = 0.06;
 const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
 
-const TINTS = ["#F06496", "#BE7837", "#506E78", "#A0A073", "#BE7837"];
-
 /**
  * MomentumGallery — a "back to front" depth-of-field carousel replacing the
  * old horizontally-panning Momentum track (see Momentum.astro, retired).
@@ -160,14 +158,16 @@ const TINTS = ["#F06496", "#BE7837", "#506E78", "#A0A073", "#BE7837"];
  * background — it keeps riding forward past the reader (growing further,
  * per real perspective) while fading to nothing, then resets invisibly to
  * wait for its next turn. Nothing is ever left visibly parked in the
- * background. Desktop renders the depth with a real Three.js scene
- * (camera + soft "card" meshes behind the real DOM text — the canvas
- * itself stays genuinely transparent so the ShineField dust field behind
- * it keeps showing through, see makeCardTexture's comment for why there's
- * no BokehPass/EffectComposer here) and syncs that DOM text's
- * position/scale to the mesh every frame; the actual stat/quote copy
- * never lives inside the canvas. Below 1000px, no WebGL context is ever
- * created at all — a plain CSS 3D transform stack approximates the same
+ * background. Desktop renders the depth with a real Three.js scene (a
+ * camera + one invisible mesh per slide — see renderFrame) and syncs the
+ * real DOM text's position/scale to each mesh every frame; the actual
+ * stat/quote copy never lives inside the canvas, and the canvas itself
+ * paints nothing visible (each mesh is a bare position/depth anchor for
+ * the projection math, not a rendered card — an earlier version drew a
+ * soft blurred radial-gradient "card" texture behind each slide, removed
+ * per feedback that it read as an unwanted blurry shadow). Below 1000px,
+ * no WebGL context is ever created at all — a plain CSS 3D transform
+ * stack approximates the same
  * look, both because touch devices are this codebase's own documented
  * source of GPU-effect crashes (ShineField/Day One's prior iPad history)
  * and because a mouse-only interaction isn't relevant there anyway.
@@ -207,7 +207,7 @@ export function setupMomentumGallery() {
   const setCountText = (el: HTMLElement, value: number) => {
     const prefix = el.dataset.mgPrefix || "";
     const suffix = el.dataset.mgSuffix || "";
-    el.innerHTML = `${prefix}${Math.round(value)}<span class="unit">${suffix}</span>`;
+    el.innerHTML = `<span class="mfig__prefix">${prefix}</span>${Math.round(value)}<span class="unit">${suffix}</span>`;
   };
 
   if (prefersReducedMotion()) {
@@ -321,33 +321,6 @@ export function setupMomentumGallery() {
     running: boolean;
   } | null = null;
 
-  /* No real depth-of-field pass here (GSAP + Three.js's own core render,
-     not EffectComposer/BokehPass): BokehPass's shader hardcodes
-     `gl_FragColor.a = 1.0` (three/examples/jsm/shaders/BokehShader.js),
-     discarding alpha entirely — an opaque canvas would blot out the
-     ShineField dust field sitting behind it, which the user explicitly
-     asked to keep visible. Each card's softness is baked into its own
-     texture instead (a radial gradient drawn through a canvas 2D blur
-     filter), and its opacity is derived from live depth every frame
-     (see renderFrame) — not literal camera DOF, but a comparable soft,
-     receding look while the canvas stays genuinely transparent. */
-  function makeCardTexture(tint: string): THREE.CanvasTexture {
-    const size = 256;
-    const c = document.createElement("canvas");
-    c.width = size;
-    c.height = size;
-    const ctx = c.getContext("2d")!;
-    ctx.filter = "blur(14px)";
-    const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.04, size / 2, size / 2, size * 0.4);
-    g.addColorStop(0, tint);
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    const tex = new THREE.CanvasTexture(c);
-    tex.needsUpdate = true;
-    return tex;
-  }
-
   function renderFrame() {
     if (!three) return;
     three.renderer.render(three.scene, three.camera);
@@ -358,11 +331,6 @@ export function setupMomentumGallery() {
       const x = (vector.x * 0.5 + 0.5) * sceneEl!.clientWidth;
       const y = (-vector.y * 0.5 + 0.5) * sceneEl!.clientHeight;
       const scale = CAMERA_Z / (CAMERA_Z - mesh.position.z);
-      // mesh opacity derived from the same live depth (fades as it
-      // recedes) — one animated source (the mesh position, via GSAP)
-      // rather than a second tween that could drift out of sync with it.
-      const mat = mesh.material as THREE.MeshBasicMaterial;
-      mat.opacity = Math.min(0.42, Math.max(0.12, scale * 0.42));
       const el = slides[i];
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
       // DOM opacity is NOT derived here — it's explicitly tweened by
@@ -385,12 +353,20 @@ export function setupMomentumGallery() {
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas!, alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0); // genuinely transparent — see makeCardTexture's comment on why there's no BokehPass here
+    renderer.setClearColor(0x000000, 0); // genuinely transparent — the ShineField dust field behind the canvas stays visible through it
 
+    // Each mesh paints nothing at all (invisible) — it exists purely as a
+    // position/depth anchor: renderFrame projects its live (GSAP-tweened)
+    // position to screen space every frame and applies that transform to
+    // the real DOM slide sitting on top, which is what's actually seen.
+    // An earlier version gave each mesh a soft blurred radial-gradient
+    // "card" texture as a visible backing; removed per feedback that it
+    // read as an unwanted blurry shadow behind the slides.
     const meshes = slides.map((_, i) => {
       const geo = new THREE.PlaneGeometry(560, 300);
-      const mat = new THREE.MeshBasicMaterial({ map: makeCardTexture(TINTS[i]), transparent: true, opacity: 0.4, depthWrite: false });
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
       const mesh = new THREE.Mesh(geo, mat);
+      mesh.visible = false;
       const lane = laneOf.get(i)!;
       mesh.position.set(lane.x, lane.y, lane.z);
       mesh.rotation.set((lane.rotX * Math.PI) / 180, (lane.rotY * Math.PI) / 180, 0);

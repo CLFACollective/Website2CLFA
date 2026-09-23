@@ -573,7 +573,9 @@ body.menu-open .mega { pointer-events: auto; }
 .mquote__k2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 
 @media (max-width: 799px) {
-  .hs__head { padding: clamp(60px, 8vh, 84px) var(--gut) 24px; max-width: none; }
+  /* +35px on top of the existing clamp — "Measurable momentum." was
+     riding right up under the fixed nav logo with almost no clearance. */
+  .hs__head { padding: calc(clamp(60px, 8vh, 84px) + 35px) var(--gut) 24px; max-width: none; }
 
   .hs__intro-head { font-size: 36px; line-height: 1.06; }
   /* "momentum" keeps the same Lora italic/copper/weight-600 treatment

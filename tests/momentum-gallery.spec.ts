@@ -6,10 +6,11 @@ import { skipHeroMovie } from "./helpers";
  * the old horizontally-panning Momentum track. Purely autoplay-driven —
  * there is no gesture navigation at all (no scroll-lock, no wheel/arrow-
  * key/touch capture), and no native `scroll` listener either: a
- * ScrollTrigger spans the section's whole transit through the viewport,
- * and play()/pause() key off its progress sitting within a narrow band
- * around the section roughly filling the viewport (never traps scroll).
- * A small in-place scroll that stays within that band doesn't pause it;
+ * ScrollTrigger tracks the section's own overlap with the viewport's
+ * *top* edge (the same "is this the section now under the fixed nav"
+ * idiom navTint.ts uses elsewhere) — play() once its top reaches the
+ * nav, pause() once its bottom passes it (never traps scroll). A small
+ * in-place scroll doesn't cross either edge, so it doesn't pause;
  * actually scrolling away does. Scrolling back resumes — on the same
  * slide it was on (idx isn't reset), but replaying that slide's own
  * arrival from scratch rather than resuming wherever its tweens silently
@@ -48,7 +49,36 @@ const MAX_AUTO_LOOPS = 3;
 
 async function scrollIntoGallery(page: Page) {
   await page.evaluate(() => document.getElementById("momentum")?.scrollIntoView({ block: "start" }));
-  await page.waitForTimeout(400); // let the IntersectionObserver/settle-check engage
+  // ScrollTrigger's onUpdate only fires on an actual detected
+  // scroll-position change during its own update cycle — an instant JS
+  // jump (scrollIntoView, or window.scrollTo/scrollBy landing exactly
+  // on the target in one step) doesn't reliably trigger that recheck in
+  // a headless browser the way real input-driven scrolling does, and
+  // there's no single simulated-input nudge (wheel, key, touch) that
+  // reliably works across every engine this project tests against —
+  // confirmed directly against several. A real visitor always arrives
+  // via continuous scroll input, so this is a test-methodology gap, not
+  // a product bug — checkScrollState runs the exact same
+  // getBoundingClientRect() decision the ScrollTrigger's own onUpdate
+  // does, just callable directly instead of waiting on a live scroll
+  // event to fire it.
+  // optional chaining — under reduced motion, setupMomentumGallery
+  // returns early and mgApi never gets wired up at all (see the
+  // reduced-motion test's own assertion of exactly that).
+  await page.evaluate(() => (document.getElementById("momentum") as any).mgApi?.checkScrollState());
+  await page.waitForTimeout(400); // let the settle-check engage
+}
+
+/**
+ * Every other scroll a test does after the initial entrance — leaving,
+ * coming back, jumping to the top/bottom — needs the same
+ * checkScrollState() nudge scrollIntoGallery's own comment explains
+ * (an instant programmatic jump doesn't reliably make ScrollTrigger's
+ * own update cycle re-run in a headless browser).
+ */
+async function scrollAndCheck(page: Page, fn: () => void) {
+  await page.evaluate(fn);
+  await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.checkScrollState());
 }
 
 /**
@@ -99,13 +129,12 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
   });
 
   test("a small in-place scroll doesn't pause it, but scrolling out of (and back into) view does — resuming on the same slide", async ({ page }) => {
-    // Driven by a ScrollTrigger spanning the section's whole transit
-    // through the viewport (see momentumGallery.ts's own comment) rather
-    // than a native `scroll` listener paired with a separate
+    // Driven by a ScrollTrigger tracking the section's own overlap with
+    // the viewport's top edge (see momentumGallery.ts's own comment)
+    // rather than a native `scroll` listener paired with a separate
     // IntersectionObserver — GSAP owns scroll-driven state everywhere
-    // else in this codebase now. play()/pause() key off self.progress
-    // sitting within a narrow band around 0.5 (section roughly filling
-    // the viewport), not "any scroll happened at all" — a trackpad's
+    // else in this codebase now. play()/pause() fire only at those two
+    // edge crossings, not "any scroll happened at all" — a trackpad's
     // momentum settling or a visitor nudging the page slightly while
     // still reading shouldn't read as "leaving".
     await scrollInAndTakeManualControl(page);
@@ -114,20 +143,20 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     expect(await activeIndex(page)).toBe("2");
     expect((await getState(page)).playing).toBe(true);
 
-    // a tiny scroll, comfortably inside the "fully in view" band
-    await page.evaluate(() => window.scrollBy(0, 5));
+    // a tiny scroll, nowhere near either edge
+    await scrollAndCheck(page, () => window.scrollBy(0, 5));
     await page.waitForTimeout(100);
     expect((await getState(page)).playing, "a small in-place scroll shouldn't pause it").toBe(true);
     expect(await activeIndex(page)).toBe("2");
 
     // scroll far enough to actually leave the section
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+    await scrollAndCheck(page, () => window.scrollBy(0, window.innerHeight));
     await page.waitForTimeout(100);
     expect((await getState(page)).playing, "should pause once actually scrolled away").toBe(false);
     expect(await activeIndex(page), "pausing should not change which slide is active").toBe("2");
 
     // scroll back — should resume on its own, from slide 2, not reset to 0
-    await page.evaluate(() => window.scrollBy(0, -window.innerHeight));
+    await scrollAndCheck(page, () => window.scrollBy(0, -window.innerHeight));
     await page.waitForTimeout(100);
     expect((await getState(page)).playing, "should resume once back in view").toBe(true);
     expect(await activeIndex(page), "should pick back up from the same slide, not restart").toBe("2");
@@ -162,9 +191,9 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
 
     // scroll away, then back — the ScrollTrigger crossing back into its
     // "fully in view" band is what triggers the replay.
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+    await scrollAndCheck(page, () => window.scrollBy(0, window.innerHeight));
     await page.waitForTimeout(100);
-    await page.evaluate(() => window.scrollBy(0, -window.innerHeight));
+    await scrollAndCheck(page, () => window.scrollBy(0, -window.innerHeight));
     await page.waitForTimeout(300); // partway into the replayed arrival
 
     expect((await getState(page)).playing, "should have resumed by now").toBe(true);
@@ -184,7 +213,7 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     await scrollIntoGallery(page);
     expect((await getState(page)).playing).toBe(true);
 
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await scrollAndCheck(page, () => window.scrollTo(0, 0));
     await page.waitForTimeout(700); // past the settle-debounce
     expect((await getState(page)).playing, "should stay paused — the section is no longer fully in view").toBe(false);
     // and the scroll itself was never fought

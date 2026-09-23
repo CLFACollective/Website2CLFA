@@ -882,31 +882,47 @@ export function setupMomentumGallery() {
   // Scroll-driven, via ScrollTrigger rather than a native `scroll`
   // listener + IntersectionObserver pair (the old approach — GSAP owns
   // scroll state everywhere else in this codebase, this should be no
-  // different). `start`/`end` span the section's entire transit through
-  // the viewport (its first pixel entering to its last pixel leaving),
-  // so `self.progress` runs 0 -> 1 across that whole transit and sits at
-  // exactly 0.5 the instant the section perfectly fills the viewport —
-  // the same "fully in view" the old 0.9 IntersectionObserver ratio
-  // approximated, just computed continuously instead of at fixed
-  // ratio-crossing events. play() fires once progress enters that
-  // narrow near-0.5 band, pause() once it leaves it in either direction
-  // — scrolling down past the section and scrolling back up into it
-  // both resume the same way (see activateCurrent's own comment: each
-  // resume replays the current slide's arrival from scratch, so
-  // re-entering from either direction reads as genuinely alive again,
-  // never a freeze-frame of wherever it silently ended up off-screen).
-  // Both play() and pause() are no-ops when already in that state, so
-  // onUpdate firing on every scroll tick within the band is cheap.
-  const FULLY_IN_VIEW_BAND = 0.05; // +/- around progress 0.5
+  // different). start/end track the section's own overlap with the
+  // viewport's *top* edge — "top top" to "bottom top" — the same idiom
+  // navTint.ts already uses for "is this section the one now sitting
+  // under the fixed nav": play() once the section's top reaches the nav
+  // (the logo), pause() once its bottom passes it. A first cut instead
+  // tried to key off the section being *centered* (dead-center ±5% of
+  // its full transit) — technically "fully in view", but on mobile that
+  // band is a needle: scrolling normally, the section either wasn't
+  // centered yet (nothing played) or had already scrolled past center
+  // (it stopped again) — confirmed live, "kind of move my view up till
+  // it goes off". Tracking the top edge instead gives a window the size
+  // of the section's own height, not a thin slice of it.
+  //
+  // The decision itself (checkScrollState) is a plain, direct
+  // getBoundingClientRect() check — independent of ScrollTrigger's own
+  // progress/isActive bookkeeping — so it can be called from anywhere,
+  // not just from a live scroll event. That matters for testing: a
+  // purely programmatic scroll (scrollIntoView, scrollTo — no real
+  // wheel/touch/key input behind it) doesn't reliably make ScrollTrigger
+  // re-run its update cycle in a headless browser the way real
+  // input-driven scrolling does, confirmed directly, and there's no
+  // supported way to force that cycle that's consistent across every
+  // engine this project tests against (mouse.wheel isn't supported at
+  // all in mobile WebKit; a keyboard nudge doesn't reliably scroll a
+  // mobile-emulated page). See the exposed mgApi.checkScrollState below.
+  // a small tolerance, not a strict <=0/>0 — scrollIntoView (and,
+  // apparently, ScrollTrigger's own internal boundary check) can land a
+  // fraction of a px short of exactly 0 depending on the browser/device,
+  // which a strict comparison treats as "not quite there yet" even
+  // though it's visually indistinguishable from the top edge.
+  const EDGE_TOLERANCE = 2;
+  function checkScrollState() {
+    const r = section!.getBoundingClientRect();
+    if (r.top <= EDGE_TOLERANCE && r.bottom > EDGE_TOLERANCE) play();
+    else pause();
+  }
   ScrollTrigger.create({
     trigger: section,
-    start: "top bottom",
+    start: "top top",
     end: "bottom top",
-    onUpdate: (self) => {
-      const fullyInView = Math.abs(self.progress - 0.5) <= FULLY_IN_VIEW_BAND;
-      if (fullyInView) play();
-      else pause();
-    },
+    onUpdate: checkScrollState,
   });
 
   // test hook — mirrors hero.ts's exposed heroTimeline, lets Playwright
@@ -914,6 +930,8 @@ export function setupMomentumGallery() {
   // advanceAuto specifically exists so a test can simulate MAX_AUTO_LOOPS
   // full loops (3 * N * AUTOPLAY_DELAY would otherwise be over a minute
   // of real waiting) without faking the underlying loop-counting logic.
+  // checkScrollState is exposed for the same reason — see its own
+  // comment above, right where the ScrollTrigger is created.
   (section as HTMLElement & {
     mgApi?: {
       goTo: (i: number) => void;
@@ -922,6 +940,7 @@ export function setupMomentumGallery() {
       activateCurrent: () => void;
       advanceAuto: () => void;
       disableAutoplay: () => void;
+      checkScrollState: () => void;
       getState: () => { idx: number; playing: boolean; autoLoopCount: number; stoppedForever: boolean };
     };
   }).mgApi = {
@@ -931,6 +950,7 @@ export function setupMomentumGallery() {
     advanceAuto,
     activateCurrent,
     disableAutoplay: () => { autoplayDisabledForTest = true; killTimers(); },
+    checkScrollState,
     getState: () => ({ idx, playing, autoLoopCount, stoppedForever }),
   };
 }

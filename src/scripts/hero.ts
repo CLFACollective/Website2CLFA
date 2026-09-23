@@ -127,10 +127,13 @@ export function setupHero() {
   const solve = document.getElementById("hcbSolve");
   if (!section || !stage || !solve) return;
 
-  /* --solve-fit: the font size at which "solve" exactly fills its column,
-     measured off the live text rather than guessed, so it survives the
-     webfont landing and a change of face. A layout concern, independent
-     of the movie below. */
+  /* --solve-fit: the font size at which "solve" exactly fills its column
+     (times SOLVE_FIT_BOOST, a few percent over "exactly" per feedback
+     that mobile's "We are the solve" read a couple px too small even
+     filling the column edge to edge), measured off the live text rather
+     than guessed, so it survives the webfont landing and a change of
+     face. A layout concern, independent of the movie below. */
+  const SOLVE_FIT_BOOST = 1.03;
   const syncSolveFit = () => {
     const lockup = section.querySelector<HTMLElement>(".hcb__lockup");
     if (!lockup) return;
@@ -139,7 +142,7 @@ export function setupHero() {
     const size = parseFloat(getComputedStyle(solve).fontSize);
     const width = solve.getBoundingClientRect().width;
     if (!size || !width || avail <= 0) return;
-    section.style.setProperty("--solve-fit", `${Math.floor(avail / (width / size))}px`);
+    section.style.setProperty("--solve-fit", `${Math.floor((avail / (width / size)) * SOLVE_FIT_BOOST)}px`);
   };
   const ro = new ResizeObserver(syncSolveFit);
   ro.observe(solve);

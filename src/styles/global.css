@@ -468,15 +468,8 @@ body.menu-open .mega { pointer-events: auto; }
 }
 
 /* ============================================================
-   MOMENTUM — horizontal scroll
-   RETIRED — superseded by MomentumGallery.astro/momentumGallery.ts.
-   Left in place (Momentum.astro/momentum.ts are kept unused, not
-   deleted) so this block still works correctly if that component is
-   ever reinstated — the MOMENTUM GALLERY block below overrides what
-   it needs to (#momentum's own height, specifically) via cascade
-   order, not by editing anything here.
+   MOMENTUM — back-to-front depth-of-field carousel
    ============================================================ */
-#momentum { height: 360vh; }
 #momentum .pin__stage {
   /* matches the Cards section's own #FEFCF4 dust-field cream, a shade
      off the shared var(--surf-1)/--cream (#FFFAF5) */
@@ -491,38 +484,6 @@ body.menu-open .mega { pointer-events: auto; }
   max-width: min(52ch, 62vw);
 }
 .hs__head .hs__intro-head { margin-bottom: 16px; }
-.hs__track { display: flex; align-items: stretch; flex: 1 1 auto; min-height: 0; width: max-content; will-change: transform; padding-left: var(--gut); padding-right: clamp(90px, 11vw, 200px); }
-.hs__panel {
-  flex: 0 0 auto; height: 100%; box-sizing: border-box;
-  display: flex; flex-direction: column; justify-content: center;
-  padding: 60px clamp(24px, 4vw, 80px);
-  width: clamp(300px, 46vw, 620px); position: relative;
-}
-/* top/bottom come from --divider-top/--divider-bottom, set by
-   momentum.ts's setupMomentumDividers() to the panel's own actual
-   content bounds (first child's top to last child's bottom) — that
-   content height is fluid (clamp()-based type, variable wrapping), so
-   a fixed inset can't track it at every width the way a measured one
-   does. Falls back to a 60px inset before that JS runs. Colour
-   measured directly off the Figma reference's rendered pixels
-   (~50% opacity charcoal), noticeably darker than the shared
-   --hairline token used for the thin lines elsewhere on the page. */
-.hs__panel + .hs__panel::before {
-  content: ""; position: absolute; left: 0; width: 1px;
-  top: var(--divider-top, 60px); bottom: var(--divider-bottom, 60px);
-  background: rgba(35, 35, 35, .5);
-}
-
-.hs__spine {
-  position: absolute; right: calc(var(--gut) * .18); top: 0; bottom: 0; z-index: 3;
-  display: grid; place-items: center end; pointer-events: none;
-}
-.hs__spine span {
-  writing-mode: vertical-rl; transform: rotate(180deg);
-  font-weight: 900; line-height: 1; white-space: nowrap;
-  font-size: clamp(64px, 14.2vh, 210px); letter-spacing: .012em;
-  color: transparent; -webkit-text-stroke: 2.5px currentColor; opacity: .45;
-}
 
 /* "Measurable" (line 1) and "momentum." (line 2, Lora italic via .hot)
    are two different sizes in Figma, not one shared size — the .hot
@@ -540,34 +501,18 @@ body.menu-open .mega { pointer-events: auto; }
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
   line-height: 1.2; max-width: 20ch;
 }
-.hs__panel h4 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
-/* rule-to-figure, figure-to-caption, and caption-to-description gaps
-   below are measured off the Figma reference (node 2964:18868) at its
-   1920px design width — 40px / see .mfig above / 46px respectively —
-   and expressed as clamp()s anchored to that width rather than fixed
-   px, consistent with the rest of this section's responsive spacing. */
-.hs__rule { height: 2px; background: var(--flare); width: 64px; margin: 0 0 clamp(22px, 2.1vw, 40px); }
-.hs__panel--stat { align-items: center; text-align: center; }
-.hs__panel--stat .hs__rule { align-self: flex-start; }
-.hs__panel--stat .mcap, .hs__panel--stat h4 { margin-left: auto; margin-right: auto; }
 
-.hs__panel--quote { justify-content: center; align-items: flex-start; position: relative; }
-.mquote__wrap { position: relative; width: max-content; max-width: 100%; }
-/* MomentumGallery.astro nests the badge as the *last child inside*
-   .mquote__l1 itself (no whitespace between "move" and the badge's own
-   opening tag — see the markup — a stray text node there would inflate
-   l1's own width:fit-content measurement by a few px and throw the gap
-   off). left:calc(100% + 20px) — not `right` — since the badge's own
-   width is itself responsive (the clamp() below): `right:-20px` would
-   anchor the badge's *right* edge 20px past the text and let it extend
+/* left:calc(100% + 20px) — not `right` — since the badge's own width
+   is itself responsive (the clamp() below): `right:-20px` would anchor
+   the badge's *right* edge 20px past the text and let it extend
    backward over the text by (badge width - 20px), not sit clear of it;
    anchoring by `left` instead makes the badge's *left* edge sit exactly
-   20px past wherever "They move" ends, at any breakpoint/font-size,
-   regardless of how wide the badge itself currently is. (The retired
-   Momentum.astro instead wraps the whole blockquote in .mquote__wrap,
-   sized to its *widest* line, and sits the badge as its sibling there —
-   a different structure this rule no longer targets, since that
-   component is unused.) */
+   20px past wherever the emphasis line ends, at any breakpoint/font-size,
+   regardless of how wide the badge itself currently is. MomentumGallery.astro
+   nests the badge as the *last child inside* the line span itself (no
+   whitespace between the text and the badge's own opening tag — a stray
+   text node there would inflate the span's own width:fit-content
+   measurement by a few px and throw the gap off). */
 .mquote__l1 { position: relative; }
 .mquote__badge {
   position: absolute; top: -14px; left: calc(100% + 20px);
@@ -576,13 +521,7 @@ body.menu-open .mega { pointer-events: auto; }
 .mquote__badge svg { display: block; width: 100%; height: auto; }
 /* Two of the three quote lines are plain sans (SemiBold, upright) —
    only the middle line is Lora italic/copper. The base rule covers
-   the sans majority; .mquote__l2 overrides to the italic treatment.
-   Sized down from the original clamp(38px,6.2vw,96px): at the stat
-   panels' own live content height, that read as noticeably taller
-   than the numbers beside it (the shared divider line's height comes
-   from each panel's own content, so a mismatch there was visible as
-   an inconsistent divider length between panels, not just an odd
-   quote) — this clamp is that one scaled by the ratio needed to match. */
+   the sans majority; .mquote__l2 overrides to the italic treatment. */
 .mquote {
   margin: 0; font-weight: 600; font-family: var(--sans); font-style: normal;
   font-size: clamp(29px, 4.7vw, 73px); line-height: 1.0; letter-spacing: -.03em;
@@ -591,12 +530,12 @@ body.menu-open .mega { pointer-events: auto; }
    gets — each line needs to end where its own text ends (used by the
    badge positioning above), not all share the widest line's width.
    Direct-child combinator, not a bare descendant selector — .mquote__l1
-   now nests .mquote__badge inside it (see MomentumGallery.astro), and a
-   bare ".mquote span" would also match that nested span: width:fit-content
-   on an element whose only child is an SVG at width:100% is circular, and
-   the browser falls back to the SVG's classic 300×150 default intrinsic
-   size — a real, previously-hit bug in this same way elsewhere in this
-   codebase (canvas elements with no explicit size). */
+   nests .mquote__badge inside it, and a bare ".mquote span" would also
+   match that nested span: width:fit-content on an element whose only
+   child is an SVG at width:100% is circular, and the browser falls back
+   to the SVG's classic 300×150 default intrinsic size — a real,
+   previously-hit bug in this same way elsewhere in this codebase
+   (canvas elements with no explicit size). */
 .mquote > span { display: block; width: fit-content; max-width: 100%; }
 /* .mquote itself is a column-flex child with align-items:flex-start —
    without an explicit cap it can grow past its own .mg__slide's width
@@ -623,14 +562,8 @@ body.menu-open .mega { pointer-events: auto; }
 .mquote__k1 { color: var(--charcoal); position: relative; }
 .mquote__k2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 
-/* Below 800px the section stops pinning/hijacking scroll entirely —
-   the panel track still pans via the same pinned ScrollTrigger as
-   desktop (see momentum.ts) — only the sizing/typography differ below
-   this width. */
 @media (max-width: 799px) {
   .hs__head { padding: clamp(60px, 8vh, 84px) var(--gut) 24px; max-width: none; }
-  .hs__panel { width: min(272px, 78vw); }
-  .hs__spine { display: none; }
 
   .hs__intro-head { font-size: 36px; line-height: 1.06; }
   /* "momentum" keeps the same Lora italic/copper/weight-600 treatment
@@ -643,13 +576,10 @@ body.menu-open .mega { pointer-events: auto; }
   .mquote__badge { width: 30px; top: -8px; } /* left:calc(100% + 20px) inherited from the base rule — same gap at every breakpoint */
 }
 
-/* ============================================================
-   MOMENTUM GALLERY — back-to-front depth-of-field carousel
-   ============================================================ */
-/* overrides the retired block's fixed 360vh — this section is a plain
-   single-viewport panel now, no scroll-scrub distance to pin through;
-   .pin__stage's own sticky rule just supplies the background/flex-column
-   layout, not an actual pin (nothing here is taller than the viewport). */
+/* a plain single-viewport panel — no scroll-scrub distance to pin
+   through; .pin__stage's own sticky rule just supplies the
+   background/flex-column layout, not an actual pin (nothing here is
+   taller than the viewport). */
 #momentum { height: auto; }
 
 .mg__scene { flex: 1 1 auto; min-height: 0; position: relative; }
@@ -670,8 +600,6 @@ body.menu-open .mega { pointer-events: auto; }
    25% wider than the base .mg__slide so more of its own longer lines
    fit per row without needing as many manual breaks. */
 .mg__slide--wide { width: min(700px, 90vw); }
-/* duplicated from the retired .hs__panel h4, deliberately not shared —
-   keeps this component decoupled from the old track's own box model */
 .mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
 
 /* Mirrors Hero's own .hcb__cue (a "Scroll" label over a pulsing tick
@@ -820,10 +748,7 @@ h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: 
   .reveal { opacity: 1 !important; transform: none !important; }
   .shimmer { display: none; }
   #momentum .pin__stage { background: var(--surf-3); }
-  .hs__track { transform: none !important; width: auto; flex-wrap: wrap; height: auto; }
-  .hs__panel { width: 100%; height: auto; padding: 40px var(--gut); border-left: 0 !important; }
   .hs__head { max-width: none; }
-  .hs__spine { display: none; }
   .rail__ball { display: none; }
   .mega { transition: none; }
 

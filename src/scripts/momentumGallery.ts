@@ -183,14 +183,12 @@ const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
  * (also the moment its first arrival plays and its first count-up can
  * fire — see activateCurrent); pause() fires once progress leaves that
  * band in either direction — actually scrolling away, not just any small
- * in-place scroll. Scrolling back resumes — on the same slide it was on
- * (idx is never reset by pause/resume), but replaying that slide's own
- * arrival from scratch rather than resuming wherever its tweens silently
- * ended up while off-screen and unrendered (see activateCurrent). After
- * MAX_AUTO_LOOPS complete loops through every slide with nobody
- * scrolling away in between, it stops on its own and just leaves the
- * page free to scroll on, rather than looping forever for a purely
- * passive visitor.
+ * in-place scroll. Leaving rewinds everything to the start (see
+ * resetToStart); scrolling back replays slide 0's arrival from scratch
+ * (see activateCurrent). After MAX_AUTO_LOOPS complete loops through
+ * every slide with nobody scrolling away in between, it stops on its
+ * own and just leaves the page free to scroll on, rather than looping
+ * forever for a purely passive visitor.
  */
 export function setupMomentumGallery() {
   const section = document.getElementById("momentum");
@@ -332,7 +330,9 @@ export function setupMomentumGallery() {
       const y = (-vector.y * 0.5 + 0.5) * sceneEl!.clientHeight;
       const scale = CAMERA_Z / (CAMERA_Z - mesh.position.z);
       const el = slides[i];
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${scale.toFixed(3)})`;
+      // full-precision: rounding to .1px/.001 quantised the slow hold-creep
+      // into stair-steps (x: 0/.1/.2px, y stepping backwards) — read as jiggle.
+      el.style.transform = `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px) translate(-50%, -50%) scale(${scale.toFixed(5)})`;
       // DOM opacity is NOT derived here — it's explicitly tweened by
       // promoteDesktop/departDesktop (fade in on arrival, fade out on
       // departure) so a slide can be simultaneously large (overshooting
@@ -703,6 +703,25 @@ export function setupMomentumGallery() {
   // arrival opacity tween is still fighting to reach 1 — a real race
   // that in practice AUTOPLAY_DELAY (4s) being longer than ARRIVE_DUR
   // (2.5s) usually masks, but shouldn't rely on that.
+  // Every slide back to its invisible waiting state. Shared by every
+  // activation (see below) and by resetToStart() on leaving the section.
+  function parkAllAtWait() {
+    for (let i = 0; i < N; i++) {
+      if (mode === "desktop" && three) {
+        const mesh = three.meshes[i];
+        mesh.position.set(0, 0, WAIT_Z);
+        mesh.rotation.set(0, 0, 0);
+        gsap.set(slides[i], { opacity: 0 });
+      } else if (mode === "mobile") {
+        gsap.set(slides[i], {
+          x: MOBILE_WAIT.x, y: MOBILE_WAIT.y, z: MOBILE_WAIT.z,
+          rotationX: MOBILE_WAIT.rotX, rotationY: MOBILE_WAIT.rotY,
+          scale: MOBILE_WAIT.scale, opacity: MOBILE_WAIT.opacity, filter: `blur(${MOBILE_WAIT.blur}px)`,
+        });
+      }
+    }
+  }
+
   function activateCurrent() {
     everActivated = true;
     transitioning = true;
@@ -724,20 +743,7 @@ export function setupMomentumGallery() {
     // replay this whole function exists to produce. Mirrors exactly
     // what departDesktop/departMobile's own onComplete already resets a
     // slide to after a normal departure.
-    for (let i = 0; i < N; i++) {
-      if (mode === "desktop" && three) {
-        const mesh = three.meshes[i];
-        mesh.position.set(0, 0, WAIT_Z);
-        mesh.rotation.set(0, 0, 0);
-        gsap.set(slides[i], { opacity: 0 });
-      } else if (mode === "mobile") {
-        gsap.set(slides[i], {
-          x: MOBILE_WAIT.x, y: MOBILE_WAIT.y, z: MOBILE_WAIT.z,
-          rotationX: MOBILE_WAIT.rotX, rotationY: MOBILE_WAIT.rotY,
-          scale: MOBILE_WAIT.scale, opacity: MOBILE_WAIT.opacity, filter: `blur(${MOBILE_WAIT.blur}px)`,
-        });
-      }
-    }
+    parkAllAtWait();
     if (mode === "desktop") promoteDesktop(idx);
     else promoteMobile(idx);
     gsap.delayedCall(GUARD_DUR, () => { transitioning = false; });
@@ -877,6 +883,40 @@ export function setupMomentumGallery() {
         gsap.killTweensOf(three.meshes[i].rotation);
       }
     }
+    resetToStart();
+  }
+
+  // Leaving the section rewinds the whole thing to its very first state —
+  // slide 0, nothing counted up, loop count and "stopped" cleared, scroll
+  // cue hidden — so coming back always plays from the top rather than
+  // showing slides frozen wherever they were (or, after the auto-stop,
+  // nothing at all). A short fade rather than an instant park, since the
+  // section can still be partly on screen when this fires. If play()
+  // fires mid-fade, activateCurrent() kills the tween and parks
+  // everything itself.
+  function resetToStart() {
+    idx = 0;
+    transitioning = false;
+    autoLoopCount = 0;
+    stoppedForever = false;
+    everActivated = false;
+    countedUp.fill(false);
+    applyAria();
+    if (cue) {
+      gsap.killTweensOf(cue);
+      gsap.to(cue, { opacity: 0, duration: 0.3, ease: "power1.out" });
+    }
+    cueShown = false;
+    gsap.to(slides, {
+      opacity: 0, duration: 0.3, ease: "power1.out", overwrite: true,
+      onComplete: () => {
+        parkAllAtWait();
+        slides.forEach((slide) => {
+          const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
+          if (fig) setCountText(fig, 0);
+        });
+      },
+    });
   }
 
   // Scroll-driven, via ScrollTrigger rather than a native `scroll`

@@ -203,7 +203,7 @@ body.menu-open .mega { pointer-events: auto; }
 @media (hover: hover) {
   .mega__link:hover { color: var(--flare); transform: translateX(18px); }
 }
-.mega__link .no { font-size: 12px; font-weight: 700; letter-spacing: .2em; color: var(--pink); flex: 0 0 auto; }
+.mega__link .no { font-size: 14.4px; font-weight: 700; letter-spacing: .2em; color: var(--pink); flex: 0 0 auto; }
 .mega__aside { align-self: end; display: grid; gap: 26px; }
 .mega__aside .eyebrow { margin-bottom: 8px; }
 /* 27ch specifically so "to get started." lands as its own line — a
@@ -509,7 +509,7 @@ body.menu-open .mega { pointer-events: auto; }
 .mcap {
   margin: 0 0 clamp(20px, 2.4vw, 46px); color: var(--flare); font-weight: 600; letter-spacing: 0;
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
-  line-height: 1.2; max-width: 20ch;
+  line-height: calc(1.2em + .5rem); max-width: 20ch;
 }
 
 /* left:calc(100% + 20px) — not `right` — since the badge's own width
@@ -612,7 +612,7 @@ body.menu-open .mega { pointer-events: auto; }
    25% wider than the base .mg__slide so more of its own longer lines
    fit per row without needing as many manual breaks. */
 .mg__slide--wide { width: min(700px, 90vw); }
-.mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: 24px; max-width: 22ch; }
+.mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(24px + .5rem); max-width: 22ch; }
 
 /* Mirrors Hero's own .hcb__cue (a "Scroll" label over a pulsing tick
    line) — hidden by default (opacity:0); momentumGallery.ts fades it in

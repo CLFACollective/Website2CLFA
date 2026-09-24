@@ -11,10 +11,9 @@ import { skipHeroMovie } from "./helpers";
  * idiom navTint.ts uses elsewhere) — play() once its top reaches the
  * nav, pause() once its bottom passes it (never traps scroll). A small
  * in-place scroll doesn't cross either edge, so it doesn't pause;
- * actually scrolling away does. Scrolling back resumes — on the same
- * slide it was on (idx isn't reset), but replaying that slide's own
- * arrival from scratch rather than resuming wherever its tweens silently
- * ended up while off-screen and unrendered. After a few full autoplay
+ * actually scrolling away does. Leaving rewinds it to the start (slide
+ * 0, counts and loop state cleared); scrolling back replays slide 0's
+ * arrival from scratch rather than leaving anything frozen. After a few full autoplay
  * loops with nobody interrupting, it stops on its own.
  *
  * Mirrors momentumGallery.ts's constants (kept in sync manually, same
@@ -128,7 +127,7 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
   });
 
-  test("a small in-place scroll doesn't pause it, but scrolling out of (and back into) view does — resuming on the same slide", async ({ page }) => {
+  test("a small in-place scroll doesn't pause it, but scrolling out of (and back into) view does — rewinding to the start", async ({ page }) => {
     // Driven by a ScrollTrigger tracking the section's own overlap with
     // the viewport's top edge (see momentumGallery.ts's own comment)
     // rather than a native `scroll` listener paired with a separate
@@ -153,60 +152,55 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     await scrollAndCheck(page, () => window.scrollBy(0, window.innerHeight));
     await page.waitForTimeout(100);
     expect((await getState(page)).playing, "should pause once actually scrolled away").toBe(false);
-    expect(await activeIndex(page), "pausing should not change which slide is active").toBe("2");
+    expect(await activeIndex(page), "leaving rewinds to the first slide").toBe("0");
 
-    // scroll back — should resume on its own, from slide 2, not reset to 0
+    // scroll back — should resume on its own, from the very beginning
     await scrollAndCheck(page, () => window.scrollBy(0, -window.innerHeight));
     await page.waitForTimeout(100);
     expect((await getState(page)).playing, "should resume once back in view").toBe(true);
-    expect(await activeIndex(page), "should pick back up from the same slide, not restart").toBe("2");
+    expect(await activeIndex(page), "should start over from slide 0, not pick up where it left off").toBe("0");
   });
 
-  test("resuming after a scroll-away replays the current slide's arrival from small again, rather than sitting stuck", async ({ page }) => {
+  test("leaving the section rewinds it, and coming back replays slide 0's arrival from small rather than sitting stuck", async ({ page }) => {
     // A real regression: pause() used to only stop the render loop and
-    // the autoplay timer — the arrival/hold-creep tweens driving the
-    // active slide's own mesh kept running for real, silently, the whole
-    // time the section was scrolled away and unrendered. By the time the
-    // visitor scrolled back, those tweens had usually already finished
-    // (hold-creep has a fixed CREEP_TAIL_DUR), so resuming just resumed
-    // rendering wherever they'd already settled — no visible motion at
-    // all, reading as "stuck". Fixed by having both pause() and every
-    // resume go through activateCurrent(), which resets every slide to
-    // its invisible waiting state and replays the active one's arrival
-    // from scratch — see momentumGallery.ts's activateCurrent comment.
+    // the autoplay timer, so slides sat frozen (large, small, wherever
+    // they were) while the section was scrolled away, and resumed from
+    // there. Now leaving resets to the true start (slide 0, counts and
+    // loop state cleared) and every play replays slide 0's arrival from
+    // scratch — see momentumGallery.ts's resetToStart/activateCurrent.
     test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only motion model — mobile's live scale isn't exposed via a regexable style.transform string");
     await scrollInAndTakeManualControl(page);
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.goTo(2));
     await page.waitForTimeout(SETTLE);
     expect(await activeIndex(page)).toBe("2");
 
-    const readScale = () =>
-      page.evaluate(() => {
-        const el = document.querySelector<HTMLElement>('.mg__slide[data-mg-index="2"]');
+    const readScale = (i: number) =>
+      page.evaluate((n) => {
+        const el = document.querySelector<HTMLElement>(`.mg__slide[data-mg-index="${n}"]`);
         const m = el?.style.transform.match(/scale\(([\d.]+)\)/);
         return m ? parseFloat(m[1]) : null;
-      });
-    const arrivedScale = await readScale();
-    expect(arrivedScale, "fully arrived and prominent before scrolling away").toBeGreaterThan(0.9);
+      }, i);
+    expect(await readScale(2), "fully arrived and prominent before scrolling away").toBeGreaterThan(0.9);
 
-    // scroll away, then back — the ScrollTrigger crossing back into its
-    // "fully in view" band is what triggers the replay.
     await scrollAndCheck(page, () => window.scrollBy(0, window.innerHeight));
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(600); // past the fade-out
+    const away = await getState(page);
+    expect(away.idx, "leaving rewinds to slide 0").toBe(0);
+    expect(away.autoLoopCount).toBe(0);
+    expect(away.stoppedForever).toBe(false);
+    expect(
+      await page.evaluate(() => Math.max(...Array.from(document.querySelectorAll<HTMLElement>(".mg__slide")).map((e) => parseFloat(e.style.opacity || "0")))),
+      "nothing is left visibly frozen while scrolled away",
+    ).toBeLessThan(0.05);
+
     await scrollAndCheck(page, () => window.scrollBy(0, -window.innerHeight));
     await page.waitForTimeout(300); // partway into the replayed arrival
-
     expect((await getState(page)).playing, "should have resumed by now").toBe(true);
-    expect(await activeIndex(page), "resuming should pick back up on the same slide, not a different one").toBe("2");
-    expect(
-      await readScale(),
-      "resuming should be replaying the arrival from small again, not sitting at (or jumping straight back to) the fully-arrived scale",
-    ).toBeLessThan(arrivedScale! * 0.8);
+    expect(await activeIndex(page), "restarts on slide 0").toBe("0");
+    expect(await readScale(0), "replaying slide 0's arrival from small again").toBeLessThan(0.75);
 
-    // and it does fully re-arrive again, same as any other arrival.
     await page.waitForTimeout(SETTLE);
-    expect(await readScale(), "should finish re-arriving at full prominence").toBeGreaterThan(0.9);
-    expect(await activeIndex(page)).toBe("2");
+    expect(await readScale(0), "should finish arriving at full prominence").toBeGreaterThan(0.9);
   });
 
   test("scrolling away from the section pauses it and never blocks the scroll itself", async ({ page }) => {
@@ -240,7 +234,6 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     }
     await page.waitForTimeout(1200); // the auto-scroll's own 0.9s tween, plus margin
     const state = await getState(page);
-    expect(state.stoppedForever, "should have stopped after MAX_AUTO_LOOPS full loops").toBe(true);
     expect(
       await page.evaluate(() => window.scrollY),
       "should have automatically scrolled on to the next section — the visitor never touched scroll themselves",
@@ -252,10 +245,10 @@ test.describe("MomentumGallery: back-to-front carousel", () => {
     // thing that stopped it also scrolled the section out of view.
     expect(state.playing, "the auto-scroll's own scroll event should have paused it, same as any other scroll away").toBe(false);
 
-    const idxAfterStop = state.idx;
-    await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.advanceAuto());
-    await page.waitForTimeout(SETTLE);
-    expect((await getState(page)).idx, "no further advance should happen once stopped, even if asked to").toBe(idxAfterStop);
+    // leaving also rewinds it, so a later visit starts fresh rather than
+    // staying "stopped" with slides frozen or blank.
+    expect(state.stoppedForever, "leaving clears the stopped state").toBe(false);
+    expect(state.idx, "leaving rewinds to slide 0").toBe(0);
 
     // and scrolling further is still never blocked
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

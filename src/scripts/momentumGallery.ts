@@ -196,7 +196,7 @@ export function setupMomentumGallery() {
     return;
   }
 
-  const { gsap } = useGsap();
+  const { gsap, ScrollTrigger } = useGsap();
 
   const countUp = (slide: HTMLElement) => {
     const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
@@ -643,6 +643,10 @@ export function setupMomentumGallery() {
     const isLast = i === N - 1;
 
     promote(i, () => {
+      // scroll was held from the moment the section reached the top —
+      // release it now that the first slide is actually playing (see
+      // engageScrollLock's own comment)
+      if (i === 0) releaseScrollLock();
       schedule(HOLD_DUR, () => settle(i, isLast ? finishMovie : undefined));
     });
 
@@ -669,10 +673,10 @@ export function setupMomentumGallery() {
   function playMovie() {
     if (playing) return;
     closeOverview();
-    // the render loop is normally started by the IntersectionObserver
-    // once the section is actually in view — but that's *also* what
-    // calls playMovie() in the first place, so in practice this is a
-    // no-op there. Explicit here too so playMovie (and previewSlide,
+    // the render loop is normally started by handleReachTop once the
+    // section is actually at the top — but that's *also* what calls
+    // playMovie() in the first place, so in practice this is a no-op
+    // there. Explicit here too so playMovie (and previewSlide,
     // below) are correct no matter how they're invoked — e.g. directly,
     // for testing, without ever having scrolled the section into view
     // at all. Without this, animations tween the mesh correctly but the
@@ -696,6 +700,9 @@ export function setupMomentumGallery() {
     // a killed tween never fires its own onComplete, so if this lands
     // mid-settle, nothing else would ever clear settlingIndex again
     settlingIndex = null;
+    // defensive — should already be released by the time slide 0 has
+    // arrived, but a stray call here should never leave scroll stuck
+    releaseScrollLock();
     for (let i = 0; i < N; i++) {
       gsap.killTweensOf(slides[i]);
       if (mode === "desktop" && three) gsap.killTweensOf(three.meshes[i].position);
@@ -723,40 +730,92 @@ export function setupMomentumGallery() {
   }
 
   /* ================= visibility ================= */
-  // Starts the movie the first time the section is actually in view,
-  // and restarts it fresh from slide 0 every time the section is
-  // scrolled away from and then back into view again — never traps
-  // scroll, the visitor can keep scrolling straight past at any time
-  // while it plays in the background. If they scroll away before it
-  // finishes, that's treated the same as it finishing on its own: the
-  // section settles on the overview until it's approached again.
+  // Starts the movie the first time the section reaches the top of the
+  // viewport, and restarts it fresh from slide 0 every time it's
+  // scrolled away from and then reaches the top again — the same
+  // "is this section now the one at the top" idiom navTint.ts's own
+  // top-top/bottom-top triggers use, not raw intersection.
+  //
+  // Scroll is held in place — like the other pinned "scroll areas" —
+  // from the moment it reaches the top until the first slide is
+  // actually playing (see engageScrollLock/releaseScrollLock below, and
+  // runSlide's own i===0 release once slide 0 arrives): long enough
+  // that a visitor scrolling straight past doesn't blow through the
+  // section before the movie even starts. After that it never traps
+  // them again — they can keep scrolling while the rest of the movie
+  // plays in the background. If they scroll away before it finishes,
+  // that's treated the same as it finishing on its own: the section
+  // settles on the overview until it's approached again.
   //
   // `hasLeftSinceActivating` distinguishes a genuine "scrolled away,
   // now scrolled back" from an incidental one — e.g. clicking an
   // overview card or the Replay button can itself cause the browser to
   // scroll the section into view if it wasn't already, which would
-  // otherwise read as "just arrived" and wrongly restart the movie out
-  // from under a manually-previewed slide. Only a transition this
-  // observer itself already saw as a real *leave* re-arms the restart.
+  // otherwise read as "just arrived" and wrongly restart the movie (and
+  // re-lock scroll) out from under a manually-previewed slide. Only a
+  // transition this trigger itself already saw as a real *leave*
+  // re-arms the restart.
   let hasLeftSinceActivating = false;
-  new IntersectionObserver(
-    ([entry]) => {
-      const wasVisible = sectionVisible;
-      sectionVisible = entry.isIntersecting;
-      if (mode === "desktop") { if (sectionVisible) startThreeTicker(); else stopThreeTicker(); }
-      if (sectionVisible && !wasVisible) {
-        if (!playing && (!everActivated || hasLeftSinceActivating)) playMovie();
-      } else if (!sectionVisible && wasVisible) {
-        hasLeftSinceActivating = true;
-        if (playing) {
-          stopMovie();
-          everPlayed = true;
-          showOverview();
-        }
-      }
-    },
-    { threshold: 0.6 },
-  ).observe(section);
+
+  // Mirrors hero.ts's own scroll-lock idiom — overflow:hidden plus a
+  // snap-back scroll listener, since overflow:hidden alone doesn't
+  // reliably block a *programmatic* scrollTo in every engine — but
+  // locks to wherever the page already was, not the page's very top.
+  // This is a section reached by scrolling down to it, not a splash
+  // intro: the point is to hold it exactly where it was reached, not
+  // jump anywhere else.
+  let lockedScrollY = 0;
+  function snapBackToLock() {
+    window.scrollTo(0, lockedScrollY);
+  }
+  function engageScrollLock() {
+    lockedScrollY = window.scrollY;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    window.addEventListener("scroll", snapBackToLock);
+  }
+  function releaseScrollLock() {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    window.removeEventListener("scroll", snapBackToLock);
+  }
+
+  function handleReachTop() {
+    sectionVisible = true;
+    if (mode === "desktop") startThreeTicker();
+    if (!playing && (!everActivated || hasLeftSinceActivating)) {
+      engageScrollLock();
+      playMovie();
+    }
+  }
+  function handleLeaveTop() {
+    sectionVisible = false;
+    if (mode === "desktop") stopThreeTicker();
+    hasLeftSinceActivating = true;
+    releaseScrollLock(); // defensive — scroll being blocked should make a real leave impossible while still locked
+    if (playing) {
+      stopMovie();
+      everPlayed = true;
+      showOverview();
+    }
+  }
+  ScrollTrigger.create({
+    trigger: section,
+    start: "top top",
+    end: "bottom top",
+    onEnter: handleReachTop,
+    onEnterBack: handleReachTop,
+    onLeave: handleLeaveTop,
+    onLeaveBack: handleLeaveTop,
+  });
+  // this trigger's pixel positions get calculated as soon as it's
+  // created, which can be before web fonts finish swapping in and
+  // resizing text elsewhere on the page — confirmed live: an instant
+  // scrollIntoView() landing exactly on the (still-stale) cached "top
+  // top" position sometimes didn't register as having crossed it, so
+  // onEnter simply never fired until an incidental extra pixel of
+  // scroll nudged past the (now-correct) real one.
+  document.fonts?.ready.then(() => ScrollTrigger.refresh()).catch(() => {});
 
   /* ================= overview / replay ================= */
   // The resting state once the movie has played through or been left —
@@ -815,12 +874,22 @@ export function setupMomentumGallery() {
   // Kaylen quote) is placed in the design's smaller "Quote1" slot —
   // that slot's own placeholder copy in Figma ("blah blah blah") is
   // never used, only its position/size.
+  //
+  // Figma's own top values (in each comment below) centre the
+  // composition in the lower half of its own tall, unconstrained
+  // canvas — fine there, but #momentum's stage is a fixed 100svh (see
+  // .pin__stage), so that same placement reads as everything crammed
+  // near the bottom of the screen here. VERTICAL_SHIFT pulls the whole
+  // composition up so its centre sits roughly where the topmost item
+  // (the Kaylen quote, item 4) already was, near the top of the
+  // section rather than the bottom.
+  const VERTICAL_SHIFT = -22;
   const OVERVIEW_LAYOUT_DESKTOP: Record<number, { left: number; top: number; width: number }> = {
-    0: { left: 58.07, top: 63.6, width: 33.66 }, // "They move at the speed of business" quote — Quote2 slot
-    1: { left: 15.42, top: 64.45, width: 30.94 }, // 100% on-time delivery
-    2: { left: 61.77, top: 35.91, width: 21.81 }, // $4M sales pipeline
-    3: { left: 10.73, top: 42.2, width: 16.98 }, // 150+ RSVPs
-    4: { left: 35.68, top: 32.71, width: 17.86 }, // Kaylen quote — Quote1 slot
+    0: { left: 58.07, top: 63.6 + VERTICAL_SHIFT, width: 33.66 }, // "They move at the speed of business" quote — Quote2 slot
+    1: { left: 15.42, top: 64.45 + VERTICAL_SHIFT, width: 30.94 }, // 100% on-time delivery
+    2: { left: 61.77, top: 35.91 + VERTICAL_SHIFT, width: 21.81 }, // $4M sales pipeline
+    3: { left: 10.73, top: 42.2 + VERTICAL_SHIFT, width: 16.98 }, // 150+ RSVPs
+    4: { left: 35.68, top: 32.71 + VERTICAL_SHIFT, width: 17.86 }, // Kaylen quote — Quote1 slot
   };
   // Approximates the collage box's own rendered pixel width without
   // needing to measure it directly (it can't be — the overview panel

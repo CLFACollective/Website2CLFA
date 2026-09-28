@@ -46,7 +46,21 @@ const SETTLE = 300; // generic margin for a single phase to visibly complete —
 const N = 5;
 
 async function scrollIntoGallery(page: Page) {
-  await page.evaluate(() => document.getElementById("momentum")?.scrollIntoView({ block: "center" }));
+  // Momentum's own scroll-lock trigger fires off crossing its "top top"
+  // boundary (see momentumGallery.ts) — a real scroll gesture always
+  // passes through that pixel on the way, but an exact scrollIntoView()
+  // jump can land precisely equal to it instead of crossing it, which
+  // ScrollTrigger doesn't register as entering. Land just short of the
+  // section, then a real incremental scroll the rest of the way, same
+  // as an actual visitor would.
+  await page.evaluate(() => {
+    const el = document.getElementById("momentum");
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    window.scrollTo(0, window.scrollY + rect.top - 40);
+  });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.scrollBy(0, 80));
   await page.waitForTimeout(200);
 }
 
@@ -103,6 +117,29 @@ test.describe("MomentumGallery: the movie", () => {
     await scrollIntoGallery(page);
     await pollUntil(page, (s) => s.playing === true);
     expect(await activeIndex(page)).toBe("0");
+  });
+
+  test("scroll locks in place when the section is reached, releasing once the first slide plays", async ({ page }) => {
+    await scrollIntoGallery(page);
+    await pollUntil(page, (s) => s.playing === true);
+
+    const lockedState = await page.evaluate(() => ({
+      overflow: document.documentElement.style.overflow,
+      scrollY: window.scrollY,
+    }));
+    expect(lockedState.overflow, "scroll should be locked as soon as the movie starts").toBe("hidden");
+
+    // attempting to scroll further should be immediately undone
+    await page.evaluate(() => window.scrollBy(0, 400));
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => window.scrollY), "scroll should snap back while locked").toBe(lockedState.scrollY);
+
+    // the lock releases once the first slide has actually arrived — like
+    // the other pinned "scroll areas", not indefinitely
+    await page.waitForFunction(() => document.documentElement.style.overflow === "", { timeout: 3000 });
+    await page.evaluate(() => window.scrollBy(0, 400));
+    await page.waitForTimeout(150);
+    expect(await page.evaluate(() => window.scrollY), "scroll should move freely once released").toBeGreaterThan(lockedState.scrollY + 300);
   });
 
   test("slide 0 is the 'They move at the speed of business' quote", async ({ page }) => {

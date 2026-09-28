@@ -1,21 +1,20 @@
 ---
-// MomentumGallery — replaces the old horizontally-panning Momentum track
-// (see Momentum.astro, retired) with a "back to front" depth-of-field
-// gallery: one stat/quote slide sits large and sharp in front, the other
-// four sit invisibly waiting their turn. Desktop renders the depth with a
-// real Three.js scene (a camera + soft depth "cards") with the actual
-// stat/quote text living as synced DOM on top of the canvas, never inside
-// it; narrower viewports fall back to a plain CSS 3D transform
-// approximation — see momentumGallery.ts.
+// MomentumGallery — plays like a short movie, not a scroll-scrubbed
+// carousel: each slide flies in from a side, holds, then flies on
+// toward the camera and off-screen, 2 seconds total per slide — the
+// next slide starts its own entrance a bit before that finishes (see
+// NEXT_START_PROGRESS in momentumGallery.ts), not strictly one-at-a-time.
+// It plays automatically the first time the section scrolls into view
+// (never locking scroll). Once it finishes — or if the visitor scrolls
+// away first — the section settles on a static "overview" grid of every
+// slide's content at once; scrolling away and back into view restarts
+// the movie from slide 0, same as a fresh first visit, and a "Replay"
+// button on the overview grid does the same on demand. See
+// momentumGallery.ts.
 //
-// Purely autoplay-driven, no gesture navigation — a ScrollTrigger (not a
-// native scroll listener) pauses it once the visitor actually scrolls
-// away (never traps scroll) and replays the same slide's arrival once
-// they scroll back with the section fully in view again. A "Scroll" cue
-// (mirroring Hero's own) fades in once the first full loop finishes,
-// inviting the visitor onward. After a few full loops with nobody
-// interrupting it, it stops on its own and, if the visitor is still
-// sitting there, scrolls on to the next section for them.
+// Slide order (data-mg-index, top to bottom in the markup below): 0 is
+// "They move at the speed of business" — a quote, not a stat. 1-3 are
+// the three stats, 4 is the closing Kaylen quote.
 import ShineField from "./ShineField.astro";
 ---
 
@@ -37,25 +36,7 @@ import ShineField from "./ShineField.astro";
     <div class="mg__scene" id="mgScene">
       <canvas class="mg__canvas" id="mgCanvas" aria-hidden="true"></canvas>
 
-      <div class="mg__slide mg__slide--stat" data-mg-index="0">
-        <p class="mfig" data-mg-count="100" data-mg-suffix="%">0<span class="unit">%</span></p>
-        <p class="mcap">on-time delivery</p>
-        <h3>Launches that actually launch. On time.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--stat" data-mg-index="1">
-        <p class="mfig" data-mg-count="4" data-mg-prefix="$" data-mg-suffix="M"><span class="mfig__prefix">$</span>0<span class="unit">M</span></p>
-        <p class="mcap">Sales pipeline in 4 months</p>
-        <h3>Metrics-busting content<br />and paid.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--stat" data-mg-index="2">
-        <p class="mfig mfig--wide" data-mg-count="150" data-mg-suffix="+">0<span class="unit">+</span></p>
-        <p class="mcap">RSVPs to an Ontologies insider talk</p>
-        <h3>Webinars so successful we need crowd control.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--quote" data-mg-index="3">
+      <div class="mg__slide mg__slide--quote" data-mg-index="0">
         <blockquote class="mquote">
           <span class="mquote__l1">They move<span class="mquote__badge" aria-hidden="true">
               <svg viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -74,6 +55,24 @@ import ShineField from "./ShineField.astro";
           <span class="mquote__l3">of business</span>
         </blockquote>
         <p class="mquote__by">Client, Head of Marketing Center of Excellence</p>
+      </div>
+
+      <div class="mg__slide mg__slide--stat" data-mg-index="1">
+        <p class="mfig" data-mg-count="100" data-mg-suffix="%">0<span class="unit">%</span></p>
+        <p class="mcap">on-time delivery</p>
+        <h3>Launches that actually launch. On time.</h3>
+      </div>
+
+      <div class="mg__slide mg__slide--stat" data-mg-index="2">
+        <p class="mfig" data-mg-count="4" data-mg-prefix="$" data-mg-suffix="M"><span class="mfig__prefix">$</span>0<span class="unit">M</span></p>
+        <p class="mcap">Sales pipeline in 4 months</p>
+        <h3>Metrics-busting content<br />and paid.</h3>
+      </div>
+
+      <div class="mg__slide mg__slide--stat" data-mg-index="3">
+        <p class="mfig mfig--wide" data-mg-count="150" data-mg-suffix="+">0<span class="unit">+</span></p>
+        <p class="mcap">RSVPs to an Ontologies insider talk</p>
+        <h3>Webinars so successful we need crowd control.</h3>
       </div>
 
       <div class="mg__slide mg__slide--quote mg__slide--wide" data-mg-index="4">
@@ -97,13 +96,24 @@ import ShineField from "./ShineField.astro";
         </blockquote>
         <p class="mquote__by">Kaylen</p>
       </div>
+
+      <!-- static layout of every slide's own content, built once from
+           each slide's own DOM (momentumGallery.ts's buildOverviewCards)
+           — no content duplicated by hand here. This is the section's
+           resting state once the movie has played through or been left;
+           hidden only while the movie is actually playing. Scoped to
+           #mgScene, not a sibling of it, so it only ever covers the
+           scene's own area below the heading — matching the Figma
+           design, where the heading sits above this composition, not
+           behind it. -->
+      <div class="mg__overview" id="mgOverview" hidden>
+        <div class="mg__ov-grid" id="mgOvGrid"></div>
+      </div>
     </div>
 
-    <!-- hidden until the first full loop finishes (see momentumGallery.ts's
-         showScrollCue) — mirrors Hero's own .hcb__cue: a "Scroll" label
-         over a pulsing tick line, inviting the visitor onward once
-         they've actually seen everything once. -->
-    <span class="mg__cue" id="mgCue" aria-hidden="true">Scroll<i></i></span>
+    <button class="mg__ov-toggle btn" id="mgOvToggle" type="button">
+      Replay
+    </button>
   </div>
 </section>
 

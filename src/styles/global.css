@@ -588,10 +588,12 @@ body.menu-open .mega { pointer-events: auto; }
   .mquote__badge { width: 30px; top: -8px; } /* left:calc(100% + 20px) inherited from the base rule — same gap at every breakpoint */
 }
 
-/* a plain single-viewport panel — no scroll-scrub distance to pin
+/* A plain single-viewport panel — no scroll-scrub distance to pin
    through; .pin__stage's own sticky rule just supplies the
-   background/flex-column layout, not an actual pin (nothing here is
-   taller than the viewport). */
+   background/flex-column layout, not an actual pin. The gallery plays
+   like a short movie once scrolled into view (see momentumGallery.ts),
+   not a scroll-scrubbed one, so there's nothing here for scroll
+   position itself to drive. */
 #momentum { height: auto; }
 
 .mg__scene { flex: 1 1 auto; min-height: 0; position: relative; }
@@ -614,19 +616,149 @@ body.menu-open .mega { pointer-events: auto; }
 .mg__slide--wide { width: min(700px, 90vw); }
 .mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(24px + .5rem); max-width: 22ch; }
 
-/* Mirrors Hero's own .hcb__cue (a "Scroll" label over a pulsing tick
-   line) — hidden by default (opacity:0); momentumGallery.ts fades it in
-   via GSAP once the first full autoplay loop finishes, matching Hero's
-   own "reveal once there's actually something to invite scrolling
-   toward" idea. Hero's version sits on a pink background so it's cream;
-   this section is cream, so it's charcoal instead. */
-.mg__cue {
-  position: absolute; left: 50%; bottom: clamp(20px, 4vh, 32px); transform: translateX(-50%);
-  font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--charcoal);
-  opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  pointer-events: none;
+/* "Replay" button — bottom-LEFT of the stage. Not bottom-right (where
+   the old scroll cue used to sit): the sticky #kickoff CTA is fixed at
+   right:var(--gut);bottom:26px with z-index:70 and persists over this
+   section (see kickoff.ts), which would sit on top of and intercept
+   clicks on a same-corner button. Reuses the shared .btn pill styling
+   (see PIN SCAFFOLD/its own section above) rather than a bespoke button. */
+.mg__ov-toggle {
+  /* z-index above .mg__overview's own (30) — this button is "Replay",
+     clickable *while the overview is showing* (that's its only real
+     job now), so it has to sit on top of that panel, not under it. */
+  position: absolute; left: var(--gut); bottom: clamp(20px, 4vh, 32px); z-index: 40;
+  background: var(--cream); font-size: 13px; min-height: 40px; padding: 10px 24px;
 }
-.mg__cue i { width: 1px; height: 32px; background: currentColor; display: block; transform-origin: top; }
+
+/* Static grid of every slide's own content, at natural size — the
+   section's resting state once the movie has played through or been
+   left (see momentumGallery.ts). Each item is the real slide cloned
+   (see buildOverviewCards), not a redesigned summary card — solid
+   background (not translucent): the live carousel is hidden outright
+   while this is open (also in JS, belt and suspenders), but a solid
+   backdrop means it was never visible through this panel in the first
+   place either. */
+.mg__overview {
+  position: absolute; inset: 0; z-index: 30;
+  background: #FEFCF4;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(60px, 8vh, 100px) var(--gut);
+  opacity: 0; /* momentumGallery.ts fades this via GSAP */
+  /* lives inside #mgScene (see MomentumGallery.astro) so it only ever
+     covers the scene's own area, not the heading above it — but that
+     means it also inherits #mgScene's own visibility:hidden (set by
+     momentumGallery.ts's showOverview/closeOverview to hide the live
+     carousel) unless overridden here explicitly. */
+  visibility: visible;
+}
+/* The desktop collage is sized off width alone (see
+   collageWidthEstimate in momentumGallery.ts) and can end up taller
+   than #mgScene's own fixed-100svh-derived height on shorter viewports
+   — scrolling to the rest beats shrinking the whole composition down
+   to an illegibly small scale just to force a fit. flex-start (not the
+   default center) so scrolling reveals downward from the top, matching
+   the design's own top-down composition, not clipping its top edge. */
+.mg__overview:has(.mg__ov-grid--collage) {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+/* the [hidden] attribute selector and the class selector above are equal
+   specificity, so without this explicit override the class's own
+   `display:flex` would beat the browser's default `[hidden]{display:none}`
+   (an author rule always outranks a user-agent one, specificity aside) —
+   the panel would stay laid out and, despite opacity:0, still intercept
+   clicks across the whole stage even while supposedly hidden. */
+.mg__overview[hidden] { display: none; }
+.mg__ov-grid {
+  /* mobile: always a single stacked column, never side-by-side — a
+     narrow phone naturally only ever fit one anyway, but the previous
+     auto-fit columns would pack 2-3 across on a wider mobile/tablet
+     width. */
+  display: grid; grid-template-columns: 1fr;
+  gap: 18px; max-width: 460px; width: 100%; max-height: 100%; overflow-y: auto;
+  align-items: start; justify-items: center;
+  /* a quote item's own overflow is visible (see .mg__ov-item:has(...)),
+     so its badge (top:-14px relative to its own line) can float above
+     its own box without being clipped there — but this grid is itself
+     the scrollable region (overflow-y:auto), and its own top edge would
+     still clip that same badge for whichever item happens to land
+     first/topmost, with no gap above row 1 to float into. */
+  padding-top: 20px;
+}
+/* Desktop's resting layout: the Figma-specified scattered arrangement
+   (see OVERVIEW_LAYOUT_DESKTOP in momentumGallery.ts) rather than a
+   uniform card grid — each item is absolutely positioned at its own
+   Figma-derived left/top/width (percentages of this box, which itself
+   locks to the design frame's own 1920:1654 aspect ratio so the
+   composition holds at any viewport width). Mobile keeps the plain
+   grid above; this class is only ever added in desktop mode. */
+.mg__ov-grid--collage {
+  /* width/height are set inline, in JS (collageWidthEstimate + its
+     1920:1654 ratio) — sized off available width alone, not fitted to
+     #mgScene's own height (see .mg__overview's own comment on why:
+     shorter viewports scroll to see the rest rather than shrinking the
+     whole composition down to an illegibly small scale). CSS's own
+     aspect-ratio auto-sizing can't do this anyway: every child is
+     position:absolute (needed for the Figma-matched placement below),
+     so the box has no intrinsic content size for that algorithm to
+     size from. */
+  display: block; position: relative;
+  max-width: none; max-height: none; flex-shrink: 0;
+  overflow: visible;
+  /* items below are positioned via left/top percentages of *this* box
+     — padding-top:0 here (overriding the base rule's own) keeps that
+     percentage math anchored to the Figma coordinates exactly; desktop
+     doesn't have mobile's specific "first row clipped by the grid's own
+     top edge" problem in the first place (see .mg__ov-grid's comment),
+     since every item here sits well clear of this box's own top edge. */
+  padding-top: 0;
+}
+.mg__ov-grid--collage .mg__ov-item {
+  /* left/top/width are set inline, per item, in JS — see
+     OVERVIEW_LAYOUT_DESKTOP. */
+  position: absolute;
+}
+/* width/height are set inline, per item, in JS (buildOverviewCards) —
+   the post-scale size of that slide's own natural content, so the grid
+   reserves exactly the shrunk footprint rather than the full-size one. */
+.mg__ov-item {
+  position: relative; overflow: hidden;
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  border-radius: 12px;
+  transition: background .3s var(--ease);
+}
+/* .mquote__badge sits at top:-14px relative to its own line (-8px on
+   mobile's narrower breakpoint — see .mquote__badge's own rules) — a
+   deliberate float-above-the-text offset that's a non-issue for the
+   live full-bleed slide (nothing clips it there), but pokes above the
+   clone's own top edge here, where .mg__ov-item's overflow:hidden
+   would otherwise cut it off. Scoped to quote items only — stat items
+   have nothing that extends past their own box, so they keep the
+   tighter clip. */
+.mg__ov-item:has(.mquote__badge) { overflow: visible; }
+@media (hover: hover) {
+  .mg__ov-item:hover { background: rgba(35, 35, 35, .05); }
+}
+/* position/top/left/transform-origin/transform are all set inline, per
+   clone, in JS — see buildOverviewCards's own comment for why this is
+   transform:scale and not the simpler-sounding zoom. */
+.mg__ov-clone { pointer-events: none; }
+/* Mobile's stacked grid (not the desktop collage, which deliberately
+   keeps the Figma design's own left-aligned quotes — see
+   .mg__ov-grid--collage) centers quote content instead of carrying
+   over .mg__slide--quote's left-aligned convention: in a small,
+   isolated single-column card, ragged-left quote text with nothing
+   filling the rest of the row reads as mis-centered rather than as a
+   deliberate editorial layout. Two classes' worth of specificity beats
+   .mg__slide--quote's own align-items:flex-start without needing
+   !important. */
+.mg__ov-grid:not(.mg__ov-grid--collage) .mg__ov-clone.mg__slide--quote {
+  align-items: center; text-align: center;
+}
+
+@media (max-width: 799px) {
+  .mg__ov-toggle { font-size: 12px; padding: 8px 18px; min-height: 36px; }
+}
 
 /* mobile/touch: no WebGL, a plain CSS 3D transform stack instead */
 @media (max-width: 999px) {
@@ -767,4 +899,5 @@ h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: 
   .mg__scene { position: static; height: auto; display: flex; flex-direction: column; gap: 40px; align-items: center; perspective: none; }
   .mg__canvas { display: none; }
   .mg__slide { position: static; transform: none !important; filter: none !important; opacity: 1 !important; width: 100%; max-width: 560px; }
+  .mg__ov-toggle, .mg__overview { display: none; }
 }

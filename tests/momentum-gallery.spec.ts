@@ -195,7 +195,7 @@ test.describe("MomentumGallery: the movie", () => {
     expect(lateDistance, "should have converged on dead centre once arrived").toBeLessThan(20);
   });
 
-  test("a slide shrinks toward its own resting spot after holding, not growing/fading in place", async ({ page }) => {
+  test("a slide shrinks toward its own resting spot after holding, dimming rather than fading out", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only motion model");
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
     await pollUntil(page, (s) => s.idx === 0);
@@ -207,15 +207,21 @@ test.describe("MomentumGallery: the movie", () => {
     expect(shrinkingScale!, "should be shrinking toward its resting spot, not growing toward the camera").toBeLessThan(settledScale!);
 
     await page.waitForTimeout(SETTLE_DUR * 0.4);
-    expect(await readOpacity(page, 0), "should still be fully visible once settled — this slide never fades").toBeGreaterThan(0.9);
+    // dims to SETTLED_OPACITY (0.6) once settled — legible as "done, in
+    // the background" rather than fully gone, but no longer competing
+    // with whichever slide is currently playing at full strength either
+    const restingOpacity = await readOpacity(page, 0);
+    expect(restingOpacity, "should have dimmed once settled, not stayed at full strength").toBeLessThan(0.9);
+    expect(restingOpacity, "should still read clearly visible once settled, not faded away").toBeGreaterThan(0.4);
   });
 
-  test("every slide stays visible once settled — a settled slide doesn't disappear while later slides play", async ({ page }) => {
+  test("every slide stays visible (dimmed) once settled — a settled slide doesn't disappear while later slides play", async ({ page }) => {
     // per direct feedback: each slide should visibly build up its own
-    // resting spot and stay there, not just the last one — sample every
-    // slide's own opacity continuously across the whole movie and
-    // confirm none of them ever drop back down once they've reached
-    // full opacity for the first time.
+    // resting spot and stay there, not just the last one, and dim
+    // rather than compete for attention with whichever slide is
+    // currently playing — sample every slide's own opacity continuously
+    // across the whole movie and confirm none of them ever fall toward
+    // invisible once they've reached full opacity for the first time.
     const result = await page.evaluate(async () => {
       const mg = document.getElementById("momentum") as any;
       const els = Array.from({ length: 5 }, (_, i) => document.querySelector(`.mg__slide[data-mg-index="${i}"]`) as HTMLElement);
@@ -234,8 +240,40 @@ test.describe("MomentumGallery: the movie", () => {
     });
     for (let i = 0; i < N; i++) {
       expect(result.hasFullyArrived[i], `slide ${i} should have fully arrived at some point`).toBe(true);
-      expect(result.minOpacity[i], `slide ${i}'s opacity should never have dropped once fully arrived`).toBeGreaterThan(0.9);
+      expect(result.minOpacity[i], `slide ${i}'s opacity should never have fallen toward invisible once fully arrived`).toBeGreaterThan(0.4);
     }
+  });
+
+  test("as the last slide settles, every other slide gently regains full opacity in a stagger", async ({ page }) => {
+    // track, for each of the 4 earlier slides, the moment it comes back
+    // UP to full opacity *after* having dimmed from its own settle —
+    // not the moment it first arrives (which also briefly touches 1
+    // before dimming, and isn't what this is testing).
+    const rebrightenedAt = await page.evaluate(async () => {
+      const mg = document.getElementById("momentum") as any;
+      const els = Array.from({ length: 4 }, (_, i) => document.querySelector(`.mg__slide[data-mg-index="${i}"]`) as HTMLElement);
+      const start = performance.now();
+      const hasDimmed = [false, false, false, false];
+      const at: (number | null)[] = [null, null, null, null];
+      mg.mgApi.playMovie();
+      while (!mg.mgApi.getState().everPlayed) {
+        for (let i = 0; i < 4; i++) {
+          const op = parseFloat(getComputedStyle(els[i]).opacity);
+          if (op < 0.7) hasDimmed[i] = true;
+          if (hasDimmed[i] && at[i] === null && op >= 0.98) at[i] = performance.now() - start;
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      return at;
+    });
+    for (let i = 0; i < 4; i++) {
+      expect(rebrightenedAt[i], `slide ${i} should have regained full opacity before the movie ended`).not.toBeNull();
+    }
+    // staggered, not simultaneous — the 4 shouldn't all cross back to
+    // full opacity within the same handful of milliseconds
+    const times = (rebrightenedAt as number[]).slice().sort((a, b) => a - b);
+    const spread = times[times.length - 1] - times[0];
+    expect(spread, "the brighten should be staggered across time, not instantaneous for all 4 slides at once").toBeGreaterThan(150);
   });
 
   test("consecutive slides genuinely overlap in time — both visible together at once, since neither fades", async ({ page }) => {

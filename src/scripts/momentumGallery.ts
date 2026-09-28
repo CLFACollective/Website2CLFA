@@ -27,6 +27,21 @@ const ARRIVE_EASE = "power2.out";
 // settleDesktop/settleMobile. Decelerating into place reads as "coming
 // to rest", not "departing".
 const SETTLE_EASE = "power2.out";
+// A settled slide dims rather than staying at full strength — at full
+// opacity, several already-finished (but still fairly large) resting
+// slides made whichever one is currently playing hard to pick out from
+// the rest. Never invisible, unlike the old depart fade — just visibly
+// "done, in the background" until the whole movie finishes.
+const SETTLED_OPACITY = 0.6;
+// As the *last* slide settles into its own spot, every already-dimmed
+// slide gently brightens back to full opacity too — one at a time, not
+// all at once — so the whole composition visibly comes together right
+// as the movie concludes, rather than the dim staying until an instant
+// cut to the (full-opacity) overview panel. See runSlide/
+// brightenSettledSlides.
+const BRIGHTEN_DUR = 0.5;
+const BRIGHTEN_STAGGER = 0.1;
+const BRIGHTEN_EASE = "power1.out";
 // how far into a slide's own total on-screen time (0-1) the *next* slide
 // starts its own entrance, overlapping the tail of one settle with the
 // head of the next arrival instead of waiting for a full, sequential
@@ -129,12 +144,15 @@ const MOBILE_SETTLE_TOP_MARGIN = 30;
  * and invisible off to one of 4 sides — left, right, top, or bottom (see
  * waitLaneFor) — deep in the background, flies into dead centre
  * (ARRIVE_DUR), holds there readable (HOLD_DUR), then shrinks into its
- * own resting spot (SETTLE_DUR) — on desktop, the exact position it'll
- * occupy in the final overview (see settleDesktop/OVERVIEW_LAYOUT_DESKTOP);
- * on mobile, a small accumulating filmstrip slot (see settleMobile).
+ * own resting spot (SETTLE_DUR), dimming to SETTLED_OPACITY rather than
+ * disappearing — on desktop, the exact position it'll occupy in the
+ * final overview (see settleDesktop/OVERVIEW_LAYOUT_DESKTOP); on
+ * mobile, a small accumulating filmstrip slot (see settleMobile).
  * Every slide does this, not just the last, so the resting composition
- * visibly builds up piece by piece as the movie plays rather than
- * appearing all at once at the end. 2.4 seconds total per slide, the
+ * visibly builds up piece by piece as the movie plays — dimmed enough
+ * that whichever slide is currently playing still reads clearly against
+ * them — rather than appearing all at once at the end. 2.4 seconds
+ * total per slide, the
  * same for every slide. The *next* slide doesn't wait for that whole
  * cycle — it starts its own entrance once the current one is
  * NEXT_START_PROGRESS (75%) through its own cycle (see runSlide),
@@ -451,15 +469,19 @@ export function setupMomentumGallery() {
 
   /* Every slide (see runSlide) shrinks and moves directly to the exact
      spot it'll occupy in the resting overview, instead of flying off
-     toward the camera and fading — staying fully opaque throughout, so
-     the overview's own final composition visibly builds up one slide at
-     a time as the movie plays. Inverts the same projection renderFrame
-     uses (screen = sceneCentre ± mesh·scale) to find the mesh x/y/z
-     that lands exactly on collageItemTarget's own screen coordinates.
-     Once the *last* slide settles, showOverview reveals the rest of the
+     toward the camera and fading — dimming to SETTLED_OPACITY rather
+     than disappearing, so the overview's own final composition visibly
+     builds up one slide at a time as the movie plays, without the
+     just-finished slides competing for attention with whichever one is
+     currently playing. Inverts the same projection renderFrame uses
+     (screen = sceneCentre ± mesh·scale) to find the mesh x/y/z that
+     lands exactly on collageItemTarget's own screen coordinates. Once
+     the *last* slide settles, showOverview reveals the rest of the
      overview panel with no cross-fade (see finishMovie) — nothing needs
      to blend, since every slide is already sitting exactly where its
-     own overview item will be. */
+     own overview item will be (at full opacity there — the dim is only
+     ever on the live, still-mid-movie slide, a completely separate
+     element from its overview clone). */
   function settleDesktop(i: number, onDone?: () => void) {
     const target = three && collageItemTarget(i);
     if (!three || !target || !sceneEl) { onDone?.(); return; }
@@ -475,7 +497,8 @@ export function setupMomentumGallery() {
       x: targetX, y: targetY, z: targetZ, duration: SETTLE_DUR, ease: SETTLE_EASE,
       onComplete: () => { settlingIndex = null; onDone?.(); },
     });
-    // no opacity tween — the whole point is that this one doesn't fade
+    gsap.killTweensOf(slides[i]);
+    gsap.to(slides[i], { opacity: SETTLED_OPACITY, duration: SETTLE_DUR, ease: SETTLE_EASE });
   }
 
   /* ================= CSS transform (mobile) ================= */
@@ -536,7 +559,7 @@ export function setupMomentumGallery() {
     const slotY = -(sceneEl!.clientHeight / 2) + MOBILE_SETTLE_TOP_MARGIN;
     slides[i].style.zIndex = "10";
     gsap.to(slides[i], {
-      scale: targetScale, x: slotX, y: slotY, z: 0, filter: "none",
+      scale: targetScale, x: slotX, y: slotY, z: 0, filter: "none", opacity: SETTLED_OPACITY,
       duration: SETTLE_DUR, ease: SETTLE_EASE,
       onComplete: onDone,
     });
@@ -627,14 +650,32 @@ export function setupMomentumGallery() {
     }
   }
 
+  // Brightens every slide but the one currently settling (i.e. every
+  // already-dimmed, previously-settled one) back to full opacity, one
+  // at a time rather than all together — called as the *last* slide
+  // settles into place, so the whole composition visibly comes
+  // together right as the movie concludes. onDone fires once every
+  // staggered tween has actually finished, not just started.
+  function brightenSettledSlides(excludeIndex: number, onDone?: () => void) {
+    const targets = slides.filter((_, j) => j !== excludeIndex);
+    if (targets.length === 0) { onDone?.(); return; }
+    gsap.killTweensOf(targets);
+    gsap.to(targets, {
+      opacity: 1, duration: BRIGHTEN_DUR, ease: BRIGHTEN_EASE,
+      stagger: BRIGHTEN_STAGGER, onComplete: onDone,
+    });
+  }
+
   // Runs one slide's full lifecycle: promote it to centre, hold, then
   // settle it into its own resting overview spot (see settleDesktop/
   // settleMobile) — every slide, not just the last, so the resting
   // composition visibly builds up one piece at a time — and, separately,
   // schedules the *next* slide's own runSlide at ADVANCE_DELAY
   // regardless of whether this slide has finished settling yet (that's
-  // the overlap). Only once the *last* slide's settle completes does
-  // the movie actually end.
+  // the overlap). The last slide also triggers every other (already
+  // dimmed) slide to brighten back up in a gentle stagger (see
+  // brightenSettledSlides) — the movie only actually ends, hanging off
+  // to finishMovie, once *both* that settle and that stagger are done.
   function runSlide(i: number) {
     idx = i;
     applyAria();
@@ -647,7 +688,16 @@ export function setupMomentumGallery() {
       // release it now that the first slide is actually playing (see
       // engageScrollLock's own comment)
       if (i === 0) releaseScrollLock();
-      schedule(HOLD_DUR, () => settle(i, isLast ? finishMovie : undefined));
+      schedule(HOLD_DUR, () => {
+        if (isLast) {
+          let remaining = 2;
+          const onBothDone = () => { if (--remaining === 0) finishMovie(); };
+          settle(i, onBothDone);
+          brightenSettledSlides(i, onBothDone);
+        } else {
+          settle(i);
+        }
+      });
     });
 
     if (i < N - 1) {

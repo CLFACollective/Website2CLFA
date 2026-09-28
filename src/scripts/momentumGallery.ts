@@ -11,32 +11,31 @@ const CAMERA_Z = 1000;
 
 /* Per direct feedback ("don't overthink this"), this is deliberately
    plain: each slide gets a fixed, short, total time on screen —
-   ARRIVE_DUR to fly in, HOLD_DUR to sit read­able, DEPART_DUR to fly out
-   — the same three numbers for every slide, no per-slide exceptions.
-   2 seconds total, no more. One tween per phase, ordinary named eases —
-   no split timelines, no distance-fraction math. The mechanic itself
-   (start off to a side, fly to dead centre, later fly on toward the
-   camera and off-screen) is unchanged from before; what's gone is the
-   fine-tuned two-phase easing that kept missing the mark. */
+   ARRIVE_DUR to fly in, HOLD_DUR to sit read­able, SETTLE_DUR to shrink
+   into its own resting spot in the overview — the same three numbers
+   for every slide, no per-slide exceptions. 2.4 seconds total (HOLD_DUR
+   carries the later +.4s "slow it down a bit" adjustment — arrive's own
+   speed was already the right feel, so that's what absorbs the extra
+   time, not it). One tween per phase, ordinary named eases — no split
+   timelines, no distance-fraction math. */
 const ARRIVE_DUR = 0.6;
-const HOLD_DUR = 0.7;
-const DEPART_DUR = 0.7;
+const HOLD_DUR = 1.1;
+const SETTLE_DUR = 0.7;
 const ARRIVE_EASE = "power2.out";
-const DEPART_EASE = "power2.in";
+// Every slide, not just the last, settles into its own resting spot
+// instead of flying off toward the camera and fading — see runSlide,
+// settleDesktop/settleMobile. Decelerating into place reads as "coming
+// to rest", not "departing".
+const SETTLE_EASE = "power2.out";
 // how far into a slide's own total on-screen time (0-1) the *next* slide
-// starts its own entrance, overlapping the tail of one departure with
-// the head of the next arrival instead of waiting for a full, sequential
-// handoff. Paired with DEPART_FADE_DUR below so the overlap only ever
-// happens in *time* — by the point the next slide starts becoming
-// visible, the outgoing one has already faded almost all the way out,
-// so they never actually occupy the same visual space at once.
+// starts its own entrance, overlapping the tail of one settle with the
+// head of the next arrival instead of waiting for a full, sequential
+// handoff. Never a visual clash: settling moves a slide *away* from
+// centre toward its own distinct resting spot while the next arrival
+// moves *into* centre from a different side each time, so the two are
+// occupying different screen space even while they overlap in time.
 const NEXT_START_PROGRESS = 0.75;
-const ADVANCE_DELAY = (ARRIVE_DUR + HOLD_DUR + DEPART_DUR) * NEXT_START_PROGRESS;
-// the departure's opacity fade is shorter and more front-loaded than its
-// position/scale growth (which still takes the full DEPART_DUR) — it
-// needs to have all but disappeared well before ADVANCE_DELAY.
-const DEPART_FADE_DUR = 0.35;
-const DEPART_FADE_EASE = "power2.out";
+const ADVANCE_DELAY = (ARRIVE_DUR + HOLD_DUR + SETTLE_DUR) * NEXT_START_PROGRESS;
 // how far into its own arrival (0-1) a slide has to be before its number
 // starts counting up.
 const COUNT_START_PROGRESS = 0.75;
@@ -49,16 +48,10 @@ const WAIT_Z = -1700;
 const HOLD_Z = 90;
 // constant world-units/second the depth keeps creeping forward at while
 // holding, so the pause never reads as a dead stop. Bounded to exactly
-// HOLD_DUR now (was an indefinite creep governed by scroll dwell,
-// before departure was time-driven) — departure always starts right as
-// this tween would complete anyway.
+// HOLD_DUR now (was an indefinite creep governed by scroll dwell, before
+// the settle-into-place phase was time-driven) — that phase always
+// starts right as this tween would complete anyway.
 const HOLD_CREEP_SPEED = 90;
-// how close to the camera a departing slide flies to before it's reset —
-// short of CAMERA_Z itself (which would divide by zero) but close enough
-// that scale = CAMERA_Z/(CAMERA_Z-z) blows up dramatically: it keeps
-// growing as it fades, flying off past the edges of the screen rather
-// than just shrinking to nothing in place.
-const OVERSHOOT_Z = 940;
 // a waiting slide isn't perfectly frozen either — a slow, barely-visible
 // ambient drift keeps it faintly alive in the background, so the next
 // slide promoted doesn't have to cold-start from a dead stop.
@@ -110,24 +103,45 @@ const MOBILE_HOLD_SCALE = 1.1;
 const MOBILE_HOLD_Z = 40;
 const MOBILE_HOLD_CREEP_SCALE_SPEED = 0.135;
 const MOBILE_HOLD_CREEP_Z_SPEED = 90;
-const MOBILE_OVERSHOOT: MobileLane = { x: "0px", y: "0px", z: 260, scale: 2.6, blur: 0, opacity: 0 };
 const MOBILE_WAIT_BREATHE_SCALE_BONUS = 0.06;
 const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
+// Mobile has no Figma-derived collage of exact target positions to
+// settle into the way desktop does (OVERVIEW_LAYOUT_DESKTOP) — its real
+// overview is a plain vertical list whose exact row position for a
+// given slide depends on the other 4 items' own natural heights, not
+// something computable ahead of the browser laying it out. Instead,
+// each slide settles into a small, fixed slot in a short accumulating
+// filmstrip along the *top* of the scene — still genuinely visible and
+// out of the way of whichever slide is playing large and centred below
+// it, just not a pixel-exact preview of its real resting spot in the
+// list (see settleMobile). Top, not bottom: the bottom corners are both
+// already spoken for — .mg__ov-toggle (Replay) sits bottom-left and
+// #kickoff (the sticky "Is it go time?" CTA) sits bottom-right, with
+// barely a gap between them on a narrow phone; the scene's own top
+// edge, just below the heading, is reliably clear.
+const MOBILE_SETTLE_THUMB_WIDTH = 62;
+const MOBILE_SETTLE_GAP = 8;
+const MOBILE_SETTLE_TOP_MARGIN = 30;
 
 /**
  * MomentumGallery — a "back to front" depth-of-field carousel that plays
  * like a short movie, not a scroll-scrubbed one. A slide starts small
  * and invisible off to one of 4 sides — left, right, top, or bottom (see
  * waitLaneFor) — deep in the background, flies into dead centre
- * (ARRIVE_DUR), holds there readable (HOLD_DUR), then flies on toward
- * the camera and off-screen (DEPART_DUR). 2 seconds total per slide, the
+ * (ARRIVE_DUR), holds there readable (HOLD_DUR), then shrinks into its
+ * own resting spot (SETTLE_DUR) — on desktop, the exact position it'll
+ * occupy in the final overview (see settleDesktop/OVERVIEW_LAYOUT_DESKTOP);
+ * on mobile, a small accumulating filmstrip slot (see settleMobile).
+ * Every slide does this, not just the last, so the resting composition
+ * visibly builds up piece by piece as the movie plays rather than
+ * appearing all at once at the end. 2.4 seconds total per slide, the
  * same for every slide. The *next* slide doesn't wait for that whole
  * cycle — it starts its own entrance once the current one is
  * NEXT_START_PROGRESS (75%) through its own cycle (see runSlide),
- * overlapping the tail of one departure with the head of the next
- * arrival in time; the departure's own faster, front-loaded opacity
- * fade (DEPART_FADE_DUR) keeps the two from ever actually looking like
- * they're on screen together.
+ * overlapping the tail of one settle with the head of the next arrival
+ * in time; they never visually clash because settling moves a slide
+ * *away* from centre toward its own distinct resting spot while the
+ * next arrival moves *into* centre — different screen space throughout.
  *
  * It plays automatically the first time the section scrolls into view —
  * the same idiom Hero's own intro movie uses (hero.ts), just without
@@ -138,7 +152,10 @@ const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
  * (see the "overview" section below) until the section is approached
  * again — scrolling away and back restarts the movie from slide 0, same
  * as a fresh first visit. A "Replay" button on the grid also restarts it
- * on demand, without needing to scroll away first.
+ * on demand, without needing to scroll away first. On desktop, since
+ * every slide already settled into its exact final spot live during the
+ * movie, this handoff is a plain instant swap, not a cross-fade — see
+ * finishMovie/showOverview.
  *
  * Desktop renders the depth with a real Three.js scene (a camera + one
  * invisible mesh per slide — see renderFrame) and syncs the real DOM
@@ -202,6 +219,15 @@ export function setupMomentumGallery() {
   let overviewOpen = false;
   let sectionVisible = false;
   const countedUp: boolean[] = new Array(N).fill(false);
+  // set to whichever slide is currently shrinking into its resting
+  // overview spot (see settleDesktop) — renderFrame's normal per-frame
+  // blur, driven off live scale, would otherwise blur it out mid-shrink
+  // (target scale is usually well under the 0.98 threshold), clashing
+  // with the perfectly sharp overview clone it hands off to right after.
+  // Only ever one slide at a time — consecutive slides' settle phases
+  // never overlap each other (only a settle and the *next* slide's
+  // arrival do — see NEXT_START_PROGRESS).
+  let settlingIndex: number | null = null;
 
   // desktop lane bookkeeping (Three.js world units)
   const laneOf = new Map<number, Lane>(); // slide index -> its current lane (centre or a waiting side)
@@ -269,7 +295,7 @@ export function setupMomentumGallery() {
       const scale = CAMERA_Z / (CAMERA_Z - mesh.position.z);
       const el = slides[i];
       el.style.transform = `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px) translate(-50%, -50%) scale(${scale.toFixed(5)})`;
-      el.style.filter = scale >= 0.98 ? "" : `blur(${((1 - Math.min(scale, 1)) * 12).toFixed(1)}px)`;
+      el.style.filter = i === settlingIndex || scale >= 0.98 ? "" : `blur(${((1 - Math.min(scale, 1)) * 12).toFixed(1)}px)`;
       el.style.zIndex = String(Math.round(scale * 100));
     });
   }
@@ -347,8 +373,8 @@ export function setupMomentumGallery() {
   }
   // once a slide has arrived, its depth keeps creeping forward at a
   // small but clearly-visible constant speed for exactly HOLD_DUR,
-  // instead of sitting dead still — departure always takes over right
-  // as this would complete anyway.
+  // instead of sitting dead still — settling into its resting spot
+  // always takes over right as this would complete anyway.
   function startMobileHoldCreep(i: number) {
     gsap.to(slides[i], {
       scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_CREEP_SCALE_SPEED * HOLD_DUR,
@@ -394,29 +420,62 @@ export function setupMomentumGallery() {
     gsap.fromTo(slides[inIndex], { opacity: 0 }, { opacity: 1, duration: ARRIVE_DUR, ease: ARRIVE_EASE });
   }
 
-  /* Departure: one tween, DEPART_DUR, flying on toward the camera
-     (OVERSHOOT_Z) — growing dramatically per the perspective formula,
-     genuinely off past the edges of the screen, not just fading in
-     place. Opacity fades out on its own, shorter DEPART_FADE_DUR (see
-     top of file) — done well before the position tween is, so the next
-     slide's own entrance (which starts mid-departure, see runSlide) is
-     never visually stacked on top of a still-visible outgoing one. Once
-     the full DEPART_DUR position tween completes, snaps back invisibly
-     to a freshly-picked waiting side. */
-  function departDesktop(outIndex: number, onDone?: () => void) {
-    if (!three) { onDone?.(); return; }
-    const mesh = three.meshes[outIndex];
+  /* Computes exactly where slide i's own item will render once the
+     overview is shown — the same placement/scale math buildOverviewCards
+     itself uses (OVERVIEW_LAYOUT_DESKTOP, collageWidthEstimate), just
+     expressed as on-screen pixel coordinates within #mgScene rather than
+     percentages of the (still-hidden) collage box. Used by settleDesktop
+     so the final slide can shrink directly into that exact spot instead
+     of flying off toward the camera and fading. Defined here, ahead of
+     OVERVIEW_LAYOUT_DESKTOP/collageWidthEstimate's own declarations
+     further down — safe, since (like every function in this file) it
+     only ever runs later, off a real event, by which point the whole
+     module has finished its one-time setup. */
+  function collageItemTarget(i: number): { centerX: number; centerY: number; scale: number } | null {
+    if (!overview || !sceneEl) return null;
+    const layout = OVERVIEW_LAYOUT_DESKTOP[i];
+    const collageWidth = collageWidthEstimate();
+    const collageHeight = collageWidth * (1654 / 1920);
+    const overviewCs = getComputedStyle(overview);
+    const collageLeft = (sceneEl.clientWidth - collageWidth) / 2; // .mg__overview centres it horizontally
+    const collageTop = parseFloat(overviewCs.paddingTop); // ...and top-aligns it (align-items:flex-start) below that padding
+    const naturalWidth = parseFloat(getComputedStyle(slides[i]).width) || OV_TARGET_WIDTH;
+    const naturalHeight = parseFloat(getComputedStyle(slides[i]).height) || 0;
+    const widthPx = collageWidth * (layout.width / 100);
+    const scale = widthPx / naturalWidth;
+    const heightPx = naturalHeight * scale;
+    const leftPx = collageLeft + collageWidth * (layout.left / 100);
+    const topPx = collageTop + collageHeight * (layout.top / 100);
+    return { centerX: leftPx + widthPx / 2, centerY: topPx + heightPx / 2, scale };
+  }
+
+  /* Every slide (see runSlide) shrinks and moves directly to the exact
+     spot it'll occupy in the resting overview, instead of flying off
+     toward the camera and fading — staying fully opaque throughout, so
+     the overview's own final composition visibly builds up one slide at
+     a time as the movie plays. Inverts the same projection renderFrame
+     uses (screen = sceneCentre ± mesh·scale) to find the mesh x/y/z
+     that lands exactly on collageItemTarget's own screen coordinates.
+     Once the *last* slide settles, showOverview reveals the rest of the
+     overview panel with no cross-fade (see finishMovie) — nothing needs
+     to blend, since every slide is already sitting exactly where its
+     own overview item will be. */
+  function settleDesktop(i: number, onDone?: () => void) {
+    const target = three && collageItemTarget(i);
+    if (!three || !target || !sceneEl) { onDone?.(); return; }
+    const mesh = three.meshes[i];
+    const sceneWidth = sceneEl.clientWidth;
+    const sceneHeight = sceneEl.clientHeight;
+    const targetZ = CAMERA_Z * (1 - 1 / target.scale);
+    const targetX = (target.centerX - sceneWidth / 2) / target.scale;
+    const targetY = (sceneHeight / 2 - target.centerY) / target.scale;
+    settlingIndex = i;
     gsap.killTweensOf(mesh.position);
-    gsap.to(mesh.position, { z: OVERSHOOT_Z, duration: DEPART_DUR, ease: DEPART_EASE });
-    gsap.killTweensOf(slides[outIndex]);
-    gsap.to(slides[outIndex], { opacity: 0, duration: DEPART_FADE_DUR, ease: DEPART_FADE_EASE });
-    gsap.delayedCall(DEPART_DUR, () => {
-      const lane = waitLaneFor(pickSide());
-      laneOf.set(outIndex, lane);
-      mesh.position.set(lane.x, lane.y, lane.z);
-      startDesktopWaitBreathe(outIndex);
-      onDone?.();
+    gsap.to(mesh.position, {
+      x: targetX, y: targetY, z: targetZ, duration: SETTLE_DUR, ease: SETTLE_EASE,
+      onComplete: () => { settlingIndex = null; onDone?.(); },
     });
+    // no opacity tween — the whole point is that this one doesn't fade
   }
 
   /* ================= CSS transform (mobile) ================= */
@@ -456,28 +515,30 @@ export function setupMomentumGallery() {
     });
   }
 
-  /* Mirrors departDesktop — one DEPART_DUR tween on toward the camera
-     (MOBILE_OVERSHOOT), with opacity fading out on its own shorter,
-     front-loaded DEPART_FADE_DUR (see departDesktop's own comment for
-     why), then an invisible snap back to a freshly-picked waiting side. */
-  function departMobile(outIndex: number, onDone?: () => void) {
-    gsap.killTweensOf(slides[outIndex]);
-    slides[outIndex].style.zIndex = "90";
-    gsap.to(slides[outIndex], {
-      scale: MOBILE_OVERSHOOT.scale, z: MOBILE_OVERSHOOT.z,
-      duration: DEPART_DUR, ease: DEPART_EASE,
-    });
-    gsap.to(slides[outIndex], {
-      opacity: MOBILE_OVERSHOOT.opacity, duration: DEPART_FADE_DUR, ease: DEPART_FADE_EASE,
-    });
-    gsap.delayedCall(DEPART_DUR, () => {
-      const lane = mobileWaitLaneFor(pickMobileSide());
-      mobileLaneOf.set(outIndex, lane);
-      gsap.set(slides[outIndex], {
-        x: lane.x, y: lane.y, z: lane.z, scale: lane.scale, opacity: lane.opacity, filter: `blur(${lane.blur}px)`,
-      });
-      startMobileWaitBreathe(outIndex);
-      onDone?.();
+  /* Mirrors settleDesktop's intent (shrink into a resting spot instead
+     of flying off and fading, visible while the next slide plays) but
+     not its exact position-matching — mobile's real overview is a plain
+     vertical list whose exact row position for this item depends on the
+     other 4 items' own natural heights, not something computable ahead
+     of the browser actually laying it out. Settles into a small, fixed
+     slot in a short filmstrip along the bottom edge instead, one slot
+     per index so all 5 stay visible without overlapping each other or
+     the slide currently playing large and centred above them.
+     showOverview's own fade-in (kept for mobile — see finishMovie)
+     covers the difference between this approximate strip and wherever
+     each item actually lands once the real list renders. */
+  function settleMobile(i: number, onDone?: () => void) {
+    gsap.killTweensOf(slides[i]);
+    const naturalWidth = parseFloat(getComputedStyle(slides[i]).width) || OV_TARGET_WIDTH;
+    const targetScale = MOBILE_SETTLE_THUMB_WIDTH / naturalWidth;
+    const totalWidth = N * MOBILE_SETTLE_THUMB_WIDTH + (N - 1) * MOBILE_SETTLE_GAP;
+    const slotX = -totalWidth / 2 + i * (MOBILE_SETTLE_THUMB_WIDTH + MOBILE_SETTLE_GAP) + MOBILE_SETTLE_THUMB_WIDTH / 2;
+    const slotY = -(sceneEl!.clientHeight / 2) + MOBILE_SETTLE_TOP_MARGIN;
+    slides[i].style.zIndex = "10";
+    gsap.to(slides[i], {
+      scale: targetScale, x: slotX, y: slotY, z: 0, filter: "none",
+      duration: SETTLE_DUR, ease: SETTLE_EASE,
+      onComplete: onDone,
     });
   }
 
@@ -529,13 +590,14 @@ export function setupMomentumGallery() {
   // and restarts fresh any time it's scrolled away and back — see the
   // IntersectionObserver further down. Each slide gets its own full
   // ARRIVE_DUR (fly in) + HOLD_DUR (hold, still gently creeping) +
-  // DEPART_DUR (fly on and off-screen) cycle, but the *next* slide
-  // doesn't wait for that whole cycle to finish — it starts its own
-  // entrance once the current one is NEXT_START_PROGRESS through its
-  // own cycle (see runSlide), overlapping the tail of one departure
-  // with the head of the next arrival in time, while the departure's
-  // own faster opacity fade (DEPART_FADE_DUR) keeps them from actually
-  // looking like they're on screen together.
+  // SETTLE_DUR (shrink into its resting overview spot) cycle, but the
+  // *next* slide doesn't wait for that whole cycle to finish — it
+  // starts its own entrance once the current one is NEXT_START_PROGRESS
+  // through its own cycle (see runSlide), overlapping the tail of one
+  // settle with the head of the next arrival in time. They never
+  // visually clash: settling moves a slide away from centre toward its
+  // own distinct resting spot while the next arrival moves into centre
+  // from a different side — different screen space throughout.
   let pendingTimers: gsap.core.Tween[] = [];
   function schedule(delay: number, fn: () => void): gsap.core.Tween {
     const t = gsap.delayedCall(delay, fn);
@@ -566,23 +628,22 @@ export function setupMomentumGallery() {
   }
 
   // Runs one slide's full lifecycle: promote it to centre, hold, then
-  // depart it — and, separately, schedules the *next* slide's own
-  // runSlide at ADVANCE_DELAY regardless of whether this slide has
-  // finished departing yet (that's the overlap). The last slide gets
-  // the same proper depart-off as every other one; only once *that*
-  // completes does the movie actually end.
+  // settle it into its own resting overview spot (see settleDesktop/
+  // settleMobile) — every slide, not just the last, so the resting
+  // composition visibly builds up one piece at a time — and, separately,
+  // schedules the *next* slide's own runSlide at ADVANCE_DELAY
+  // regardless of whether this slide has finished settling yet (that's
+  // the overlap). Only once the *last* slide's settle completes does
+  // the movie actually end.
   function runSlide(i: number) {
     idx = i;
     applyAria();
     const promote = mode === "desktop" ? promoteDesktop : promoteMobile;
-    const depart = mode === "desktop" ? departDesktop : departMobile;
+    const settle = mode === "desktop" ? settleDesktop : settleMobile;
+    const isLast = i === N - 1;
 
     promote(i, () => {
-      schedule(HOLD_DUR, () => {
-        depart(i, () => {
-          if (i === N - 1) finishMovie();
-        });
-      });
+      schedule(HOLD_DUR, () => settle(i, isLast ? finishMovie : undefined));
     });
 
     if (i < N - 1) {
@@ -590,11 +651,17 @@ export function setupMomentumGallery() {
     }
   }
 
+  // By now every slide has already settled into place during its own
+  // turn (see runSlide/settleDesktop). On desktop that's the exact spot
+  // each one's overview item renders at (see collageItemTarget), so
+  // showOverview reveals the panel with no cross-fade — nothing needs
+  // to blend. Mobile's settle is only an approximate rest (see
+  // settleMobile's own comment), so it keeps the fade to cover that gap.
   function finishMovie() {
     playing = false;
     everPlayed = true;
     applyAria();
-    showOverview();
+    showOverview(mode === "desktop");
   }
 
   // Starts the very first slide's own arrival directly (there's no
@@ -626,6 +693,9 @@ export function setupMomentumGallery() {
   function stopMovie() {
     killMovieTimers();
     playing = false;
+    // a killed tween never fires its own onComplete, so if this lands
+    // mid-settle, nothing else would ever clear settlingIndex again
+    settlingIndex = null;
     for (let i = 0; i < N; i++) {
       gsap.killTweensOf(slides[i]);
       if (mode === "desktop" && three) gsap.killTweensOf(three.meshes[i].position);
@@ -843,14 +913,22 @@ export function setupMomentumGallery() {
   }
   buildOverviewCards();
 
-  function showOverview() {
+  // skipFade: true right after the final slide's own desktop settle
+  // (see finishMovie) — it's already sitting exactly where its overview
+  // item will render, so cross-fading the whole panel in would fade
+  // that one slide's content in on top of itself. Every other caller
+  // (scroll-away mid-movie, mobile's approximate settle) has nothing
+  // already in place, so they keep the cross-fade.
+  function showOverview(skipFade = false) {
     if (!overview || overviewOpen) return;
     overviewOpen = true;
     overview.hidden = false;
     // the live carousel goes away completely, not just behind the
     // overlay's own opaque background.
     sceneEl!.style.visibility = "hidden";
-    gsap.fromTo(overview, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" });
+    gsap.killTweensOf(overview);
+    if (skipFade) overview.style.opacity = "1";
+    else gsap.fromTo(overview, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" });
   }
   function closeOverview() {
     if (!overview || !overviewOpen) return;

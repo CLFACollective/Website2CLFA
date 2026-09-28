@@ -5,21 +5,31 @@ import { skipHeroMovie } from "./helpers";
  * MomentumGallery — plays like a short movie, not a scroll-scrubbed
  * carousel (see momentumGallery.ts's own top-of-file comment for the
  * full mechanic). Each slide: ARRIVE_DUR flying in from one of 4 sides,
- * HOLD_DUR holding readable at dead centre, DEPART_DUR flying on toward
- * the camera and off-screen — 2 seconds total, the same for every
- * slide, sequential (never two slides animating at once). It plays
- * automatically once the section scrolls into view; once it finishes,
- * or if the visitor scrolls away first, the section settles on a
- * static "overview" grid of every slide's content, with a "Replay"
- * button to watch it again from slide 0.
+ * HOLD_DUR holding readable at dead centre, SETTLE_DUR shrinking into
+ * its own resting spot in the overview — 2.4 seconds total, the same
+ * for every slide. Every slide does this, not just the last: the
+ * resting composition visibly builds up one piece at a time as the
+ * movie plays, rather than appearing all at once at the end. On
+ * desktop that resting spot is the exact position/scale its item will
+ * have in the Figma-matched collage (OVERVIEW_LAYOUT_DESKTOP in
+ * momentumGallery.ts); on mobile, a small accumulating filmstrip slot
+ * along the top of the scene (mobile's real overview is a plain
+ * vertical list whose exact row position isn't computable ahead of the
+ * browser laying it out — see settleMobile).
  *
  * The next slide doesn't wait for the current one's full cycle to
  * finish — it starts its own entrance once the current slide is
- * NEXT_START_PROGRESS (75%) through its own 2s, overlapping the tail of
- * one departure with the head of the next arrival in time. They're
- * tuned not to visually overlap: the departing slide's opacity fade is
- * shorter and front-loaded, so it's already faded out well before the
- * next slide becomes clearly visible.
+ * NEXT_START_PROGRESS (75%) through its own 2.4s, overlapping the tail
+ * of one settle with the head of the next arrival in time. They never
+ * visually clash: settling moves a slide *away* from centre toward its
+ * own distinct resting spot while the next arrival moves *into* centre
+ * from a different side — different screen space throughout, even
+ * though both are fully visible (neither one fades).
+ *
+ * It plays automatically once the section scrolls into view; once it
+ * finishes, or if the visitor scrolls away first, the section settles
+ * on a static "overview" grid of every slide's content, with a
+ * "Replay" button to watch it again from slide 0.
  *
  * Most tests drive the movie via the exposed mgApi (playMovie/goTo)
  * rather than real scroll, for determinism and speed — a couple of
@@ -27,12 +37,12 @@ import { skipHeroMovie } from "./helpers";
  * scroll-away, and scroll-back-restarts behavior.
  */
 const ARRIVE_DUR = 600; // ms
-const HOLD_DUR = 700; // ms
-const DEPART_DUR = 700; // ms
-const SLIDE_TOTAL = ARRIVE_DUR + HOLD_DUR + DEPART_DUR; // 2000ms
+const HOLD_DUR = 1100; // ms
+const SETTLE_DUR = 700; // ms — how long a slide takes to shrink into its resting spot
+const SLIDE_TOTAL = ARRIVE_DUR + HOLD_DUR + SETTLE_DUR; // 2400ms
 const NEXT_START_PROGRESS = 0.75;
-const ADVANCE_DELAY = SLIDE_TOTAL * NEXT_START_PROGRESS; // 1500ms — cadence between consecutive slides' own starts
-const SETTLE = 300; // generic margin for a single phase to visibly complete
+const ADVANCE_DELAY = SLIDE_TOTAL * NEXT_START_PROGRESS; // 1800ms — cadence between consecutive slides' own starts
+const SETTLE = 300; // generic margin for a single phase to visibly complete — unrelated to SETTLE_DUR above, an unfortunate but pre-existing name
 const N = 5;
 
 async function scrollIntoGallery(page: Page) {
@@ -111,23 +121,27 @@ test.describe("MomentumGallery: the movie", () => {
     }
   });
 
-  test("no slide is on screen for more than ~2 seconds", async ({ page }) => {
+  test("a slide reaches its resting (shrunk) size within ~2.4 seconds of becoming active", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only motion model — mobile's live scale isn't exposed via a regexable style.transform string");
     const start = Date.now();
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
+    await pollUntil(page, (s) => s.idx === 0);
+    await page.waitForTimeout(ARRIVE_DUR + 100); // now actually arrived and holding, not still flying in
+    const holdScale = await readScale(page, 0);
     // a tight manual poll, not expect().toPass — toPass's own backoff
     // (100ms, 250ms, 500ms...) can itself add most of a second of slack
     // before it happens to re-check, which would make this measurement
     // about the polling strategy rather than the actual animation.
     let elapsed = -1;
-    for (let i = 0; i < 60; i++) {
-      if ((await readOpacity(page, 0)) < 0.05) { elapsed = Date.now() - start; break; }
+    for (let i = 0; i < 70; i++) {
+      const scale = await readScale(page, 0);
+      if (scale !== null && scale < holdScale! * 0.7) { elapsed = Date.now() - start; break; }
       await page.waitForTimeout(50);
     }
-    expect(elapsed, "slide 0 should have fully faded out by now").toBeGreaterThan(0);
-    // generous margin over the nominal 2000ms — this is a wall-clock
+    expect(elapsed, "slide 0 should have shrunk well below its hold size by now").toBeGreaterThan(0);
+    // generous margin over the nominal 2400ms — this is a wall-clock
     // measurement across a real browser, not a precision check.
-    expect(elapsed).toBeLessThan(2500);
+    expect(elapsed).toBeLessThan(2900);
   });
 
   test("a slide starts off to one side, not centre, and flies in from there", async ({ page }) => {
@@ -144,47 +158,67 @@ test.describe("MomentumGallery: the movie", () => {
     expect(lateDistance, "should have converged on dead centre once arrived").toBeLessThan(20);
   });
 
-  test("a slide grows dramatically and fades as it departs — flying toward the camera and off-screen", async ({ page }) => {
+  test("a slide shrinks toward its own resting spot after holding, not growing/fading in place", async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only motion model");
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
     await pollUntil(page, (s) => s.idx === 0);
-    await page.waitForTimeout(ARRIVE_DUR + HOLD_DUR + 50); // just past arrival+hold — departure should have just begun
+    await page.waitForTimeout(ARRIVE_DUR + HOLD_DUR + 50); // just past arrival+hold — settling should have just begun
     const settledScale = await readScale(page, 0);
 
-    await page.waitForTimeout(DEPART_DUR * 0.7); // well into departure
-    const departingScale = await readScale(page, 0);
-    expect(departingScale!, "should be growing dramatically larger as it flies toward the camera").toBeGreaterThan(settledScale! * 1.5);
+    await page.waitForTimeout(SETTLE_DUR * 0.7); // well into settling
+    const shrinkingScale = await readScale(page, 0);
+    expect(shrinkingScale!, "should be shrinking toward its resting spot, not growing toward the camera").toBeLessThan(settledScale!);
 
-    await page.waitForTimeout(DEPART_DUR * 0.4);
-    expect(await readOpacity(page, 0), "should be fully gone once departure completes").toBeLessThan(0.05);
+    await page.waitForTimeout(SETTLE_DUR * 0.4);
+    expect(await readOpacity(page, 0), "should still be fully visible once settled — this slide never fades").toBeGreaterThan(0.9);
   });
 
-  test("a departing slide doesn't drift laterally — it flies straight through centre, not off to a side", async ({ page }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only motion model");
-    await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
-    await pollUntil(page, (s) => s.idx === 0);
-    await page.waitForTimeout(ARRIVE_DUR + HOLD_DUR + DEPART_DUR * 0.5);
-    const mid = await readOffsetFromCentre(page, 0);
-    expect(Math.abs(mid!.dx)).toBeLessThan(20);
-    expect(Math.abs(mid!.dy)).toBeLessThan(20);
+  test("every slide stays visible once settled — a settled slide doesn't disappear while later slides play", async ({ page }) => {
+    // per direct feedback: each slide should visibly build up its own
+    // resting spot and stay there, not just the last one — sample every
+    // slide's own opacity continuously across the whole movie and
+    // confirm none of them ever drop back down once they've reached
+    // full opacity for the first time.
+    const result = await page.evaluate(async () => {
+      const mg = document.getElementById("momentum") as any;
+      const els = Array.from({ length: 5 }, (_, i) => document.querySelector(`.mg__slide[data-mg-index="${i}"]`) as HTMLElement);
+      const minOpacity = [1, 1, 1, 1, 1];
+      const hasFullyArrived = [false, false, false, false, false];
+      mg.mgApi.playMovie();
+      while (!mg.mgApi.getState().everPlayed) {
+        for (let i = 0; i < 5; i++) {
+          const op = parseFloat(getComputedStyle(els[i]).opacity);
+          if (op >= 0.98) hasFullyArrived[i] = true;
+          if (hasFullyArrived[i] && op < minOpacity[i]) minOpacity[i] = op;
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      return { minOpacity, hasFullyArrived };
+    });
+    for (let i = 0; i < N; i++) {
+      expect(result.hasFullyArrived[i], `slide ${i} should have fully arrived at some point`).toBe(true);
+      expect(result.minOpacity[i], `slide ${i}'s opacity should never have dropped once fully arrived`).toBeGreaterThan(0.9);
+    }
   });
 
-  test("consecutive slides overlap in time but never both read as visible on screen", async ({ page }) => {
+  test("consecutive slides genuinely overlap in time — both visible together at once, since neither fades", async ({ page }) => {
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
     await pollUntil(page, (s) => s.idx === 0);
-    // sample repeatedly through a full transition (slide 0 -> slide 1,
-    // which now starts partway through slide 0's own departure — see
-    // NEXT_START_PROGRESS) and confirm at most one slide ever reads
-    // meaningfully visible, even though their animations do overlap.
+    // sample repeatedly through a full transition (slide 0 settling ->
+    // slide 1 arriving, which now starts partway through slide 0's own
+    // settle — see NEXT_START_PROGRESS) and confirm they're both clearly
+    // visible at the same time at some point — the overlap is real, not
+    // just in the schedule.
+    let sawBothVisible = false;
     const deadline = Date.now() + SLIDE_TOTAL + 500;
-    while (Date.now() < deadline) {
+    while (Date.now() < deadline && !sawBothVisible) {
       const opacities = await page.evaluate(() =>
         Array.from(document.querySelectorAll<HTMLElement>("#mgScene > .mg__slide")).map((el) => parseFloat(getComputedStyle(el).opacity)),
       );
-      const visibleCount = opacities.filter((o) => o > 0.5).length;
-      expect(visibleCount, "at most one slide should read clearly visible at any sampled instant").toBeLessThanOrEqual(1);
+      if (opacities.filter((o) => o > 0.5).length >= 2) sawBothVisible = true;
       await page.waitForTimeout(80);
     }
+    expect(sawBothVisible, "the settling slide and the next arrival should read visible together at some point").toBe(true);
   });
 
   test("the next slide starts at 75% through the current one, not after it fully finishes", async ({ page }) => {
@@ -264,6 +298,55 @@ test.describe("MomentumGallery: the movie", () => {
       expect(firstCardText).toContain("They move");
       const secondCardText = await page.locator('.mg__ov-item[data-mg-index="1"]').innerText();
       expect(secondCardText).toContain("100");
+    });
+
+    // (every slide staying visible once settled — not just the last —
+    // is covered by its own top-level test above, "every slide stays
+    // visible once settled".)
+
+    test("desktop: every slide settles exactly where its own overview item renders — no cross-fade needed", async ({ page }) => {
+      test.skip((page.viewportSize()?.width ?? 0) < 1000, "desktop-only settle-to-exact-position — mobile's settle is only approximate, see settleMobile");
+      // idx moves on to the next slide before the current one's own
+      // settle tween actually finishes (that's the overlap — see
+      // NEXT_START_PROGRESS), so "while idx===i" isn't a safe window to
+      // capture slide i's *final* position for anything but the last
+      // slide. Every slide's settle tween is long done by the time the
+      // whole movie ends, though (nothing left to move it after that),
+      // so just read every slide's live position once, right then.
+      const liveRects = await page.evaluate(async () => {
+        const mg = document.getElementById("momentum") as any;
+        const els = Array.from({ length: 5 }, (_, i) => document.querySelector(`.mg__slide[data-mg-index="${i}"]`) as HTMLElement);
+        mg.mgApi.playMovie();
+        while (!mg.mgApi.getState().everPlayed) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+        return els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y }; });
+      });
+      for (let i = 0; i < N; i++) {
+        const overviewRect = await page.locator(`.mg__ov-item[data-mg-index="${i}"]`).boundingBox();
+        // a couple px of tolerance for floating-point rounding
+        expect(Math.abs(liveRects[i].x - overviewRect!.x), `slide ${i} x`).toBeLessThan(5);
+        expect(Math.abs(liveRects[i].y - overviewRect!.y), `slide ${i} y`).toBeLessThan(5);
+      }
+    });
+
+    test("mobile: a settled slide's filmstrip thumbnail doesn't overlap the Replay button or the sticky CTA", async ({ page }) => {
+      test.skip((page.viewportSize()?.width ?? 0) >= 1000, "mobile-only filmstrip — desktop settles into the real Figma collage spot instead");
+      await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
+      await pollUntil(page, (s) => s.idx >= 1, 8000); // slide 0 has settled into the filmstrip by now
+      const overlaps = await page.evaluate(() => {
+        const intersects = (a: DOMRect, b: DOMRect) =>
+          !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+        const thumb = document.querySelector('.mg__slide[data-mg-index="0"]')!.getBoundingClientRect();
+        const replay = document.getElementById("mgOvToggle")!.getBoundingClientRect();
+        const kickoff = document.getElementById("kickoff")?.getBoundingClientRect();
+        return {
+          overlapsReplay: intersects(thumb, replay),
+          overlapsKickoff: kickoff ? intersects(thumb, kickoff) : false,
+        };
+      });
+      expect(overlaps.overlapsReplay, "settled thumbnail should not sit behind the Replay button").toBe(false);
+      expect(overlaps.overlapsKickoff, "settled thumbnail should not sit behind the sticky CTA").toBe(false);
     });
 
     test("desktop's overview arranges items in the Figma-matched scattered layout, not a uniform grid", async ({ page }) => {

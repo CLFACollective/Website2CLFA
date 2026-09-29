@@ -38,10 +38,14 @@ const SETTLED_OPACITY = 0.6;
 // all at once — so the whole composition visibly comes together right
 // as the movie concludes, rather than the dim staying until an instant
 // cut to the (full-opacity) overview panel. See runSlide/
-// brightenSettledSlides.
-const BRIGHTEN_DUR = 0.5;
-const BRIGHTEN_STAGGER = 0.1;
-const BRIGHTEN_EASE = "power1.out";
+// brightenSettledSlides. Deliberately slower than it looks like it
+// should need to be, with a symmetric ease (accelerates in, decelerates
+// out — no front-loaded rush at the start the way an "out" ease alone
+// would read): a quick opacity swing across 4 elements at once reads as
+// a pop no matter how many in-between frames it technically has.
+const BRIGHTEN_DUR = 1;
+const BRIGHTEN_STAGGER = 0.15;
+const BRIGHTEN_EASE = "sine.inOut";
 // how far into a slide's own total on-screen time (0-1) the *next* slide
 // starts its own entrance, overlapping the tail of one settle with the
 // head of the next arrival instead of waiting for a full, sequential

@@ -244,34 +244,51 @@ test.describe("MomentumGallery: the movie", () => {
     }
   });
 
-  test("as the last slide settles, every other slide gently regains full opacity in a stagger", async ({ page }) => {
-    // track, for each of the 4 earlier slides, the moment it comes back
-    // UP to full opacity *after* having dimmed from its own settle —
-    // not the moment it first arrives (which also briefly touches 1
-    // before dimming, and isn't what this is testing).
-    const rebrightenedAt = await page.evaluate(async () => {
+  test("as the last slide settles, every other slide gently animates back to full opacity in a stagger, not a jump", async ({ page }) => {
+    // track, for each of the 4 earlier slides, every opacity sample from
+    // the moment it's dimmed until the movie ends — used to confirm both
+    // the stagger (different slides cross back to full at different
+    // times) and that the climb back up is a real animated tween
+    // (several distinct intermediate values, no single frame-to-frame
+    // jump) rather than a snap straight from .6 to 1.
+    const result = await page.evaluate(async () => {
       const mg = document.getElementById("momentum") as any;
       const els = Array.from({ length: 4 }, (_, i) => document.querySelector(`.mg__slide[data-mg-index="${i}"]`) as HTMLElement);
-      const start = performance.now();
       const hasDimmed = [false, false, false, false];
-      const at: (number | null)[] = [null, null, null, null];
+      const rebrightenAt: (number | null)[] = [null, null, null, null];
+      const rebrightenSamples: number[][] = [[], [], [], []]; // opacity samples while climbing from dim back to full
+      const start = performance.now();
       mg.mgApi.playMovie();
       while (!mg.mgApi.getState().everPlayed) {
         for (let i = 0; i < 4; i++) {
           const op = parseFloat(getComputedStyle(els[i]).opacity);
           if (op < 0.7) hasDimmed[i] = true;
-          if (hasDimmed[i] && at[i] === null && op >= 0.98) at[i] = performance.now() - start;
+          if (hasDimmed[i] && rebrightenAt[i] === null) {
+            rebrightenSamples[i].push(op);
+            if (op >= 0.98) rebrightenAt[i] = performance.now() - start;
+          }
         }
         await new Promise((r) => requestAnimationFrame(r));
       }
-      return at;
+      return { rebrightenAt, rebrightenSamples };
     });
+
     for (let i = 0; i < 4; i++) {
-      expect(rebrightenedAt[i], `slide ${i} should have regained full opacity before the movie ended`).not.toBeNull();
+      expect(result.rebrightenAt[i], `slide ${i} should have regained full opacity before the movie ended`).not.toBeNull();
+
+      const samples = result.rebrightenSamples[i];
+      // several distinct intermediate values, not just a couple of
+      // samples with one giant leap between them — a real animated
+      // climb, not a snap
+      expect(samples.length, `slide ${i} should have several sampled frames during its climb back to full opacity`).toBeGreaterThan(4);
+      let maxJump = 0;
+      for (let k = 1; k < samples.length; k++) maxJump = Math.max(maxJump, Math.abs(samples[k] - samples[k - 1]));
+      expect(maxJump, `slide ${i}'s opacity should climb smoothly frame to frame, not jump from .6 toward 1`).toBeLessThan(0.25);
     }
+
     // staggered, not simultaneous — the 4 shouldn't all cross back to
     // full opacity within the same handful of milliseconds
-    const times = (rebrightenedAt as number[]).slice().sort((a, b) => a - b);
+    const times = (result.rebrightenAt as number[]).slice().sort((a, b) => a - b);
     const spread = times[times.length - 1] - times[0];
     expect(spread, "the brighten should be staggered across time, not instantaneous for all 4 slides at once").toBeGreaterThan(150);
   });

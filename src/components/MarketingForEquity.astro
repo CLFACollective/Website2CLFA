@@ -1,0 +1,230 @@
+---
+// MarketingForEquity — the light-blue "conveyor" card band on What We
+// Do (Figma node 3215:2106). Geometry is taken straight off the
+// 1920-wide frame and driven by --u (see src/scripts/marketingConveyor.ts),
+// so the scattered layout keeps its proportions at any width instead of
+// being re-guessed per breakpoint.
+//
+// The whole belt runs off one shared displacement, --d, in design
+// pixels — because the cards rest at different x positions, that one
+// number staggers them for free (the leftmost card has furthest to
+// come, so it enters first). Ported from the source's hand-rolled rAF
+// "chase the scroll position" loop into this codebase's established
+// GSAP idiom for the same thing (see cardsFan.ts's setupScrollFan()):
+// a ScrollTrigger retargeting a damped gsap.to() every scroll tick.
+interface Card {
+  x: number;
+  y: number;
+  rot: number;
+  ky: number;
+  kr: number;
+  icon: string;
+  iconX: number;
+  iconY: number;
+  iconW: number;
+  iconH: number;
+  label: string;
+  body: string[];
+}
+
+const CARDS: Card[] = [
+  {
+    x: 129, y: 488, rot: -10, ky: 0.05, kr: 0.0012,
+    icon: "/icons/market-planning.svg", iconW: 136.77, iconH: 137.0, iconX: 191.61, iconY: 0,
+    label: "Go-to-market planning",
+    body: ["or launches, raises,", "and pivots"],
+  },
+  {
+    x: 531, y: 385, rot: -10, ky: -0.03, kr: -0.0009,
+    icon: "/icons/content.svg", iconW: 136.77, iconH: 137.0, iconX: 188.94, iconY: 2.47,
+    label: "Messaging that works",
+    body: ["on investors and customers", "(yes, both)"],
+  },
+  {
+    x: 888, y: 295, rot: -5, ky: 0.02, kr: 0.0016,
+    icon: "/icons/infrastructure.svg", iconW: 136.77, iconH: 137.04, iconX: 190.18, iconY: 8.64,
+    label: "Brand infrastructure",
+    body: ["that survives your next funding round"],
+  },
+  {
+    x: 1276.5, y: 291.76, rot: 0, ky: -0.05, kr: -0.0014,
+    icon: "/icons/growth.svg", iconW: 136.77, iconH: 137.08, iconX: 180.3, iconY: 9.88,
+    label: "Growth marketing",
+    body: ["built for lean teams, not bloated ones"],
+  },
+  {
+    x: 1650, y: 344, rot: 10, ky: 0.035, kr: 0.0008,
+    icon: "/icons/fractional.svg", iconW: 136.77, iconH: 137.0, iconX: 184, iconY: 14.82,
+    label: "Fractional CMO support",
+    body: ["by us, not a junior team who just got the brief"],
+  },
+];
+---
+
+<section class="mfe" id="equity">
+  <div class="mfe__stage">
+    <div class="mfe__frame">
+      <h2 class="mfe__head">
+        <span class="mfe__head-a">Marketing for equity-backed companies</span>
+        <span class="mfe__head-b">with</span>
+        <strong>less ramp-up, more rollout.</strong>
+      </h2>
+
+      <p class="mfe__intro">
+        <strong>Funding round closing? Category shifting under your feet?</strong><br />
+        We build the marketing engine that scales at the same speed as your cap
+        table. No six-month ramp-up, no generalist agency learning your industry on
+        your dime.
+      </p>
+
+      <ul class="mfe__cards">
+        {CARDS.map((c, n) => (
+          <li
+            class="mfe__card"
+            style={`--x:${c.x};--y:${c.y};--rot:${c.rot}deg;--ky:${c.ky};--kr:${c.kr}deg;--i:${n};`}
+          >
+            <img
+              class="mfe__icon"
+              src={c.icon}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              style={`--ix:${c.iconX};--iy:${c.iconY};--iw:${c.iconW};--ih:${c.iconH};`}
+            />
+            <p class="mfe__copy">
+              <strong>{c.label}</strong><br />
+              <span set:html={c.body.join("<br />")} />
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mfe {
+    --d: 2200; --dabs: 2200;
+    position: relative;
+    height: 520vh; /* the run: in, hold, out */
+    background: rgba(186, 205, 220, 0.5);
+    font-family: var(--sans);
+  }
+  .mfe__stage {
+    position: sticky; top: 0; height: 100svh; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .mfe__frame {
+    --u: 0.052083vw; /* replaced by the measured value on mount */
+    position: relative; width: 100%; height: calc(1023 * var(--u));
+  }
+
+  .mfe__head {
+    position: absolute; margin: 0;
+    left: calc(123.48 * var(--u)); top: calc(113 * var(--u));
+    width: calc(766.18 * var(--u));
+    font-weight: 300; line-height: .9; letter-spacing: -.01em;
+    font-size: calc(91.09 * var(--u));
+    color: #344338;
+  }
+  .mfe__head-b { color: var(--charcoal); }
+  .mfe__head strong { font-weight: 800; color: var(--brown); }
+
+  .mfe__intro {
+    position: absolute; margin: 0;
+    left: calc(1295.52 * var(--u)); top: calc(135.27 * var(--u));
+    width: calc(541.49 * var(--u));
+    font-size: calc(18.22 * var(--u)); line-height: 1.4; color: var(--charcoal);
+  }
+  .mfe__intro strong { font-weight: 700; }
+
+  .mfe__cards { margin: 0; padding: 0; list-style: none; }
+
+  /* every card sits at its designed spot and is carried by the shared
+     belt displacement, --d (design px, so multiplying by --u keeps the
+     travel proportional to the layout at any width) */
+  .mfe__card {
+    position: absolute;
+    left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u));
+    width: calc(328.49 * var(--u)); height: calc(347.01 * var(--u));
+    border-radius: calc(37.05 * var(--u));
+    box-sizing: border-box;
+    padding: 0 calc(29.64 * var(--u)) calc(28.4 * var(--u));
+    display: flex; flex-direction: column; justify-content: flex-end;
+
+    background: rgba(254, 252, 244, 0.2);
+    backdrop-filter: blur(calc(14 * var(--u))) saturate(1.08);
+    -webkit-backdrop-filter: blur(calc(14 * var(--u))) saturate(1.08);
+    border: 1px solid rgba(254, 252, 244, 0.45);
+    box-shadow: 0 calc(18 * var(--u)) calc(48 * var(--u)) rgba(52, 67, 56, .10);
+
+    transform:
+      translate3d(calc(var(--d) * var(--u)), calc(var(--d) * var(--ky) * var(--u)), 0)
+      rotate(calc(var(--rot) + var(--d) * var(--kr)))
+      scale(calc(1 - var(--dabs) * 0.00004));
+    will-change: transform;
+  }
+
+  .mfe__icon {
+    position: absolute; display: block;
+    left: calc(var(--ix) * var(--u)); top: calc(var(--iy) * var(--u));
+    width: calc(var(--iw) * var(--u)); height: calc(var(--ih) * var(--u));
+    /* the card carries a tilt; counter-rotate so the icon stays upright */
+    transform-origin: center;
+    transform: rotate(calc(-1 * (var(--rot) + var(--d) * var(--kr))));
+  }
+
+  .mfe__copy {
+    margin: 0; position: relative;
+    font-size: calc(22.23 * var(--u)); line-height: 1.4; color: #000;
+  }
+  .mfe__copy strong { font-weight: 700; color: var(--brown); }
+
+  /* under 900px the belt stops making sense — nothing to travel
+     across. Cards stack and rise in one at a time instead, keeping
+     the glass card look. */
+  @media (max-width: 900px) {
+    .mfe { height: auto; }
+    .mfe__stage { position: static; height: auto; overflow: visible; display: block; }
+    .mfe__frame {
+      height: auto; box-sizing: border-box;
+      padding: clamp(56px, 9vw, 96px) 24px clamp(64px, 10vw, 110px);
+    }
+    .mfe__head, .mfe__intro { position: static; width: auto; }
+    .mfe__head { font-size: clamp(38px, 8.6vw, 64px); margin-bottom: .5em; }
+    .mfe__intro { font-size: 16px; margin-bottom: clamp(32px, 7vw, 56px); }
+    .mfe__cards { display: grid; gap: 20px; }
+    .mfe__card {
+      --p: 0;
+      --t: clamp(0, calc(var(--p) / 0.85), 1);
+      --e: calc(var(--t) * var(--t) * (3 - 2 * var(--t)));
+      position: static; width: 100%; height: auto; min-height: 300px;
+      border-radius: 28px; padding: 104px 26px 26px;
+      opacity: var(--e);
+      transform:
+        translate3d(0, calc((1 - var(--e)) * 90px), 0)
+        rotate(calc((1 - var(--e)) * var(--rot) * 0.5))
+        scale(calc(0.94 + var(--e) * 0.06));
+      backdrop-filter: blur(14px) saturate(1.08);
+      -webkit-backdrop-filter: blur(14px) saturate(1.08);
+      box-shadow: 0 14px 34px rgba(52, 67, 56, .10);
+    }
+    .mfe__icon {
+      left: auto; right: 26px; top: 22px; width: 104px; height: 104px;
+      transform: rotate(calc(-1 * (1 - var(--e)) * var(--rot) * 0.5));
+    }
+    .mfe__copy { font-size: 18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mfe { height: auto; }
+    .mfe__stage { position: static; height: auto; }
+    .mfe__card { transform: rotate(var(--rot)); opacity: 1; }
+    .mfe__icon { transform: rotate(calc(-1 * var(--rot))); }
+  }
+</style>
+
+<script>
+  import { setupMarketingForEquity } from "../scripts/marketingConveyor";
+  setupMarketingForEquity();
+</script>

@@ -1,0 +1,298 @@
+---
+// ServicesAccordion — the cream, single-open accordion under the
+// conveyor cards on What We Do (Figma node 3168:3930). Type is fixed,
+// not fluid: the section is drawn on a 1920 artboard and the per-
+// service panels on a 1440 one, and both measure to identical
+// absolute ink — so unlike MarketingForEquity this doesn't use --u.
+//
+// Only one row open at a time; the page lands with them all closed.
+// Real <button aria-expanded aria-controls>, so keyboard/AT get the
+// same behavior as a mouse — see src/scripts/servicesAccordion.ts for
+// the single-open toggle logic (a plain click handler, not GSAP: this
+// is a discrete state toggle, not a continuous/scroll-driven value —
+// the panel-height animation itself is a CSS grid-template-rows
+// 0fr→1fr transition, the same technique as the FAQ accordion).
+interface Row {
+  title: string;
+  num: string;
+  word: string;
+  icon: string;
+  body: string;
+  iconScale?: number;
+}
+
+const ROWS: Row[] = [
+  {
+    title: "(Re-)Brand strategy & identity",
+    num: "01", word: "STRATEGY", icon: "/icons/services/strategy.svg",
+    body: "New logo, new leadership, or a brand that's outgrown its story — whatever's driving it, we build healthcare and tech brand strategy that holds up in market. Naming, positioning and re-positioning, messaging, visual identity, all calibrated to where your brand is headed, not just where it's been.",
+  },
+  {
+    title: "Go-to-market & launch strategy",
+    num: "02", word: "GO-TO-MARKET", icon: "/icons/services/go-to-market.svg",
+    body: "Launches don't get a second first impression. We plan the moment, build the assets, and make sure sales, marketing, and product are all saying the same thing when the clock starts.",
+  },
+  {
+    title: "Content marketing & thought leadership",
+    num: "03", word: "CONTENT", icon: "/icons/services/content-marketing.svg",
+    body: "Bylines, webinars, research, and social that show up on a drumbeat, not just launch week. We keep your brand in the conversation long after the announcement fades.",
+  },
+  {
+    title: "Paid media & advertising",
+    num: "04", word: "PAID MEDIA", icon: "/icons/services/paid-media.svg", iconScale: 1.6,
+    body: "Campaigns that learn as they go. Healthcare and tech advertising gets optimized in-flight, not just launched and left, so budget keeps working as hard as the creative does.",
+  },
+  {
+    title: "SEO & search marketing",
+    num: "05", word: "SEARCH", icon: "/icons/services/seo.svg",
+    body: "Healthcare SEO isn't just keywords, it's showing up where your buyers are actually searching. We handle the technical, local, and content-side work that gets you found and chosen.",
+  },
+  {
+    title: "Website & digital experience",
+    num: "06", word: "DIGITAL", icon: "/icons/services/digital.svg",
+    body: "Full site builds, campaign landing pages, digital rollouts, designed and shipped without a six-month timeline. If it's digital and it's got your name on it, we can build it.",
+  },
+  {
+    title: "Marketing strategy & messaging frameworks",
+    num: "07", word: "MESSAGING", icon: "/icons/services/messaging.svg",
+    body: "One system, every channel. We build messaging frameworks that keep sales decks, social, and campaigns saying the same thing, so your brand sounds like one brand everywhere it shows up.",
+  },
+];
+---
+
+<section class="svc" id="services">
+  <h2 class="svc__head">Services</h2>
+
+  <ul class="svc__list">
+    {ROWS.map((r, n) => (
+      <li class="svc__row" style={`--n:${n};`}>
+        <h3 class="svc__title">
+          <button
+            type="button"
+            class="svc__button"
+            aria-expanded="false"
+            aria-controls={`services-panel-${n}`}
+          >
+            <span>{r.title}</span>
+            <img class="svc__peek" src={r.icon} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+            <span class="svc__control" aria-hidden="true">
+              <i class="svc__bar" /><i class="svc__bar svc__bar--v" />
+            </span>
+          </button>
+        </h3>
+
+        <div class="svc__panel" id={`services-panel-${n}`}>
+          <div class="svc__panel-in">
+            <img class="svc__art" src={r.icon} alt="" loading="lazy" decoding="async" style={`--scale:${r.iconScale ?? 1};`} />
+            <div class="svc__cols">
+              <p class="svc__panel-title" aria-hidden="true">{r.title}</p>
+              <p class="svc__body">{r.body}</p>
+            </div>
+            <p class="svc__display" aria-hidden="true" data-text={`${r.num} ${r.word}`}>
+              {r.num} {r.word}
+            </p>
+          </div>
+        </div>
+      </li>
+    ))}
+  </ul>
+
+  <div class="svc__ask">
+    <p class="svc__ask-lede">Need something that&rsquo;s not on this list?</p>
+    <p class="svc__ask-hot">Ask anyway.</p>
+    <a class="svc__ask-btn" href="/contact">Let&rsquo;s talk</a>
+  </div>
+</section>
+
+<style>
+  .svc {
+    overflow: hidden;
+    --svc-gut: clamp(24px, 8vw, 123px);
+    background: #FEFCF4; color: var(--charcoal);
+    font-family: var(--sans);
+    padding-bottom: 40px;
+  }
+
+  .svc__head {
+    margin: 0; font-weight: 800; letter-spacing: -.03em;
+    font-size: 96px; line-height: 1.26;
+    padding: clamp(56px, 7vw, 119px) var(--svc-gut) clamp(28px, 3.4vw, 58px);
+  }
+
+  .svc__list { margin: 0; padding: 0; list-style: none; }
+
+  .svc__row { position: relative; }
+  .svc__row::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+    background: var(--brown); transform: scaleX(0); transform-origin: 0 50%;
+    transition: transform .9s var(--ease);
+  }
+  .svc__row[data-in="true"]::before { transform: scaleX(1); }
+  .svc__row:last-child::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background: var(--brown); transform: scaleX(0); transform-origin: 0 50%;
+    transition: transform .9s var(--ease) .12s;
+  }
+  .svc__row[data-in="true"]:last-child::after { transform: scaleX(1); }
+
+  .svc__title { margin: 0; font-size: inherit; font-weight: inherit; }
+  .svc__button {
+    appearance: none; background: none; border: 0; width: 100%; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 40px;
+    padding: clamp(26px, 3.2vw, 55px) var(--svc-gut) clamp(22px, 2.8vw, 47px);
+    font: inherit; text-align: left; color: var(--charcoal);
+    font-weight: 700; font-size: 38px; line-height: 1.34;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .7s ease .1s, transform .7s var(--ease) .1s, color .35s ease;
+  }
+  .svc__row[data-in="true"] .svc__button { opacity: 1; transform: none; }
+  .svc__row[data-open] .svc__button > span:first-child { opacity: 0; }
+  .svc__button > span:first-child { transition: opacity .25s ease; }
+
+  .svc__panel-title {
+    margin: 0 0 18px;
+    font-weight: 700; font-size: 38px; line-height: 1.34;
+    color: var(--brown);
+    opacity: 0; transform: translateY(12px);
+    transition: opacity .5s ease .1s, transform .6s var(--ease) .1s;
+  }
+  .svc__row[data-open] .svc__panel-title { opacity: 1; transform: none; }
+  .svc__button:focus-visible { outline: 2px solid var(--brown); outline-offset: -6px; }
+
+  .svc__row:not([data-open]) { overflow: visible; }
+  .svc__row:not([data-open]) .svc__button {
+    position: relative;
+    transition: background .3s ease, color .3s ease;
+  }
+  @media (hover: hover) {
+    .svc__row:not([data-open]) .svc__button:hover,
+    .svc__row:not([data-open]) .svc__button:focus-visible { background: var(--charcoal); color: #FEFCF4; }
+  }
+  .svc__peek {
+    position: absolute; right: 12%; top: 50%; z-index: 2;
+    width: 264px; height: 264px; padding: 26px; box-sizing: border-box;
+    border-radius: 22px; background: #FEFCF4;
+    box-shadow: 0 18px 44px rgba(37, 37, 37, .22);
+    object-fit: contain;
+    opacity: 0; pointer-events: none;
+    transform: translate(0, -50%) scale(.92);
+    transition: opacity .3s ease, transform .4s var(--ease);
+  }
+  .svc__row[data-open] .svc__peek { display: none; }
+  @media (hover: hover) {
+    .svc__row:not([data-open]) .svc__button:hover .svc__peek,
+    .svc__row:not([data-open]) .svc__button:focus-visible .svc__peek { opacity: 1; transform: translate(0, -50%) scale(1); }
+  }
+  @media (hover: none) { .svc__peek { display: none; } }
+
+  .svc__control {
+    position: relative; flex: 0 0 auto;
+    width: 47px; height: 47px;
+    border: 1px solid currentColor; border-radius: 50%;
+  }
+  .svc__bar {
+    position: absolute; left: 50%; top: 50%; background: currentColor;
+    width: 19px; height: 1.5px; margin: -.75px 0 0 -9.5px;
+  }
+  .svc__bar--v {
+    transform: rotate(90deg);
+    transition: transform .4s var(--ease), opacity .3s ease;
+  }
+  .svc__row[data-open] .svc__bar--v { transform: rotate(0deg); opacity: 0; }
+
+  .svc__panel {
+    display: grid; grid-template-rows: 0fr;
+    transition: grid-template-rows .55s var(--ease);
+  }
+  .svc__row[data-open] .svc__panel { grid-template-rows: 1fr; }
+  .svc__panel-in {
+    overflow: hidden; min-height: 0;
+    visibility: hidden; transition: visibility 0s linear .55s;
+  }
+  .svc__row[data-open] .svc__panel-in { visibility: visible; transition-delay: 0s; }
+
+  .svc__cols { padding: 0 var(--svc-gut); }
+  .svc__body {
+    margin: 0; max-width: 470px;
+    font-size: 17px; line-height: 1.5;
+    opacity: 0; transform: translateY(12px);
+    transition: opacity .5s ease .12s, transform .6s var(--ease) .12s;
+  }
+  .svc__art {
+    display: block; margin: 0 0 clamp(48px, 7vw, 94px) var(--svc-gut);
+    width: calc(176px * var(--scale, 1)); height: calc(176px * var(--scale, 1));
+    object-fit: contain; object-position: left top;
+    opacity: 0; transform: translateY(18px);
+    transition: opacity .6s ease .16s, transform .7s var(--ease) .16s;
+  }
+  .svc__row[data-open] .svc__body,
+  .svc__row[data-open] .svc__art { opacity: 1; transform: none; }
+
+  .svc__display {
+    margin: 0; text-align: right;
+    white-space: nowrap;
+    position: relative;
+    font-size: 100px;
+    font-weight: 800; letter-spacing: .03em; line-height: .86;
+    color: transparent;
+    -webkit-text-stroke: 4px var(--brown);
+    opacity: 0; transform: translateY(26px);
+    transition: opacity .7s ease .22s, transform .8s var(--ease) .22s;
+  }
+  .svc__display::before {
+    content: attr(data-text);
+    position: absolute; right: 0; top: 0;
+    color: #FEFCF4;
+    -webkit-text-stroke: 0;
+    pointer-events: none;
+  }
+  .svc__row[data-open] .svc__display { opacity: 1; transform: none; }
+
+  .svc__ask {
+    text-align: center;
+    padding: clamp(56px, 7vw, 110px) var(--svc-gut) clamp(40px, 5vw, 80px);
+  }
+  .svc__ask-lede { margin: 0; font-size: 16px; color: var(--charcoal); }
+  .svc__ask-hot {
+    margin: 4px 0 26px;
+    font-family: var(--hc-serif);
+    font-style: italic; font-weight: 500;
+    font-size: clamp(20px, 1.6vw, 26px); color: var(--brown);
+  }
+  .svc__ask-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 46px; padding: 12px 34px; border-radius: 100px;
+    border: 1px solid var(--charcoal); color: var(--charcoal); text-decoration: none;
+    font-size: 15px; font-weight: 700;
+    transition: background .3s ease, color .3s ease, border-color .3s ease;
+  }
+  @media (hover: hover) {
+    .svc__ask-btn:hover { background: var(--brown); border-color: var(--brown); color: #FEFCF4; }
+  }
+
+  @media (max-width: 900px) {
+    .svc { padding-bottom: 24px; }
+    .svc__head { font-size: clamp(40px, 10vw, 64px); padding: clamp(56px, 12vw, 88px) 24px 28px; }
+    .svc__button { padding: 22px 24px; font-size: clamp(19px, 4.6vw, 26px); gap: 16px; }
+    .svc__control { width: 36px; height: 36px; }
+    .svc__peek { display: none; }
+    .svc__bar { width: 14px; margin: -.75px 0 0 -7px; }
+    .svc__cols { padding: 0 24px; }
+    .svc__panel-title { font-size: clamp(19px, 4.6vw, 26px); margin-bottom: 12px; }
+    .svc__body { width: auto; font-size: 15px; }
+    .svc__art { width: 110px; height: 110px; margin: 0 0 20px 24px; }
+    .svc__display { margin: 0; font-size: 44px; margin-top: 28px; -webkit-text-stroke-width: 3px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .svc__row::before, .svc__row:last-child::after { transform: scaleX(1); transition: none; }
+    .svc__button { opacity: 1; transform: none; transition: none; }
+    .svc__panel { transition: none; }
+    .svc__body, .svc__art, .svc__display, .svc__panel-title { transition: none; }
+  }
+</style>
+
+<script>
+  import { setupServicesAccordion } from "../scripts/servicesAccordion";
+  setupServicesAccordion();
+</script>

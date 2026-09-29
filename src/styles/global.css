@@ -1,4 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@300..900&family=Lora:ital,wght@1,400..700&display=swap");
+/* Figtree/Lora are loaded via a <link rel="stylesheet"> in
+   Layout.astro's <head>, not an @import here — see that file's
+   comment for why. */
 
 /* ============================================================
    CLFA COLLECTIVE — DESIGN TOKENS + GLOBAL STYLES
@@ -23,6 +25,20 @@
   --azure: #506E78; --olive: #A0A073;
   --ink: var(--charcoal);
   --pink: var(--rose); --flare: var(--copper);
+
+  /* Sub-page palette (What We Do / About / FAQs / Contact) — distinct
+     from the homepage's --azure/--copper, not a re-theme of them: the
+     Figma source treats these four pages as their own family with a
+     darker teal opener and a warmer brown accent. */
+  --teal: #465B5F; --orange: #FF981E;
+  /* Darker than the Figma source's literal #BE7A3A — that value reads
+     at only ~3.35:1 against cream (fails WCAG AA's 4.5:1 for normal
+     text; even fails 3:1 against the "Marketing for equity" band's
+     light-blue card background), confirmed failing via Lighthouse on
+     several small/normal-weight uses (team role captions, form field
+     labels, "Ask anyway."). This value clears 4.5:1 against both
+     backgrounds with margin while staying in the same warm-brown family. */
+  --brown: #8A5527;
 
   --sans: "Figtree", "Helvetica Neue", Arial, sans-serif;
   --hc-serif: "Lora", Georgia, serif;
@@ -250,6 +266,12 @@ body.menu-open .mega { pointer-events: auto; }
 @media (max-width: 799px) {
   .kickoff { bottom: 84px; }
 }
+/* set on <body> by Layout.astro's hideKickoff prop — the What We Do /
+   About / FAQs / Contact pages don't have this pill at all, matching
+   the Figma source (it only ever appears on the true home page there).
+   CSS-driven rather than a script-only removal, so it's hidden before
+   kickoff.ts even runs — see that file's own early return. */
+body.hide-kickoff .kickoff { display: none; }
 
 .btn, .btn--fill {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
@@ -262,6 +284,66 @@ body.menu-open .mega { pointer-events: auto; }
 }
 @media (hover: hover) {
   .btn:hover, .btn--fill:hover { background: var(--pink); border-color: var(--pink); color: var(--cream); }
+}
+
+/* ============================================================
+   PAGE OPENER — the dark teal opener shared by What We Do / About /
+   FAQs / Contact (PageOpener.astro + src/scripts/pageOpener.ts).
+
+   Ported from the Figma source's near-identical .wwd__top/.abt__top/
+   .qa__top/.ctc__top blocks (all four were the same dot-field-plus-
+   line-reveal shell, only their headline typography differing),
+   consolidated into one shared component instead of copying it four
+   times. This block owns only the shared CHROME and REVEAL MECHANICS
+   — the ground, the container, and .opener__line's generic pre-reveal
+   state. Each page keeps its own headline type sizing (it genuinely
+   differs per page in the source) in its own scoped <style>, reusing
+   the .opener__line class purely for its opacity/transform behavior.
+
+   --u is a fluid design-pixel unit (1 Figma px at 1920 viewport width),
+   read from the section's own clientWidth by pageOpener.ts — the same
+   technique MarketingForEquity.astro uses for its scattered card
+   layout. --out (0..1) drives the dot field's slow counter-parallax as
+   the opener scrolls past.
+   ============================================================ */
+.opener {
+  --u: 0.052083vw;
+  --out: 0;
+  position: relative; overflow: hidden;
+  min-height: calc(980 * var(--u));
+  background: var(--teal); color: var(--cream);
+  display: flex; align-items: center;
+  font-family: var(--sans);
+}
+.opener--compact { min-height: calc(700 * var(--u)); }
+.opener__ground {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: min(72%, calc(600 * var(--u)));
+  background: url("/img/dots.svg") left bottom repeat-x;
+  background-size: calc(762 * var(--u)) calc(426 * var(--u));
+  transform: translateY(calc(var(--out) * 130 * var(--u)));
+  will-change: transform;
+  -webkit-mask-image: linear-gradient(to top, #000 0 30%, rgba(0, 0, 0, .45) 70%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0 30%, rgba(0, 0, 0, .45) 70%, transparent 100%);
+}
+.opener__inner {
+  position: relative; z-index: 1; width: 100%;
+  padding: 0 clamp(24px, 5vw, 123px);
+  box-sizing: border-box;
+}
+/* pre-reveal state, baked into CSS (not just set by GSAP on mount) so
+   there's no flash-of-revealed-content before the script runs — see
+   the mega menu's own closed state above for the same reasoning.
+   pageOpener.ts's arrival timeline animates every [data-page-opener]
+   .opener__line to opacity:1/transform:none on load, staggered. */
+.opener__line { display: block; opacity: 0; transform: translateY(calc(26 * var(--u))); }
+@media (max-width: 900px) {
+  .opener, .opener--compact { min-height: 0; padding: clamp(120px, 26vw, 200px) 0 clamp(56px, 14vw, 90px); }
+  .opener__ground { background-size: 381px 213px; height: min(66%, 300px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opener__ground { transform: none; }
+  .opener__line { opacity: 1; transform: none; }
 }
 
 /* ============================================================

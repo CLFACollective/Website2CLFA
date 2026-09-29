@@ -1,0 +1,49 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import PageOpener from "../components/PageOpener.astro";
+import TeamGrid from "../components/TeamGrid.astro";
+import WhyCollective from "../components/WhyCollective.astro";
+---
+
+<Layout
+  title="About — CLFA Collective"
+  description="Meet the collective. Not the committee. CLFA Collective is a network, not a hierarchy."
+  hideKickoff
+>
+  <Nav />
+  <main id="main" tabindex="-1">
+    <PageOpener id="about">
+      <h1 class="abt__head">
+        <span class="opener__line">Meet the collective.</span>
+        <strong class="opener__line abt__head--alt">Not the committee.</strong>
+      </h1>
+      <p class="opener__line abt__stand">
+        CLFA Collective is a network, <em>not a hierarchy</em>. But it started with two
+        people who&rsquo;ve been in every room this industry has to offer.
+      </p>
+    </PageOpener>
+    <TeamGrid />
+    <WhyCollective />
+  </main>
+  <Footer />
+  <script>
+    import "../scripts/main";
+  </script>
+</Layout>
+
+<style>
+  .abt__head { margin: 0; display: grid; justify-items: start; }
+  .abt__head .opener__line {
+    font-weight: 300; font-size: clamp(40px, 6.4vw, 122px); line-height: 1.08; letter-spacing: -.045em;
+  }
+  .abt__head--alt { font-weight: 800; color: var(--orange); }
+  .abt__stand {
+    margin: clamp(14px, 1.6vw, 30px) 0 0; max-width: calc(1240 * var(--u));
+    font-weight: 300; font-size: clamp(17px, 1.95vw, 37px); line-height: 1.35; letter-spacing: -.02em;
+  }
+  .abt__stand em {
+    font-family: var(--hc-serif); font-style: italic; font-weight: 600; color: var(--orange);
+  }
+</style>

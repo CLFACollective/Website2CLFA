@@ -5,10 +5,14 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description?: string;
+  /** The sticky "Is it go time?" pill only ever appears on the home
+   * page, matching the Figma source — the 4 sub-pages pass this. */
+  hideKickoff?: boolean;
 }
 const {
   title,
   description = "CLFA Collective — an adaptable healthcare B2B agency network of highly experienced thinkers who connect strategy, creative, and execution.",
+  hideKickoff = false,
 } = Astro.props;
 ---
 
@@ -20,11 +24,22 @@ const {
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- A real <link>, not global.css's old @import: an @import forces
+         the browser to fetch and parse this stylesheet before it can
+         even discover anything later in global.css (including the
+         dotted-ground background-image every new page's opener uses,
+         confirmed live as an ~1.4s LCP delay via a performance trace) —
+         a plain <link> lets the browser's preload scanner fetch both
+         in parallel instead of one blocking the other. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@300..900&family=Lora:ital,wght@1,400..700&display=swap"
+    />
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
-  <body>
+  <body class:list={[hideKickoff && "hide-kickoff"]}>
     <a class="skip-link" href="#main">Skip to content</a>
     <PinkCursor />
     <slot />

@@ -1,0 +1,33 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import PageOpener from "../components/PageOpener.astro";
+import ContactCards from "../components/ContactCards.astro";
+---
+
+<Layout
+  title="Contact — CLFA Collective"
+  description="Is it go time? Give us the details, or just enough to get started — either way, we'll take it from here."
+  hideKickoff
+>
+  <Nav />
+  <main id="main" tabindex="-1">
+    <PageOpener id="contact-opener" compact>
+      <h1 class="opener__line ctc__head">Is it go time?</h1>
+    </PageOpener>
+    <ContactCards />
+  </main>
+  <Footer />
+  <script>
+    import "../scripts/main";
+  </script>
+</Layout>
+
+<style>
+  .ctc__head {
+    margin: 0;
+    color: var(--orange); font-weight: 800;
+    font-size: clamp(46px, 7.2vw, 138px); line-height: 1; letter-spacing: -.04em;
+  }
+</style>

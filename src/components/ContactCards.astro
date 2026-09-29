@@ -1,0 +1,119 @@
+---
+// ContactCards — the two-card cream section on Contact: a form (left)
+// and direct-contact details (right). Per the confirmed decision, the
+// form is structure and styling only — real labelled fields, ported
+// verbatim including the source's lack of `required` attributes
+// (matches "structure only, no backend AND no client-side validation
+// either" — not just an oversight), onSubmit prevented. No GSAP here;
+// nothing in this component animates.
+const FIELDS = [
+  { id: "name", label: "Your name", placeholder: "e.g. Cathy Miller", type: "text", autoComplete: "name" },
+  { id: "email", label: "Email address", placeholder: "e.g. cathy@clfacollective.com", type: "email", autoComplete: "email" },
+  { id: "subject", label: "Subject", placeholder: "What are you looking to achieve?", type: "text" },
+];
+---
+
+<section class="ctc">
+  <div class="ctc__inner">
+    <div class="ctc__card">
+      <p class="ctc__lede">
+        Give us all the details, or, just enough to get started.<br />
+        Either way, we&rsquo;ll take it from here.
+      </p>
+
+      <form class="ctc__form" id="ctcForm" novalidate>
+        {FIELDS.map((f) => (
+          <p class="ctc__field">
+            <label for={`ctc-${f.id}`}>{f.label}</label>
+            <input id={`ctc-${f.id}`} name={f.id} type={f.type} placeholder={f.placeholder} autocomplete={f.autoComplete} />
+          </p>
+        ))}
+
+        <p class="ctc__field">
+          <label for="ctc-situation">What&rsquo;s your situation?</label>
+          <textarea id="ctc-situation" name="situation" rows="1" placeholder="Tell us about your brand, timeline, and current challenges…"></textarea>
+        </p>
+
+        <button class="ctc__submit" type="submit">Ready for kickoff</button>
+      </form>
+    </div>
+
+    <aside class="ctc__direct">
+      <h2>Direct contact</h2>
+
+      <p class="ctc__eyebrow">Email us</p>
+      <p><a href="mailto:hello@clfacollective.com">hello@clfacollective.com</a></p>
+
+      <!-- placeholders carried over from the Figma source — swap for
+           the real number/profile before ship -->
+      <p class="ctc__eyebrow">Call us</p>
+      <p class="ctc__plain">+1 (555) 234-5678</p>
+
+      <p><a class="ctc__li" href="https://www.linkedin.com/" rel="noreferrer">LinkedIn</a></p>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .ctc { background: var(--cream); color: var(--charcoal); font-family: var(--sans); }
+  .ctc__inner {
+    display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+    gap: clamp(24px, 4.6vw, 88px); align-items: start;
+    max-width: 1560px; margin: 0 auto;
+    padding: clamp(56px, 7vw, 112px) clamp(24px, 5vw, 123px) clamp(72px, 9vw, 150px);
+  }
+  .ctc__card, .ctc__direct {
+    border: 1px solid rgba(37, 37, 37, .14); border-radius: 14px;
+    background: var(--cream);
+    padding: clamp(24px, 2.4vw, 38px);
+  }
+  .ctc__lede { margin: 0 0 clamp(26px, 3vw, 50px); font-size: 17px; line-height: 1.5; }
+
+  .ctc__field { margin: 0 0 4px; display: grid; }
+  .ctc__field label {
+    font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--brown); margin-bottom: 10px;
+  }
+  .ctc__field input, .ctc__field textarea {
+    font: inherit; font-size: 16px; color: var(--charcoal);
+    background: none; border: 0; border-bottom: 1px solid rgba(37, 37, 37, .22);
+    padding: 0 0 14px; margin-bottom: 26px;
+    border-radius: 0; /* iOS rounds inputs by default */
+    resize: none; width: 100%;
+  }
+  .ctc__field input::placeholder, .ctc__field textarea::placeholder { color: rgba(37, 37, 37, .42); }
+  .ctc__field input:focus, .ctc__field textarea:focus { outline: none; border-bottom-color: var(--brown); }
+
+  .ctc__submit {
+    appearance: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 46px; padding: 12px 30px; border-radius: 100px;
+    border: 1px solid var(--charcoal); background: none; color: var(--charcoal);
+    font: inherit; font-size: 15px; font-weight: 700;
+    transition: background .3s ease, border-color .3s ease, color .3s ease;
+  }
+  @media (hover: hover) {
+    .ctc__submit:hover { background: var(--brown); border-color: var(--brown); color: var(--cream); }
+  }
+
+  .ctc__direct h2 {
+    margin: 0 0 22px; color: var(--brown);
+    font-size: 19px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .ctc__eyebrow { margin: 0 0 6px; font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .ctc__direct p { margin: 0 0 22px; font-size: 16px; }
+  .ctc__direct a { color: var(--charcoal); text-decoration: underline; text-underline-offset: 3px; }
+  @media (hover: hover) {
+    .ctc__direct a:hover { color: var(--brown); }
+  }
+  .ctc__li { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; }
+  .ctc__plain { text-decoration: none; }
+
+  @media (max-width: 900px) {
+    .ctc__inner { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  document.getElementById("ctcForm")?.addEventListener("submit", (e) => e.preventDefault());
+</script>

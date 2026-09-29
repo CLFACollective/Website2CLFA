@@ -1,0 +1,235 @@
+---
+// QAAccordion — the three grouped Q&A lists on FAQs (Figma "Asked and
+// answered"). Unlike ServicesAccordion, any number of rows can be open
+// at once (independent per-row toggling, no "close others" logic) —
+// they're reference material, not a guided sequence, and the page
+// lands with them all closed.
+//
+// Copy transcribed verbatim from the Figma source. "Can you share
+// examples of past work?" carries a literal [LINK TO CAPES DECK]
+// placeholder in the source itself — kept as inert placeholder text
+// rather than inventing a real link; swap it in once the deck has a
+// home.
+interface QA {
+  q: string;
+  answer: string[];
+  lead?: string;
+  tail?: string;
+}
+interface Group {
+  title: string;
+  items: QA[];
+}
+
+const GROUPS: Group[] = [
+  {
+    title: "Working with us:",
+    items: [
+      {
+        q: "How fast can you actually start?",
+        answer: [
+          "Fast. We don't need a six-week onboarding. We've worked across healthcare and tech long enough that we orient ourselves quickly. Give us a brief, a deadline, and a point of contact. We'll take it from there.",
+        ],
+        tail: "Most engagements are active the day the contract's signed.",
+      },
+      {
+        q: "Do we need to have everything figured out before we reach out?",
+        answer: [
+          "Absolutely not. Half our clients come to us mid-chaos: post-acquisition, pre-launch, or somewhere in between with a brand story that hasn't caught up yet. If you knew exactly what you needed, you probably wouldn't need us. Come as you are.",
+        ],
+      },
+      {
+        q: "What size companies do you work with?",
+        answer: [
+          "We work with brands that are moving, not brands defined by headcount. That includes growth-stage startups that need to punch above their weight, mid-market companies navigating a transition, and established organizations that need an outside team to move faster than their internal structure allows.",
+        ],
+      },
+      {
+        q: "What does the engagement model look like? Retainer? Project? Both?",
+        answer: [
+          "Both, depending on what the work calls for. Most ongoing engagements run on a monthly retainer. Project work is scoped individually.",
+          "Some clients need us for a specific sprint, like a launch, a campaign, a rebrand. Others want us in their corner on an ongoing basis. We're flexible by design.",
+        ],
+      },
+    ],
+  },
+  {
+    title: "The work:",
+    items: [
+      {
+        q: "What does a healthcare and tech marketing agency actually do?",
+        answer: [
+          "Depends on the day. Brand strategy, content, paid media, web, launches — whatever gets your brand from where it is to where it needs to be. The short version: strategy, creative, and execution, connected instead of siloed.",
+        ],
+      },
+      {
+        q: "What industries do you specialize in?",
+        answer: [
+          "Healthcare and tech, and the increasingly busy space where the two overlap. We've worked with pharmaceutical companies, biotech, digital health, health IT, and medtech brands at every stage of the growth curve. If your brand exists at the intersection of science and market, we're in our element.",
+        ],
+      },
+      {
+        q: "What services can you handle?",
+        lead: "Check our services page out.",
+        answer: [
+          "But, in short: strategy, creative, re-branding, branding, and execution. We connect all the above and then some. We can run a full brand build, a go-to-market launch, a content and paid program, or a site launch. We can also plug into whatever piece you actually need rather than handing you a bundle of services you didn't ask for.",
+        ],
+      },
+      {
+        q: "Do you work with in-house teams or replace them?",
+        answer: [
+          "Work with. We're not here to take over. We're here to make your team faster and better resourced. Most of our clients have internal teams we collaborate with directly. We bring outside perspective, extra capacity, and specialized experience without the politics of adding headcount. (Final assets often delivered with tearful goodbyes.)",
+        ],
+      },
+      {
+        q: "How do I choose a healthcare marketing agency?",
+        answer: [
+          "Look for someone who's actually been in the room, not just read about it. Ask how fast they can start, whether you'll be working with senior people day to day, and whether they can point to real results, not just a nice deck.",
+        ],
+      },
+    ],
+  },
+  {
+    title: "Results:",
+    items: [
+      {
+        q: "Can you share examples of past work?",
+        answer: ["[LINK TO CAPES DECK]"],
+      },
+      {
+        q: "What does “measurable momentum” actually mean for our brand?",
+        answer: [
+          "It means results you can point to, not activity you have to explain. For us that's looked like launches that actually ship on time, content and paid programs that consistently outperform benchmarks, webinars that fill up and overflow, and brand stories that hold up in market. We track what moves the needle for your specific goals… not vanity metrics that make a deck look good. (But your deck will look very good too.)",
+        ],
+      },
+      {
+        q: "How does pricing work?",
+        answer: [
+          "We collectively allocate our time based on who you need, what you need, and when you need it. You’ll know how every hour is planned for and spent. Literally, down to the hour.",
+        ],
+      },
+      {
+        q: "Who would we actually be working with day to day?",
+        lead: "Us.",
+        answer: [
+          "Not a junior team that gets handed the brief after the sales call. Cathy and Michelle are hands-on across all engagements, and the broader CLFA network we bring in are experienced practitioners in their own right. You get senior thinking at every touchpoint.",
+        ],
+        tail: "Most engagements are active the day the contract’s signed.",
+      },
+    ],
+  },
+];
+---
+
+<section class="qa" id="faq-list">
+  <div class="qa__inner">
+    {GROUPS.map((g) => (
+      <section class="qa__group">
+        <h2>{g.title}</h2>
+        <ul>
+          {g.items.map((item) => (
+            <li class="qa__row">
+              <h3>
+                <button type="button" class="qa__q" aria-expanded="false">
+                  <span>{item.q}</span>
+                  <span class="qa__ctrl" aria-hidden="true">
+                    <i /><i class="qa__ctrl-v" />
+                  </span>
+                </button>
+              </h3>
+              <div class="qa__panel">
+                <div class="qa__panel-in">
+                  <div class="qa__answer">
+                    {item.answer.map((para, n) => (
+                      <p>
+                        {n === 0 && item.lead && <strong class="qa__lead">{item.lead} </strong>}
+                        {para}
+                      </p>
+                    ))}
+                    {item.tail && <p class="qa__lead">{item.tail}</p>}
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</section>
+
+<style>
+  .qa { background: var(--cream); color: var(--charcoal); font-family: var(--sans); }
+  .qa__inner {
+    max-width: 1560px; margin: 0 auto;
+    padding: clamp(52px, 6vw, 104px) clamp(24px, 5vw, 123px) clamp(72px, 9vw, 150px);
+  }
+  .qa__group { margin: 0 0 clamp(44px, 5vw, 88px); }
+  .qa__group > h2 {
+    margin: 0 0 clamp(16px, 1.8vw, 30px);
+    font-size: clamp(24px, 2.1vw, 38px); font-weight: 800; letter-spacing: -.02em;
+  }
+  .qa__group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(12px, 1.1vw, 20px); }
+
+  .qa__row {
+    border: 1px solid rgba(37, 37, 37, .16); border-radius: 14px;
+    padding: clamp(18px, 1.6vw, 26px) clamp(20px, 1.8vw, 30px);
+    transition: border-color .3s ease, background .3s ease, color .3s ease;
+  }
+  .qa__row[data-open] { border-color: rgba(190, 120, 55, .42); }
+  @media (hover: hover) {
+    .qa__row:not([data-open]):hover,
+    .qa__row:not([data-open]):focus-within { background: var(--charcoal); border-color: var(--charcoal); color: var(--cream); }
+    .qa__row:not([data-open]):hover .qa__q,
+    .qa__row:not([data-open]):focus-within .qa__q { color: var(--cream); }
+  }
+
+  .qa__row h3 { margin: 0; font-size: inherit; font-weight: inherit; }
+  .qa__q {
+    appearance: none; background: none; transition: color .3s ease; border: 0; width: 100%; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: clamp(16px, 2vw, 40px);
+    padding: 0; font: inherit; text-align: left;
+    color: var(--brown); font-weight: 700; letter-spacing: -.02em;
+    font-size: clamp(18px, 1.55vw, 28px); line-height: 1.22;
+  }
+  .qa__q:focus-visible { outline: 2px solid var(--brown); outline-offset: 6px; border-radius: 4px; }
+
+  .qa__ctrl {
+    position: relative; flex: 0 0 auto;
+    width: clamp(30px, 2vw, 36px); height: clamp(30px, 2vw, 36px);
+    border: 1px solid currentColor; border-radius: 50%;
+    transition: background .3s ease, color .3s ease, border-color .3s ease;
+  }
+  .qa__ctrl i {
+    position: absolute; left: 50%; top: 50%; width: 44%; height: 2px;
+    margin: -1px 0 0 -22%; background: currentColor; border-radius: 2px;
+  }
+  .qa__ctrl-v { transform: rotate(90deg); transition: transform .4s var(--ease), opacity .3s ease; }
+  .qa__row[data-open] .qa__ctrl { background: var(--charcoal); border-color: var(--charcoal); color: var(--cream); }
+  .qa__row[data-open] .qa__ctrl-v { transform: rotate(0deg); opacity: 0; }
+
+  .qa__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--ease); }
+  .qa__row[data-open] .qa__panel { grid-template-rows: 1fr; }
+  .qa__panel-in {
+    overflow: hidden; min-height: 0;
+    visibility: hidden; transition: visibility 0s linear .5s;
+  }
+  .qa__row[data-open] .qa__panel-in { visibility: visible; transition-delay: 0s; }
+
+  .qa__answer {
+    border-top: 1px solid rgba(37, 37, 37, .14);
+    margin-top: clamp(14px, 1.2vw, 20px); padding-top: clamp(14px, 1.2vw, 22px);
+  }
+  .qa__answer p { margin: 0 0 14px; font-size: clamp(15px, 1.05vw, 19px); line-height: 1.5; }
+  .qa__answer p:last-child { margin-bottom: 0; }
+  .qa__lead { font-weight: 700; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .qa__panel, .qa__ctrl-v { transition: none; }
+  }
+</style>
+
+<script>
+  import { setupQAAccordion } from "../scripts/qaAccordion";
+  setupQAAccordion();
+</script>

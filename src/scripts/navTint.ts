@@ -32,6 +32,7 @@ export function setupNavTint() {
   const logo = document.querySelector<HTMLElement>(".nav__logo");
   const windowA = document.querySelector<HTMLElement>("[data-win]");
   const keep = document.querySelector<HTMLElement>("[data-keep]");
+  const opener = document.querySelector<HTMLElement>("[data-page-opener]");
   if (!nav || !logo) return;
 
   const { gsap, ScrollTrigger } = useGsap();
@@ -51,7 +52,8 @@ export function setupNavTint() {
 
   let inWindowA = false;
   let inKeep = false;
-  const updateTint = () => nav.classList.toggle("nav--tinted", inWindowA || inKeep);
+  let inOpener = false;
+  const updateTint = () => nav.classList.toggle("nav--tinted", inWindowA || inKeep || inOpener);
 
   /* The nav is pinned to the very top of the viewport, so what matters
      is whether THIS section currently occupies that top strip — not
@@ -75,4 +77,59 @@ export function setupNavTint() {
       onToggle: (self) => { inKeep = self.isActive; updateTint(); },
     });
   }
+  /* the What We Do / About / FAQs / Contact openers — same dark-ground
+     tinting need as Window A / KeepUp, tracked generically by the
+     [data-page-opener] attribute every PageOpener instance carries.
+     Deliberately onUpdate + self.isActive, not onToggle: unlike
+     Window A/KeepUp (never active at scrollY 0 on the home page), the
+     opener IS active from the very first frame on these pages, and an
+     onToggle-based "current vs. previous state" comparison went stuck
+     permanently tinted in practice — confirmed live, an instant
+     window.scrollTo() jump past the trigger's whole range never fired
+     a toggle back to inactive, the same "instant jump doesn't
+     register as a crossing" ScrollTrigger gotcha already hit
+     elsewhere in this codebase. onUpdate fires on every real scroll
+     tick regardless of jump size, so there's no crossing to miss. */
+  if (opener) {
+    ScrollTrigger.create({
+      trigger: opener,
+      start: "top top",
+      end: "bottom top",
+      onUpdate: (self) => { inOpener = self.isActive; updateTint(); },
+    });
+
+    /* This script runs (and the trigger above gets created) before
+       the page's web fonts have necessarily finished loading — a
+       pre-font-swap layout read here can be badly wrong (confirmed
+       live on mobile viewports: the opener's measured rect.top was
+       540px, not 0, at this exact point in a fresh load), which both
+       this synchronous check AND GSAP's own initial trigger
+       calculation would otherwise silently bake in as "correct" and
+       never revisit, since nothing else prompts a recheck until the
+       user's first scroll. Same fix as momentumGallery.ts's own
+       document.fonts.ready + ScrollTrigger.refresh() pattern: a
+       reasonable synchronous first guess now, corrected for real
+       once fonts (and therefore final layout) are actually ready. */
+    const evalOpener = () => {
+      const r = opener.getBoundingClientRect();
+      inOpener = r.top <= 0 && r.bottom > 0;
+      updateTint();
+    };
+    evalOpener();
+    document.fonts?.ready
+      .then(() => {
+        /* Tried reading openerTrigger.isActive here instead of a
+           second getBoundingClientRect(), to avoid the extra reflow
+           on top of the one refresh() itself already forces — measured
+           as a real (if small, ~40ms, one-time-at-load) cost via a
+           performance trace. Reverted: isActive wasn't reliably
+           updated by refresh() for an onUpdate-driven trigger like
+           this one, confirmed live (nav stopped tinting on load).
+           Correctness over a one-time micro-optimization. */
+        ScrollTrigger.refresh();
+        evalOpener();
+      })
+      .catch(() => {});
+  }
+  updateTint();
 }

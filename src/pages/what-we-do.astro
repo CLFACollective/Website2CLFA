@@ -1,0 +1,56 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import PageOpener from "../components/PageOpener.astro";
+import MarketingForEquity from "../components/MarketingForEquity.astro";
+import ServicesAccordion from "../components/ServicesAccordion.astro";
+---
+
+<Layout
+  title="What We Do — CLFA Collective"
+  description="Strategy, creative, and execution for healthcare and tech brands — connected, not siloed."
+  hideKickoff
+>
+  <Nav />
+  <main id="main" tabindex="-1">
+    <PageOpener id="what-we-do">
+      <h1 class="wwd__head">
+        <span class="opener__line">Built for healthcare</span>
+        <span class="opener__line">and tech.</span>
+        <strong class="opener__line wwd__head--alt">Not adapted for it.</strong>
+      </h1>
+      <p class="opener__line wwd__stand">
+        Strategy, creative, and execution—so, everything you need—<br />
+        <em>connected, not siloed</em>. Here&rsquo;s where we plug in.
+      </p>
+    </PageOpener>
+    <MarketingForEquity />
+    <ServicesAccordion />
+  </main>
+  <Footer />
+  <script>
+    import "../scripts/main";
+  </script>
+</Layout>
+
+<style>
+  .wwd__head { margin: 0; display: grid; justify-items: start; }
+  .wwd__head .opener__line {
+    font-weight: 300; font-size: calc(120 * var(--u));
+    line-height: 1.1; letter-spacing: -.03em;
+  }
+  .wwd__head--alt { font-weight: 800; color: var(--orange); }
+  .wwd__stand {
+    margin: clamp(14px, 1.6vw, 30px) 0 0; max-width: calc(1240 * var(--u));
+    font-weight: 300; font-size: clamp(17px, 1.95vw, 37px); line-height: 1.35; letter-spacing: -.02em;
+  }
+  .wwd__stand em {
+    font-family: var(--hc-serif); font-style: italic; font-weight: 600; color: var(--orange);
+  }
+  @media (max-width: 900px) {
+    .wwd__head .opener__line { font-size: clamp(44px, 11.5vw, 84px); line-height: .92; letter-spacing: -.045em; }
+    .wwd__head--alt { line-height: 1.18; }
+    .wwd__stand { margin-top: 24px; font-size: clamp(18px, 4.6vw, 26px); line-height: 1.35; letter-spacing: -.02em; }
+  }
+</style>

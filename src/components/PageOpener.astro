@@ -1,0 +1,28 @@
+---
+// The dark teal opener shared by What We Do / About / FAQs / Contact —
+// dotted-ground counter-parallax + a staggered line-by-line headline
+// reveal on arrival, see src/scripts/pageOpener.ts. Each page supplies
+// its own headline/standfirst markup via the slot (sizing differs per
+// page in the Figma source); this component only owns the shared
+// chrome and reveal mechanics.
+interface Props {
+  id: string;
+  compact?: boolean;
+}
+const { id, compact = false } = Astro.props;
+---
+
+<section class:list={["opener", compact && "opener--compact"]} id={id} data-page-opener>
+  <div class="opener__ground" aria-hidden="true"></div>
+  <div class="opener__inner">
+    <slot />
+  </div>
+</section>
+
+<script>
+  import { setupPageOpener } from "../scripts/pageOpener";
+  document.querySelectorAll<HTMLElement>("[data-page-opener]:not([data-mounted])").forEach((el) => {
+    el.dataset.mounted = "true";
+    setupPageOpener(el);
+  });
+</script>

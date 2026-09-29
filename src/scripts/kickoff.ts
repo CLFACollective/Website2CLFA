@@ -18,6 +18,13 @@ import { useGsap, prefersReducedMotion } from "./gsapSetup";
  * window, and the forest "don't let up" section.
  */
 export function setupKickoffCta() {
+  /* absent entirely on What We Do / About / FAQs / Contact — see
+     Layout.astro's hideKickoff prop and the body.hide-kickoff CSS rule
+     that hides it. Bail before setting up any ScrollTriggers rather
+     than just relying on the CSS, since none of them have anything
+     meaningful to track on these pages anyway. */
+  if (document.body.classList.contains("hide-kickoff")) return;
+
   const { gsap, ScrollTrigger } = useGsap();
   const cta = document.getElementById("kickoff");
   const footer = document.querySelector<HTMLElement>("footer");

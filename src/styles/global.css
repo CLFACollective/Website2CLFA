@@ -611,19 +611,37 @@ body.hide-kickoff .kickoff { display: none; }
 .hs__head .hs__intro-head { margin-bottom: 16px; }
 
 /* "Measurable" (line 1) and "momentum." (line 2, Lora italic via .hot)
-   are two different sizes in Figma, not one shared size — the .hot
-   span gets its own, slightly larger clamp. */
-.hs__intro-head { font-size: clamp(28px, 4.2vw, 76px); font-weight: 300; line-height: 1.02; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
-.hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; line-height: .85; display: block; }
+   share the SAME font-size in Figma (both 90px on the 1920-wide
+   reference frame) — re-measured 2026-09-29 directly off
+   get_design_context for node 3612:8796, which confirmed the two
+   lines only differ in line-height (76px vs 90px, i.e. ratios of
+   .845 and 1.0 against that shared 90px), not point size. The
+   previous 76px cap on this line was stale/wrong — confirmed live as
+   part of "fonts on the momentum slides are wrong". */
+.hs__intro-head { font-size: clamp(33px, 5vw, 90px); font-weight: 300; line-height: .845; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
+.hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; line-height: 1; display: block; }
 
 .mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 clamp(18px, 1.15vw, 22px); }
 /* the "150+" figure was measured with noticeably less negative tracking
-   than the other two stats — not an oversight, Figma has it that way */
-.mfig--wide { letter-spacing: -1px; }
-.mfig .unit { font-size: .4em; font-weight: 800; }
+   than the other two stats — not an oversight, Figma has it that way.
+   Its digits also run meaningfully smaller than the other two stats'
+   (Figma: ~154px vs ~188-197px, since "150" is a wider 3-character
+   string being fit into a narrower collage slot than "4" or "100") —
+   re-measured 2026-09-29 off get_design_context for node 3612:8823. */
+.mfig--wide { font-size: clamp(52px, 9.6vw, 156px); letter-spacing: -1px; }
+/* Figma's "M"/"%" suffixes both measure at ~0.505em of their own
+   figure, not 0.4em — re-measured 2026-09-29 off get_design_context
+   for nodes 3612:8811/3612:8798. */
+.mfig .unit { font-size: .5em; font-weight: 800; }
+/* "150+"'s "+" glyph specifically runs bigger still, ~0.674em — a "+"
+   reads visually smaller than a digit at the same point size, so
+   Figma compensates; re-measured 2026-09-29 off node 3612:8823. */
+.mfig--wide .unit { font-size: .67em; }
 /* true superscript, not just a smaller trailing unit like .unit above —
-   raised above the baseline via vertical-align, for the "$" leading
-   $4M (the only stat with a currency prefix). */
+   raised above the baseline via vertical-align. No current stat uses
+   a prefix (the "4M" stat's "$" was dropped — Figma's own text has no
+   currency symbol), but setCountText (momentumGallery.ts) supports one
+   generically, so this stays as a general capability, not dead code. */
 .mfig .mfig__prefix { font-size: .4em; font-weight: 800; vertical-align: super; }
 .mcap {
   margin: 0 0 clamp(20px, 2.4vw, 46px); color: var(--flare); font-weight: 600; letter-spacing: 0;
@@ -651,9 +669,13 @@ body.hide-kickoff .kickoff { display: none; }
 /* Two of the three quote lines are plain sans (SemiBold, upright) —
    only the middle line is Lora italic/copper. The base rule covers
    the sans majority; .mquote__l2 overrides to the italic treatment. */
+/* cap raised 73px→77px — re-measured 2026-09-29 off get_design_context
+   for node 3612:8835 (Quote2, the real "They move / at the speed / of
+   business" quote): 84.733px against a 613px text column, the same
+   ~0.138 ratio confirmed on Quote1's own smaller slot too. */
 .mquote {
   margin: 0; font-weight: 600; font-family: var(--sans); font-style: normal;
-  font-size: clamp(29px, 4.7vw, 73px); line-height: 1.0; letter-spacing: -.03em;
+  font-size: clamp(31px, 5vw, 77px); line-height: 1.0; letter-spacing: -.03em;
 }
 /* width:fit-content, not the stretched-to-wrap default a block span
    gets — each line needs to end where its own text ends (used by the
@@ -674,9 +696,10 @@ body.hide-kickoff .kickoff { display: none; }
 .mquote { max-width: 100%; }
 .mquote__l1, .mquote__l3 { color: var(--charcoal); }
 .mquote__l2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
+/* cap 26px→23px — re-measured 2026-09-29 off node 3612:8835: 22.949px. */
 .mquote__by {
   margin-top: clamp(14px, 1.6vw, 26px); font-weight: 600;
-  font-size: clamp(18px, 1.8vw, 26px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
+  font-size: clamp(16px, 1.6vw, 23px); letter-spacing: 0; color: var(--copper); font-family: "Lora", Georgia, serif; font-style: italic;
 }
 
 /* The Kaylen quote's own full text is several times longer than "They
@@ -726,7 +749,19 @@ body.hide-kickoff .kickoff { display: none; }
   position: absolute; top: 0; left: 0;
   width: min(560px, 80vw);
 }
-.mg__slide--stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
+/* width:fit-content, not the shared 560px .mg__slide default (sized for
+   quotes, whose lines need the room) — a stat's actual content
+   (figure/caption/subcaption) is much narrower than that. The resting
+   collage's own scale is computed as targetWidth / getComputedStyle
+   (slide).width (see collageItemTarget/buildOverviewCards in
+   momentumGallery.ts): with the old fixed 560px, that math shrank
+   each stat's *whole padded box* down to its target size, leaving the
+   actual glyphs inside noticeably smaller than Figma's own tightly-
+   fitted stat boxes — confirmed live (visible-text-width/slide-width
+   was ~31% in this codebase vs. ~69% in the Figma frame, i.e. the
+   numbers rendered under half the size they should have). Shrinking
+   the box to match its own content directly fixes that ratio. */
+.mg__slide--stat { display: flex; flex-direction: column; align-items: center; text-align: center; width: fit-content; max-width: min(560px, 80vw); }
 .mg__slide--stat .mcap, .mg__slide--stat h4 { margin-left: auto; margin-right: auto; }
 .mg__slide--quote { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 /* Kaylen's quote (5 sentences, vs the other quote's 3 short phrases) —

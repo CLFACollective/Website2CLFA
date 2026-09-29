@@ -207,6 +207,27 @@ export function setupMomentumGallery() {
     el.innerHTML = `<span class="mfig__prefix">${prefix}</span>${Math.round(value)}<span class="unit">${suffix}</span>`;
   };
 
+  /* Pins each stat figure to its own final rendered width up front,
+     once, rather than letting it live-resize during count-up (see
+     countUp below). .mg__slide--stat is width:fit-content (see that
+     rule's own comment — needed so the resting-collage scale math
+     reads each stat's real content width, not one shared fixed
+     width); count-up briefly displays every intermediate digit count
+     (0, 22, 38, ... 150) on the way to its target, and without this,
+     each of those ~50 intermediate values forced a real layout
+     reflow on an element that's ALSO being transformed every frame
+     by Three.js — confirmed live as a genuine frame-drop/stall right
+     as a slide's count-up finishes, which read as the number
+     "changing weight" or being swapped for a different one. Reserving
+     the final width up front means the box never needs to resize
+     mid-animation — only the digits themselves change. */
+  slides.forEach((slide) => {
+    const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
+    if (!fig) return;
+    setCountText(fig, Number(fig.dataset.mgCount));
+    fig.style.minWidth = `${fig.getBoundingClientRect().width}px`;
+  });
+
   if (prefersReducedMotion()) {
     // static stacked layout (CSS handles the geometry) — every number just
     // shows its final value, no tween, no movie, no canvas ever created.
@@ -303,17 +324,30 @@ export function setupMomentumGallery() {
     vector: THREE.Vector3;
     ro: ResizeObserver;
     running: boolean;
+    // cached #mgScene size, refreshed only on actual resize (see
+    // initThree's own resize()) — renderFrame reads these every frame
+    // instead of sceneEl.clientWidth/Height directly; clientWidth/Height
+    // are layout-triggering reads, and renderFrame also writes element
+    // styles, so reading the live DOM property every frame forced a
+    // synchronous reflow on every single tick (confirmed via a
+    // performance trace: ~157ms of forced-reflow time attributed
+    // directly to this function, enough to visibly drop frames right
+    // as a slide's count-up/arrival finished).
+    width: number;
+    height: number;
   } | null = null;
 
   function renderFrame() {
     if (!three) return;
     three.renderer.render(three.scene, three.camera);
     const { camera, meshes, vector } = three;
+    const sceneWidth = three.width;
+    const sceneHeight = three.height;
     meshes.forEach((mesh, i) => {
       vector.setFromMatrixPosition(mesh.matrixWorld);
       vector.project(camera);
-      const x = (vector.x * 0.5 + 0.5) * sceneEl!.clientWidth;
-      const y = (-vector.y * 0.5 + 0.5) * sceneEl!.clientHeight;
+      const x = (vector.x * 0.5 + 0.5) * sceneWidth;
+      const y = (-vector.y * 0.5 + 0.5) * sceneHeight;
       const scale = CAMERA_Z / (CAMERA_Z - mesh.position.z);
       const el = slides[i];
       el.style.transform = `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px) translate(-50%, -50%) scale(${scale.toFixed(5)})`;
@@ -351,12 +385,13 @@ export function setupMomentumGallery() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h, false);
+      if (three) { three.width = w; three.height = h; }
     };
     const ro = new ResizeObserver(resize);
     ro.observe(sceneEl!);
-    resize();
 
-    three = { renderer, scene: scn, camera, meshes, vector: new THREE.Vector3(), ro, running: false };
+    three = { renderer, scene: scn, camera, meshes, vector: new THREE.Vector3(), ro, running: false, width: 0, height: 0 };
+    resize(); // populates three.width/height before the first paint below
     renderFrame(); // paint the seeded (all-waiting) layout immediately, don't wait for a tick
   }
 
@@ -922,12 +957,17 @@ export function setupMomentumGallery() {
   // Desktop's resting layout: the specific scattered composition from
   // the Figma design (node 3612:8791 — "Section - 4 · MOMENTUM"), not a
   // uniform grid. left/top/width are percentages of the collage box,
-  // read directly off each element's position in that design (itself
-  // 1920×1654) — the collage box below locks to that same aspect ratio
-  // so the composition holds at any viewport width. Slide 4 (the
-  // Kaylen quote) is placed in the design's smaller "Quote1" slot —
-  // that slot's own placeholder copy in Figma ("blah blah blah") is
-  // never used, only its position/size.
+  // read directly off each element's own position in that design
+  // (itself 1920×1654: the "Container" child, node 3612:8792, plus its
+  // "Quote1"/"Quote2" siblings) — the collage box below locks to that
+  // same aspect ratio so the composition holds at any viewport width.
+  // Re-measured 2026-09-29 directly off get_design_context/get_metadata
+  // for those exact nodes — the previous values here were noticeably
+  // off (e.g. item 2's width read 21.81% vs the design's actual
+  // 27.15%), confirmed live as the resting screen not matching the
+  // Figma design. Slide 4 (the Kaylen quote) is placed in the design's
+  // smaller "Quote1" slot — that slot's own placeholder copy in Figma
+  // ("blah blah blah") is never used, only its position/size.
   //
   // Figma's own top values (in each comment below) centre the
   // composition in the lower half of its own tall, unconstrained
@@ -939,11 +979,11 @@ export function setupMomentumGallery() {
   // section rather than the bottom.
   const VERTICAL_SHIFT = -22;
   const OVERVIEW_LAYOUT_DESKTOP: Record<number, { left: number; top: number; width: number }> = {
-    0: { left: 58.07, top: 63.6 + VERTICAL_SHIFT, width: 33.66 }, // "They move at the speed of business" quote — Quote2 slot
-    1: { left: 15.42, top: 64.45 + VERTICAL_SHIFT, width: 30.94 }, // 100% on-time delivery
-    2: { left: 61.77, top: 35.91 + VERTICAL_SHIFT, width: 21.81 }, // $4M sales pipeline
-    3: { left: 10.73, top: 42.2 + VERTICAL_SHIFT, width: 16.98 }, // 150+ RSVPs
-    4: { left: 35.68, top: 32.71 + VERTICAL_SHIFT, width: 17.86 }, // Kaylen quote — Quote1 slot
+    0: { left: 50.52, top: 63.6 + VERTICAL_SHIFT, width: 35.54 }, // "They move at the speed of business" quote — Quote2 slot
+    1: { left: 15.1, top: 61.31 + VERTICAL_SHIFT, width: 26.76 }, // 100% on-time delivery
+    2: { left: 62.34, top: 30.77 + VERTICAL_SHIFT, width: 27.15 }, // 4M sales pipeline
+    3: { left: 10.11, top: 34.03 + VERTICAL_SHIFT, width: 22.43 }, // 150+ RSVPs
+    4: { left: 40.31, top: 37.12 + VERTICAL_SHIFT, width: 17.86 }, // Kaylen quote — Quote1 slot
   };
   // Approximates the collage box's own rendered pixel width without
   // needing to measure it directly (it can't be — the overview panel
@@ -957,12 +997,17 @@ export function setupMomentumGallery() {
   // .mg__overview's own computed style, which — being purely
   // viewport-driven (clamp/vw), not layout-driven — still resolves
   // correctly while it's hidden.
-  // The resting collage renders 50% larger than a strict "contain" fit
-  // within #mgScene's own box — deliberately overflows that box on
-  // shorter/narrower viewports rather than staying small enough to
-  // never need it; .mg__overview's own scroll (see its CSS) handles the
-  // rest.
-  const COLLAGE_SIZE_BOOST = 1.5;
+  // Was 1.5 (a deliberate 50% overflow beyond a strict "contain" fit) —
+  // tuned back when each stat's own box was measured off the full,
+  // padded .mg__slide container rather than its actual content (see
+  // .mg__slide--stat's own comment), which left every number rendering
+  // under half its intended size. Now that that's fixed, the collage
+  // is close to a correct "contain" fit on its own again; kept as a
+  // small, no-longer-load-bearing nudge rather than 1.0 exactly, since
+  // this composition still deliberately overflows its box slightly
+  // rather than staying small enough to never need .mg__overview's own
+  // scroll fallback (see its CSS).
+  const COLLAGE_SIZE_BOOST = 1.2;
   function collageWidthEstimate(): number {
     const overviewCs = getComputedStyle(overview!);
     const hPad = parseFloat(overviewCs.paddingLeft) + parseFloat(overviewCs.paddingRight);

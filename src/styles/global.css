@@ -68,14 +68,14 @@
      Figma source treats these four pages as their own family with a
      darker teal opener and a warmer brown accent. */
   --teal: #465B5F; --orange: #FF981E;
-  /* Darker than the Figma source's literal #BE7A3A — that value reads
-     at only ~3.35:1 against cream (fails WCAG AA's 4.5:1 for normal
-     text; even fails 3:1 against the "Marketing for equity" band's
-     light-blue card background), confirmed failing via Lighthouse on
-     several small/normal-weight uses (team role captions, form field
-     labels, "Ask anyway."). This value clears 4.5:1 against both
-     backgrounds with margin while staying in the same warm-brown family. */
-  --brown: #8A5527;
+  /* Literal Figma source value. Note: this reads at only ~3.35:1
+     against cream (fails WCAG AA's 4.5:1 for normal text; even fails
+     3:1 against the "Marketing for equity" band's light-blue card
+     background) on several small/normal-weight uses — team role
+     captions, form field labels, "Ask anyway." Confirmed via
+     Lighthouse; kept as-is per explicit instruction to match the
+     source's colors rather than adjust them for contrast. */
+  --brown: #BE7A3A;
 
   --sans: "Figtree", "Helvetica Neue", Arial, sans-serif;
   --hc-serif: "Lora", Georgia, serif;

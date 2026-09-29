@@ -32,5 +32,7 @@ import QAAccordion from "../components/QAAccordion.astro";
   .qa__head .opener__line {
     font-weight: 300; font-size: clamp(42px, 6.6vw, 126px); line-height: 1.05; letter-spacing: -.045em;
   }
-  .qa__head--alt { font-weight: 800; color: var(--orange); }
+  /* qualified past .qa__head .opener__line on purpose — see the
+     matching comment in what-we-do.astro. */
+  .qa__head .opener__line.qa__head--alt { font-weight: 800; color: var(--orange); }
 </style>

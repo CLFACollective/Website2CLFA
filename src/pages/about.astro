@@ -38,7 +38,9 @@ import WhyCollective from "../components/WhyCollective.astro";
   .abt__head .opener__line {
     font-weight: 300; font-size: clamp(40px, 6.4vw, 122px); line-height: 1.08; letter-spacing: -.045em;
   }
-  .abt__head--alt { font-weight: 800; color: var(--orange); }
+  /* qualified past .abt__head .opener__line on purpose — see the
+     matching comment in what-we-do.astro. */
+  .abt__head .opener__line.abt__head--alt { font-weight: 800; color: var(--orange); }
   .abt__stand {
     margin: clamp(14px, 1.6vw, 30px) 0 0; max-width: calc(1240 * var(--u));
     font-weight: 300; font-size: clamp(17px, 1.95vw, 37px); line-height: 1.35; letter-spacing: -.02em;

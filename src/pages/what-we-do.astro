@@ -37,20 +37,27 @@ import ServicesAccordion from "../components/ServicesAccordion.astro";
 <style>
   .wwd__head { margin: 0; display: grid; justify-items: start; }
   .wwd__head .opener__line {
-    font-weight: 300; font-size: calc(120 * var(--u));
-    line-height: 1.1; letter-spacing: -.03em;
+    font-weight: 300; font-size: calc(152 * var(--u));
+    line-height: calc(137 * var(--u)); letter-spacing: calc(-8.82 * var(--u));
   }
-  .wwd__head--alt { font-weight: 800; color: var(--orange); }
+  /* qualified past .wwd__head .opener__line on purpose — that base
+     rule's two-class specificity otherwise beats a bare .wwd__head--alt
+     regardless of source order, which silently dropped this line back
+     to the regular weight (confirmed live: computed font-weight 300,
+     not 800). */
+  .wwd__head .opener__line.wwd__head--alt {
+    font-weight: 800; color: var(--orange); line-height: calc(176.4 * var(--u));
+  }
   .wwd__stand {
-    margin: clamp(14px, 1.6vw, 30px) 0 0; max-width: calc(1240 * var(--u));
-    font-weight: 300; font-size: clamp(17px, 1.95vw, 37px); line-height: 1.35; letter-spacing: -.02em;
+    margin: calc(20 * var(--u)) 0 0; max-width: calc(1560 * var(--u));
+    font-weight: 300; font-size: calc(48 * var(--u)); line-height: calc(64 * var(--u)); letter-spacing: calc(-1.568 * var(--u));
   }
   .wwd__stand em {
     font-family: var(--hc-serif); font-style: italic; font-weight: 600; color: var(--orange);
   }
   @media (max-width: 900px) {
     .wwd__head .opener__line { font-size: clamp(44px, 11.5vw, 84px); line-height: .92; letter-spacing: -.045em; }
-    .wwd__head--alt { line-height: 1.18; }
+    .wwd__head .opener__line.wwd__head--alt { line-height: 1.18; }
     .wwd__stand { margin-top: 24px; font-size: clamp(18px, 4.6vw, 26px); line-height: 1.35; letter-spacing: -.02em; }
   }
 </style>

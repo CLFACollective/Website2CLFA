@@ -54,6 +54,12 @@ test.describe("nav and footer point at the real pages, not home-page anchors", (
     const hrefs = await page.locator(".foot__nav a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     expect(hrefs).toEqual(["/what-we-do", "/about", "/faqs", "/contact"]);
   });
+
+  test("the sticky kickoff pill and the footer's own CTA both go to /contact, not a same-page anchor", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#kickoff")).toHaveAttribute("href", "/contact");
+    await expect(page.locator(".foot .btn--fill")).toHaveAttribute("href", "/contact");
+  });
 });
 
 test.describe("sticky kickoff pill only appears on the home page", () => {
@@ -201,10 +207,10 @@ test.describe("GSAP-driven scroll values genuinely change (value-sampling, not g
   });
 
   test("About: the 'READY TO MOVE' marquee is genuinely animating (GSAP xPercent)", async ({ page }) => {
-    // the marquee is hidden outright below 900px (matches the Figma
-    // source — see WhyCollective.astro's mobile media query), so this
-    // only applies on wider viewports.
-    test.skip((page.viewportSize()?.width ?? 0) < 900, "marquee is hidden below 900px");
+    // runs at every width, including below 900px — an earlier pass had
+    // it hidden there to match the Figma source, but per direct
+    // instruction it should loop on every viewport like the site's
+    // other marquees (Ribbons, LogoScroller) already do.
     await page.goto("/about");
     const track = page.locator(".abt__marquee-track");
     await track.scrollIntoViewIfNeeded();

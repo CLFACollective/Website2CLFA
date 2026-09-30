@@ -880,6 +880,15 @@ body.hide-kickoff .kickoff { display: none; }
   background: none; border: none; padding: 0; margin: 0; cursor: pointer;
   border-radius: 12px;
   transition: background .3s var(--ease);
+  /* buttons don't inherit text color by default (UA stylesheets set
+     their own, e.g. `color:buttontext`) — on mobile WebKit specifically
+     that default resolves to the system's blue tint color, not the
+     page's own text color. Every stat/quote element cloned inside here
+     that doesn't set its own explicit color (.mfig, .mg__slide h3) was
+     falling through to that blue rather than inheriting the design's
+     charcoal — confirmed live on mobile-webkit, not reproducible on
+     desktop Chrome's own button default. */
+  color: inherit;
 }
 /* .mquote__badge sits at top:-14px relative to its own line (-8px on
    mobile's narrower breakpoint — see .mquote__badge's own rules) — a

@@ -60,6 +60,23 @@ export function setupKickoffCta() {
   let inWindowA = false;
   const updateAlt = () => setAltMode(inHeroPink || inKeep || inWindowA);
 
+  /* Every one of these needs to exist before ANY ScrollTrigger.create()
+     call below, not just before update()'s own definition — a trigger
+     whose "start" is already satisfied at creation time (pastHero's,
+     start:0) can fire its onUpdate/onToggle synchronously, during
+     create() itself, rather than waiting for a later real scroll tick.
+     Confirmed live: that synchronous first call reached update() while
+     these were still in their let-declaration temporal dead zone
+     (declared further down, closer to the ScrollTrigger that uses
+     each one), throwing "Cannot access 'nearFooter' before
+     initialization" on page load. Same underlying GSAP behavior as
+     navTint.ts's own opener trigger (see that file's comments). */
+  let menuOpen = false;
+  let onMotion = false;
+  let onRibbons = false;
+  let pastHero = false;
+  let nearFooter = false;
+
   document.addEventListener("clfa:hero-ground", (e) => {
     inHeroPink = (e as CustomEvent<{ pink: boolean }>).detail.pink;
     updateAlt();
@@ -83,13 +100,11 @@ export function setupKickoffCta() {
     });
   }
 
-  let menuOpen = false;
   document.addEventListener("clfa:menu", (e) => {
     menuOpen = (e as CustomEvent<{ open: boolean }>).detail.open;
     update();
   });
 
-  let onMotion = false;
   if (motion) {
     ScrollTrigger.create({
       trigger: motion,
@@ -99,7 +114,6 @@ export function setupKickoffCta() {
     });
   }
 
-  let onRibbons = false;
   if (ribbons) {
     ScrollTrigger.create({
       trigger: ribbons,
@@ -109,7 +123,6 @@ export function setupKickoffCta() {
     });
   }
 
-  let pastHero = false;
   ScrollTrigger.create({
     start: 0,
     end: "max",
@@ -119,7 +132,6 @@ export function setupKickoffCta() {
     },
   });
 
-  let nearFooter = false;
   if (footer) {
     ScrollTrigger.create({
       trigger: footer,

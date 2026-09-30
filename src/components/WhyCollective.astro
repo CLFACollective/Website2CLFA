@@ -1,89 +1,151 @@
 ---
-// WhyCollective — the "Why a collective?" pale-cream section closing
-// About, with the pink circle/arch that rides in as the section
-// arrives (a continuous scroll-driven value the whole time the
-// section is in view, not a one-time reveal — see
-// src/scripts/whyCollective.ts), and the outlined "READY TO MOVE"
-// marquee at the foot, reusing the existing marquee.ts script (same
-// doubled-track technique as LogoScroller.astro).
+// WhyCollective — the "Why a collective?" / "The result" swap closing
+// About. A rose arch rises from the foot of a pinned frame as the
+// section's own scroll track plays out, covering the "Why a
+// collective?" heading and handing off to "The result" underneath it
+// — not the two-block side-by-side layout an earlier pass here used.
+// Matches the live reference build (match-reach-24295361.figma.site)
+// and the original Figma Make source's own mechanic; see
+// src/scripts/whyCollective.ts for the scroll math (--in drives the
+// arch's rise, --res the cream copy's reveal once the arch has
+// climbed far enough to cover the heading behind it). The "READY TO
+// MOVE" marquee at the foot reuses marquee.ts, same doubled-track
+// technique as LogoScroller.astro.
 ---
 
 <div class="abt__why" data-page-why>
-  <div class="abt__why-inner">
-    <div class="abt__why-a">
-      <h2>Why a collective?</h2>
-      <p>
+  <div class="abt__why-pin" data-why-pin>
+    <div class="abt__why-inner">
+      <h2 class="abt__why-h">Why a collective?</h2>
+      <p class="abt__why-p">
         Cathy &amp; Michelle knew their clients demanded something agencies
         weren&rsquo;t serving: adaptable teams right-sized for every job, every
         challenge, every single time.
       </p>
     </div>
 
-    <div class="abt__why-b">
-      <div class="abt__why-copy">
+    <div class="abt__arch" data-cursor="invert">
+      <div class="abt__result">
+        <h2>The result</h2>
         <p>
-          You get the team you actually need&thinsp;—&thinsp;
-          <em>calibrated, senior, and ready to move</em>&thinsp;—&thinsp;without
-          paying for the parts you don&rsquo;t.
+          You get the team you actually need&mdash;calibrated, senior, and ready
+          to move&mdash;without paying for the parts you don&rsquo;t.
         </p>
       </div>
     </div>
-  </div>
 
-  <p class="abt__marquee" aria-hidden="true">
-    <span class="abt__marquee-track" data-seconds="22">
-      {[0, 1].map((set) => (
-        <span class="abt__marquee-set" aria-hidden={set === 1}>
-          READY TO MOVE&nbsp;&middot;&nbsp;READY TO MOVE&nbsp;&middot;&nbsp;READY TO MOVE&nbsp;&middot;&nbsp;
-        </span>
-      ))}
-    </span>
-  </p>
+    <p class="abt__marquee" aria-hidden="true">
+      <span class="abt__marquee-track" data-seconds="22">
+        {[0, 1].map((set) => (
+          <span class="abt__marquee-set" aria-hidden={set === 1}>
+            READY TO MOVE&nbsp;&middot;&nbsp;READY TO MOVE&nbsp;&middot;&nbsp;READY TO MOVE&nbsp;&middot;&nbsp;
+          </span>
+        ))}
+      </span>
+    </p>
+  </div>
 </div>
 
 <style>
   .abt__why {
     --in: 0;
-    position: relative; overflow: hidden;
+    --res: 0;
+    /* a 2:1 box at full bleed, capped so it always fits inside the
+       pinned frame on a short window */
+    --archH: min(50vw, 88svh);
+    --archRest: 82%; /* resting offset: clears the copy, leaves a sliver */
+    --track: 250svh; /* ~150svh of scrolling spent on the rise */
+    /* how far "Why a collective?" sits above the arch box's own
+       centre — the arch is opaque and covers it before "The result"
+       appears, so the two never share the screen */
+    --lift: 6vw;
+    position: relative;
+    height: auto;
+    padding-top: clamp(28px, 4vw, 72px);
     background: var(--cream);
-    padding: clamp(30px, 5vw, 68px) clamp(24px, 5vw, 123px) clamp(70px, 9vw, 190px);
+  }
+  /* Default is FLOW: the section is exactly arch-height and the rise
+     is spent on its own pass up the viewport. Pinning is added back
+     below, but only where it earns its keep (see the landscape-ish
+     media query further down). */
+  .abt__why-pin {
+    position: relative; height: var(--archH);
+    overflow: hidden; background: var(--cream);
   }
   .abt__why-inner {
-    position: relative; z-index: 1;
-    max-width: 1560px; margin: 0 auto;
-    min-height: clamp(390px, 38vw, 600px);
-    display: grid; align-items: center;
+    position: absolute; left: 0; right: 0; bottom: var(--lift); z-index: 1;
+    height: var(--archH); box-sizing: border-box;
+    padding: 0 clamp(24px, 5vw, 123px);
+    display: grid; align-content: center; justify-items: center;
+    text-align: center;
   }
-  .abt__why-a { align-self: center; max-width: min(44%, 560px); }
+  .abt__why-h {
+    margin: 0 0 clamp(20px, 2.4vw, 48px);
+    font-weight: 800; letter-spacing: -.03em; line-height: 1.04;
+    font-size: clamp(34px, 4.45vw, 96px);
+    color: var(--brown);
+  }
+  .abt__why-p {
+    margin: 0; max-width: clamp(320px, 44vw, 850px);
+    font-size: clamp(18px, 1.52vw, 32px); line-height: 1.56; letter-spacing: -.01em;
+  }
 
-  /* the circle is far larger than the copy it carries — its left edge
-     cuts an arc through the middle of the frame and the rest bleeds
-     off the top/right/bottom, as in the comp */
-  .abt__why-b {
-    position: absolute; top: 50%; left: 45%;
-    width: min(136vh, 1240px); aspect-ratio: 1;
-    transform: translateY(-50%) translateX(calc((1 - var(--in)) * 70vw));
+  /* the arch: full-bleed, pinned to the frame's foot, opaque, and
+     above the copy it's going to cover */
+  .abt__arch {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    height: var(--archH);
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    background: var(--rose);
+    display: flex; align-items: center; justify-content: center;
+    transform-origin: 50% 100%;
+    transform: translateY(calc((1 - var(--in)) * var(--archRest)));
+    /* a short transition on top of the scroll value acts as a damper
+       — takes the step out of a wheel notch without adding noticeable
+       lag */
+    transition: transform .4s cubic-bezier(.22, .61, .36, 1);
     will-change: transform;
-    border-radius: 50%; background: var(--rose);
-    display: grid; align-content: center;
-    padding-left: clamp(28px, 7%, 110px);
-    box-sizing: border-box;
   }
-  .abt__why-copy { max-width: clamp(310px, 33vw, 540px); }
-  .abt__why .abt__why-copy p { font-size: 22px; letter-spacing: .01em; line-height: 1.28; margin-bottom: 24px; max-width: none; }
-  .abt__why h2 {
-    margin: 0 0 clamp(20px, 2vw, 36px);
-    font-weight: 800; letter-spacing: -.03em; color: var(--brown);
-    font-size: clamp(32px, 4vw, 76px); line-height: 1.05;
+  .abt__result {
+    color: var(--cream); text-align: center;
+    padding: 0 clamp(28px, 8vw, 150px);
+    opacity: var(--res);
+    transform: translateY(calc((1 - var(--res)) * 22px));
+    transition: opacity .4s linear, transform .5s cubic-bezier(.22, .61, .36, 1);
   }
-  .abt__why p { margin: 0 0 18px; max-width: 46ch; font-size: clamp(15px, 1.15vw, 17px); line-height: 1.5; }
-  .abt__why-b p:last-child { margin-bottom: 0; }
-  .abt__why-b em { font-family: var(--hc-serif); font-style: italic; font-weight: 600; }
+  .abt__result h2 {
+    margin: 0 0 clamp(20px, 2.4vw, 48px);
+    font-weight: 800; letter-spacing: -.03em; line-height: 1.04;
+    font-size: clamp(34px, 4.45vw, 96px);
+    color: var(--cream);
+  }
+  .abt__result p {
+    margin: 0 auto; max-width: clamp(300px, 38vw, 740px);
+    font-size: clamp(19px, 1.93vw, 40px); line-height: 1.5; letter-spacing: -.01em;
+  }
 
-  /* the outlined band across the foot, cropped by the section */
+  /* PIN — only on a landscape-ish frame. The arch is half as tall as
+     the viewport is wide, so on a tall window (portrait tablet,
+     phone) holding a full-height frame left most of the screen as
+     empty cream with the copy stranded at the bottom. */
+  @media (min-width: 641px) and (min-aspect-ratio: 7/5) {
+    .abt__why { height: var(--track); padding-top: 0; --lift: 14vw; }
+    .abt__why-pin { position: sticky; top: 0; height: 100svh; }
+  }
+  @media (min-width: 641px) and (max-width: 1100px) and (min-aspect-ratio: 7/5) {
+    .abt__why { --lift: 12vw; }
+  }
+  /* below a laptop the arch stops being much taller than the copy it
+     has to clear at rest, so the resting sliver is trimmed */
+  @media (max-width: 1100px) {
+    .abt__why { --archRest: 90%; }
+  }
+
+  /* the outlined band across the foot — above the arch, sitting low
+     enough that the pin frame's overflow shaves the baseline */
   .abt__why .abt__marquee {
-    position: absolute; left: 0; right: 0; bottom: calc(-1 * clamp(10px, 1.4vw, 28px));
-    z-index: 2; margin: 0; overflow: hidden;
+    position: absolute; left: 0; right: 0; bottom: calc(-1 * clamp(3px, 0.62vw, 12px));
+    z-index: 3; margin: 0; overflow: hidden;
     display: flex; white-space: nowrap;
     font-weight: 800; letter-spacing: .03em; line-height: .86;
     font-size: clamp(44px, 7.4vw, 142px);
@@ -91,27 +153,37 @@
   }
   .abt__marquee-track { display: flex; width: max-content; }
 
-  @media (max-width: 900px) {
-    .abt__why-inner { min-height: 0; gap: 36px; grid-template-columns: minmax(0, 1fr); }
-    .abt__why-a { max-width: none; }
-    /* a strict circle wide enough for this copy would be wider than
-       the phone; on mobile it becomes an oval instead, matching the
-       homepage's own closing arch shape language */
-    .abt__why-b {
-      position: static; width: 150vw; aspect-ratio: auto;
-      margin: 32px 0 calc(-1 * clamp(70px, 9vw, 190px));
-      margin-left: calc(-1 * clamp(24px, 5vw, 123px) - 25vw);
-      padding: 30vw calc(25vw + 11vw) 22vw;
-      box-sizing: border-box;
-      border-radius: 50% 50% 0 0 / 75vw 75vw 0 0;
-      transform: translateY(calc((1 - var(--in)) * 60vh));
-    }
-    .abt__why-copy { max-width: none; text-align: left; }
-    .abt__why .abt__why-copy p { font-size: clamp(17px, 4.4vw, 22px); }
+  /* The homepage widens its arch past the screen edges below 640 so
+     the curve stays a true circular arc instead of stretching into a
+     tall hump — same override here. */
+  @media (max-width: 640px) {
+    /* no lift on a phone: the section is only arch-height, so there
+       is no dead cream to reclaim */
+    .abt__why { --archH: min(76vw, 80svh); --archRest: 100%; --lift: 0px; }
+    .abt__arch { left: -26%; right: -26%; }
+    .abt__result { padding: 0 clamp(30px, 9vw, 60px); }
+    /* the dome can't physically cover a heading nearly as wide as the
+       screen on a phone — the corners poked out above the arc. The
+       copy hands over on a fade instead, tied to the same scroll
+       value so it stays behind the rising edge. */
+    .abt__why-inner { opacity: calc(1 - var(--in) * 1.7); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .abt__why-b { transform: none; }
+    /* no pin and no rise, so the arch can't be allowed to cover the
+       copy it would normally replace — the whole section unrolls in
+       flow and both blocks read, one after the other. */
+    .abt__why { height: auto; }
+    .abt__why-pin { position: static; height: auto; padding: clamp(48px, 6vw, 120px) 0 0; }
+    .abt__why-inner {
+      position: static; height: auto; opacity: 1;
+      padding: 0 clamp(24px, 5vw, 123px);
+    }
+    .abt__arch {
+      position: static; transform: none; transition: none;
+      margin: clamp(40px, 5vw, 90px) 0 0; height: var(--archH);
+    }
+    .abt__result { opacity: 1; transform: none; transition: none; }
   }
 </style>
 

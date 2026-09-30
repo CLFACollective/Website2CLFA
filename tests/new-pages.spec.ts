@@ -194,16 +194,44 @@ test.describe("GSAP-driven scroll values genuinely change (value-sampling, not g
     expect(after).not.toBe(before);
   });
 
-  test("About: WhyCollective's --in advances as its section arrives", async ({ page }) => {
+  test("About: WhyCollective's --in and --res advance as the arch rises", async ({ page }) => {
+    // the arch's rise is spent over a pinned scroll track on a
+    // landscape-ish frame ("top top" → "bottom bottom" of the tall
+    // --track wrapper), or the section's own pass through the
+    // viewport on a portrait/phone one ("top bottom" → "bottom
+    // center" — deliberately short of "bottom top", see
+    // whyCollective.ts's own comment on why) — the two ranges sit at
+    // completely different scrollY values, so the actual range is
+    // computed per mode rather than assuming a fixed offset past
+    // arrival works for both.
     await page.goto("/about");
-    const top = await page.evaluate(() => document.querySelector("[data-page-why]")!.getBoundingClientRect().top + window.scrollY);
-    await page.evaluate((y) => window.scrollTo(0, y - 200), top);
-    await page.waitForTimeout(200);
-    const before = await readVar(page, "[data-page-why]", "--in");
-    await page.evaluate((y) => window.scrollTo(0, y), top);
+    const vh = page.viewportSize()!.height;
+    const { pinned, sectionTop, sectionHeight } = await page.evaluate(() => {
+      const el = document.querySelector("[data-page-why]")!;
+      const r = el.getBoundingClientRect();
+      return {
+        pinned: window.matchMedia("(min-width: 641px) and (min-aspect-ratio: 7/5)").matches,
+        sectionTop: r.top + window.scrollY,
+        sectionHeight: r.height,
+      };
+    });
+    const rangeStart = pinned ? sectionTop : Math.max(0, sectionTop - vh);
+    const rangeEnd = pinned ? sectionTop + sectionHeight - vh : sectionTop + sectionHeight - vh / 2;
+    const range = rangeEnd - rangeStart;
+
+    await page.evaluate((y) => window.scrollTo(0, y), rangeStart + range * 0.02);
+    await page.waitForTimeout(250);
+    const inBefore = await readVar(page, "[data-page-why]", "--in");
+
+    await page.evaluate((y) => window.scrollTo(0, y), rangeStart + range * 0.75);
     await page.waitForTimeout(700);
-    const after = await readVar(page, "[data-page-why]", "--in");
-    expect(after).not.toBe(before);
+    const inAfter = await readVar(page, "[data-page-why]", "--in");
+    expect(inAfter).not.toBe(inBefore);
+    // --res (the cream "result" copy) only turns on once --in has
+    // climbed past RES_START — not asserting an exact value, just
+    // that it's a real, non-zero number once deep into the range.
+    const res = await readVar(page, "[data-page-why]", "--res");
+    expect(Number(res)).toBeGreaterThan(0);
   });
 
   test("About: the 'READY TO MOVE' marquee is genuinely animating (GSAP xPercent)", async ({ page }) => {

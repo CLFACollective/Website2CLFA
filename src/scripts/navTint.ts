@@ -80,25 +80,27 @@ export function setupNavTint() {
   /* the What We Do / About / FAQs / Contact openers — same dark-ground
      tinting need as Window A / KeepUp, tracked generically by the
      [data-page-opener] attribute every PageOpener instance carries.
-     Deliberately onUpdate + self.isActive, not onToggle: unlike
-     Window A/KeepUp (never active at scrollY 0 on the home page), the
-     opener IS active from the very first frame on these pages, and an
-     onToggle-based "current vs. previous state" comparison went stuck
-     permanently tinted in practice — confirmed live, an instant
-     window.scrollTo() jump past the trigger's whole range never fired
-     a toggle back to inactive, the same "instant jump doesn't
-     register as a crossing" ScrollTrigger gotcha already hit
-     elsewhere in this codebase. onUpdate fires on every real scroll
-     tick regardless of jump size, so there's no crossing to miss. */
+     Deliberately onUpdate, not onToggle: unlike Window A/KeepUp (never
+     active at scrollY 0 on the home page), the opener IS active from
+     the very first frame on these pages, and an onToggle-based
+     "current vs. previous state" comparison went stuck permanently
+     tinted in practice — confirmed live, an instant window.scrollTo()
+     jump past the trigger's whole range never fired a toggle back to
+     inactive, the same "instant jump doesn't register as a crossing"
+     ScrollTrigger gotcha already hit elsewhere in this codebase.
+     onUpdate fires on every real scroll tick regardless of jump size,
+     so there's no crossing to miss. (It doesn't lean on the trigger's
+     own self.isActive, though — see evalOpener below for why.) */
   if (opener) {
-    ScrollTrigger.create({
-      trigger: opener,
-      start: "top top",
-      end: "bottom top",
-      onUpdate: (self) => { inOpener = self.isActive; updateTint(); },
-    });
+    /* Declared before ScrollTrigger.create() below, not just before
+       its own first call — same TDZ gotcha as kickoff.ts's own
+       ScrollTriggers: a trigger whose start is already satisfied at
+       creation (true here — "top top" on an element already at the
+       top of the page) can invoke onUpdate synchronously during
+       create() itself, before a `const` declared further down in
+       source has initialized.
 
-    /* This script runs (and the trigger above gets created) before
+       This script runs (and the trigger below gets created) before
        the page's web fonts have necessarily finished loading — a
        pre-font-swap layout read here can be badly wrong (confirmed
        live on mobile viewports: the opener's measured rect.top was
@@ -115,6 +117,27 @@ export function setupNavTint() {
       inOpener = r.top <= 0 && r.bottom > 0;
       updateTint();
     };
+
+    /* onUpdate calls evalOpener directly rather than trusting the
+       trigger's own self.isActive — confirmed live that self.isActive
+       reports false at exactly scrollY:0 for a trigger pinned to the
+       very top of the document (start:"top top" resolving to scroll
+       position 0), even though the opener still fully covers the
+       viewport there; nudging one pixel off 0 reported true again.
+       Likely the trigger's own calculated start ending up a hair above
+       true 0 from layout rounding, which 0 itself then reads as "not
+       yet started". Since every one of these openers sits at the very
+       top of its page, this hit on every single scroll-down-then-
+       back-to-top — the nav flipped untinted (black) right as you
+       returned to the top of the one section where it matters most. A
+       direct rect check has no such edge case. */
+    ScrollTrigger.create({
+      trigger: opener,
+      start: "top top",
+      end: "bottom top",
+      onUpdate: evalOpener,
+    });
+
     evalOpener();
     document.fonts?.ready
       .then(() => {

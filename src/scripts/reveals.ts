@@ -27,8 +27,13 @@ export function setupReveals() {
 
   const reveal = (el: HTMLElement) => {
     el.classList.add("is-in");
+    // .archB only: WindowB's closing pink circle, made to rise in
+    // ~0.3s slower than every other reveal on the page per direct
+    // request — it's the last thing before the footer, and the extra
+    // beat reads as a deliberate close rather than just another
+    // section arriving at the standard pace.
     const isArch = el.classList.contains("archB");
-    gsap.to(el, { opacity: 1, y: 0, duration: isArch ? 1.05 : 0.9, ease: "power3.out" });
+    gsap.to(el, { opacity: 1, y: 0, duration: isArch ? 1.35 : 0.9, ease: "power3.out" });
     if (el.dataset.count) countUp(el);
   };
 

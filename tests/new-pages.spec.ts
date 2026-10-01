@@ -124,25 +124,52 @@ test.describe("FAQ accordion — independent, any number open at once", () => {
   });
 });
 
-test.describe("Contact form is intentionally non-functional", () => {
-  test("filling and submitting causes no navigation and no network request", async ({ page }) => {
+test.describe("Contact form submits to Netlify Forms", () => {
+  test("form carries Netlify's detection attributes", async ({ page }) => {
     await page.goto("/contact");
-    let requestFired = false;
-    page.on("request", (req) => {
-      if (req.method() === "POST" || req.url().includes("form")) requestFired = true;
+    const form = page.locator("#ctcForm");
+    await expect(form).toHaveAttribute("name", "contact");
+    await expect(form).toHaveAttribute("data-netlify", "true");
+    await expect(form.locator('input[name="form-name"]')).toHaveValue("contact");
+  });
+
+  test("submitting POSTs the fields without navigating, then shows a thank-you", async ({ page }) => {
+    await page.goto("/contact");
+    let body = "";
+    // no Netlify backend under astro dev/preview — stub the POST
+    await page.route("**/", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      body = route.request().postData() ?? "";
+      await route.fulfill({ status: 200, body: "" });
     });
 
     await page.fill("#ctc-name", "Cathy Miller");
     await page.fill("#ctc-email", "cathy@example.com");
     await page.fill("#ctc-subject", "Testing");
-    await page.fill("#ctc-situation", "Just checking the form doesn't submit anywhere.");
+    await page.fill("#ctc-situation", "Hello");
 
     const urlBefore = page.url();
     await page.click(".ctc__submit");
-    await page.waitForTimeout(300);
+    await expect(page.locator("#ctcStatus")).toContainText("Thanks");
 
     expect(page.url()).toBe(urlBefore);
-    expect(requestFired).toBe(false);
+    const params = new URLSearchParams(body);
+    expect(params.get("form-name")).toBe("contact");
+    expect(params.get("email")).toBe("cathy@example.com");
+  });
+});
+
+test.describe("contact details", () => {
+  test("the phone number is gone", async ({ page }) => {
+    await page.goto("/contact");
+    await expect(page.locator(".ctc__direct a[href^='mailto:']")).toHaveAttribute("href", "mailto:hello@clfacollective.com");
+    await expect(page.locator(".ctc__direct")).not.toContainText(/call us/i);
+  });
+
+  test("FAQ past-work answer has the deck copy, not the placeholder", async ({ page }) => {
+    await page.goto("/faqs");
+    await expect(page.locator("#faq-list")).not.toContainText("LINK TO CAPES DECK");
+    await expect(page.locator("#faq-list")).toContainText("Spoiler alert: we keep good stuff in a deck. All you have to do is ask!");
   });
 });
 

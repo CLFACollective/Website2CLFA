@@ -624,15 +624,15 @@ body.hide-kickoff .kickoff { display: none; }
 .mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 clamp(18px, 1.15vw, 22px); }
 /* the "150+" figure was measured with noticeably less negative tracking
    than the other two stats — not an oversight, Figma has it that way.
-   Its digits also run meaningfully smaller than the other two stats'
-   (Figma: ~154px vs ~188-197px, since "150" is a wider 3-character
-   string being fit into a narrower collage slot than "4" or "100") —
-   re-measured 2026-09-29 off get_design_context for node 3612:8823. */
-.mfig--wide { font-size: clamp(52px, 9.6vw, 156px); letter-spacing: -1px; }
+   Its point size matches the other two (190px on the 1920 frame, node
+   3772:279). */
+.mfig--wide { letter-spacing: -1px; }
 /* Figma's "M"/"%" suffixes both measure at ~0.505em of their own
    figure, not 0.4em — re-measured 2026-09-29 off get_design_context
    for nodes 3612:8811/3612:8798. */
 .mfig .unit { font-size: .5em; font-weight: 800; }
+/* "4M"'s "M" runs larger than "%": 110px on a 190px figure (node 3772:5950). */
+.mfig[data-mg-suffix="M"] .unit { font-size: .58em; }
 /* "150+"'s "+" glyph specifically runs bigger still, ~0.674em — a "+"
    reads visually smaller than a digit at the same point size, so
    Figma compensates; re-measured 2026-09-29 off node 3612:8823. */
@@ -740,6 +740,17 @@ body.hide-kickoff .kickoff { display: none; }
 
 .mg__scene { flex: 1 1 auto; min-height: 0; position: relative; }
 .mg__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* thin rose ring tracing the edge of the circle that uncovers the
+   resting composition (revealCircle in momentumGallery.ts sets its
+   size each frame) — same treatment as Hero's .hcb__ring. visibility
+   is explicit because mobile hides #mgScene itself while its resting
+   list is showing. */
+.mg__ring {
+  position: absolute; left: 50%; top: 50%; z-index: 200;
+  width: 0; height: 0; transform: translate(-50%, -50%);
+  border: 1px solid var(--pink); border-radius: 50%;
+  opacity: 0; pointer-events: none; visibility: visible;
+}
 
 .mg__slide {
   /* position/scale/opacity/filter/z-index are all written by JS every
@@ -752,8 +763,8 @@ body.hide-kickoff .kickoff { display: none; }
 /* width:fit-content, not the shared 560px .mg__slide default (sized for
    quotes, whose lines need the room) — a stat's actual content
    (figure/caption/subcaption) is much narrower than that. The resting
-   collage's own scale is computed as targetWidth / getComputedStyle
-   (slide).width (see collageItemTarget/buildOverviewCards in
+   list's own scale is computed as targetWidth / getComputedStyle
+   (slide).width (see buildOverviewCards in
    momentumGallery.ts): with the old fixed 560px, that math shrank
    each stat's *whole padded box* down to its target size, leaving the
    actual glyphs inside noticeably smaller than Figma's own tightly-
@@ -770,6 +781,41 @@ body.hide-kickoff .kickoff { display: none; }
 .mg__slide--wide { width: min(700px, 90vw); }
 .mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(24px + .5rem); max-width: 22ch; }
 
+/* Desktop resting composition (Figma node 3772:277): while
+   #momentum[data-mg-rest] is set, the live slides sit at their Figma
+   spots (placeRestDesktop in momentumGallery.ts) and take Figma's own
+   caption/subline sizes and gaps. --u is one Figma px in each slide's
+   own live px, set per slide by that same function; every value below
+   is the Figma frame's px figure times --u. Direct children of
+   #mgScene only — mobile's resting list clones these same classes. */
+@media (min-width: 1000px) {
+  #momentum[data-mg-rest] #mgScene > .mg__slide--stat .mfig { margin-bottom: calc(17 * var(--u)); }
+  #momentum[data-mg-rest] #mgScene > .mg__slide--stat .mcap {
+    font-size: calc(32 * var(--u)); line-height: calc(37 * var(--u)); letter-spacing: calc(-.52 * var(--u));
+    margin: 0 auto calc(17 * var(--u)); max-width: none;
+  }
+  /* 150+'s caption breaks after "Ontologies" in Figma */
+  #momentum[data-mg-rest] #mgScene > .mg__slide--stat[data-mg-index="3"] .mcap { max-width: calc(400 * var(--u)); }
+  #momentum[data-mg-rest] #mgScene > .mg__slide--stat h3 {
+    font-size: calc(26 * var(--u)); line-height: calc(33 * var(--u)); letter-spacing: calc(-.52 * var(--u));
+    max-width: calc(380 * var(--u));
+  }
+  #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__by {
+    font-size: calc(26 * var(--u)); line-height: calc(39 * var(--u)); margin-top: calc(26 * var(--u));
+  }
+  #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__badge {
+    width: calc(112 * var(--u)); top: calc(-40 * var(--u)); left: calc(100% + 50 * var(--u));
+  }
+  /* the Michelle quote — no slot in 3772:277; sized like the smaller
+     quote the previous revision of this design had in the same spot */
+  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__by {
+    font-size: calc(14 * var(--u)); line-height: calc(20 * var(--u)); margin-top: calc(12 * var(--u));
+  }
+  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__badge {
+    width: calc(42 * var(--u)); top: calc(-14 * var(--u)); left: calc(100% + 18 * var(--u));
+  }
+}
+
 /* "Replay" button — bottom-LEFT of the stage. Not bottom-right (where
    the old scroll cue used to sit): the sticky #kickoff CTA is fixed at
    right:var(--gut);bottom:26px with z-index:70 and persists over this
@@ -784,37 +830,23 @@ body.hide-kickoff .kickoff { display: none; }
   background: var(--cream); font-size: 13px; min-height: 40px; padding: 10px 24px;
 }
 
-/* Static grid of every slide's own content, at natural size — the
-   section's resting state once the movie has played through or been
-   left (see momentumGallery.ts). Each item is the real slide cloned
-   (see buildOverviewCards), not a redesigned summary card — solid
-   background (not translucent): the live carousel is hidden outright
-   while this is open (also in JS, belt and suspenders), but a solid
-   backdrop means it was never visible through this panel in the first
-   place either. */
+/* Mobile's resting state (desktop rests on the live slides instead —
+   see placeRestDesktop in momentumGallery.ts): a stacked list of every
+   slide's own content, each item the real slide cloned (see
+   buildOverviewCards) — solid background, since the live carousel is
+   hidden outright while this is open. */
 .mg__overview {
   position: absolute; inset: 0; z-index: 30;
   background: #FEFCF4;
   display: flex; align-items: center; justify-content: center;
   padding: clamp(60px, 8vh, 100px) var(--gut);
-  opacity: 0; /* momentumGallery.ts fades this via GSAP */
+  opacity: 0;
   /* lives inside #mgScene (see MomentumGallery.astro) so it only ever
      covers the scene's own area, not the heading above it — but that
      means it also inherits #mgScene's own visibility:hidden (set by
      momentumGallery.ts's showOverview/closeOverview to hide the live
      carousel) unless overridden here explicitly. */
   visibility: visible;
-}
-/* The desktop collage is sized off width alone (see
-   collageWidthEstimate in momentumGallery.ts) and can end up taller
-   than #mgScene's own fixed-100svh-derived height on shorter viewports
-   — scrolling to the rest beats shrinking the whole composition down
-   to an illegibly small scale just to force a fit. flex-start (not the
-   default center) so scrolling reveals downward from the top, matching
-   the design's own top-down composition, not clipping its top edge. */
-.mg__overview:has(.mg__ov-grid--collage) {
-  align-items: flex-start;
-  overflow-y: auto;
 }
 /* the [hidden] attribute selector and the class selector above are equal
    specificity, so without this explicit override the class's own
@@ -839,39 +871,6 @@ body.hide-kickoff .kickoff { display: none; }
      first/topmost, with no gap above row 1 to float into. */
   padding-top: 20px;
 }
-/* Desktop's resting layout: the Figma-specified scattered arrangement
-   (see OVERVIEW_LAYOUT_DESKTOP in momentumGallery.ts) rather than a
-   uniform card grid — each item is absolutely positioned at its own
-   Figma-derived left/top/width (percentages of this box, which itself
-   locks to the design frame's own 1920:1654 aspect ratio so the
-   composition holds at any viewport width). Mobile keeps the plain
-   grid above; this class is only ever added in desktop mode. */
-.mg__ov-grid--collage {
-  /* width/height are set inline, in JS (collageWidthEstimate + its
-     1920:1654 ratio) — sized off available width alone, not fitted to
-     #mgScene's own height (see .mg__overview's own comment on why:
-     shorter viewports scroll to see the rest rather than shrinking the
-     whole composition down to an illegibly small scale). CSS's own
-     aspect-ratio auto-sizing can't do this anyway: every child is
-     position:absolute (needed for the Figma-matched placement below),
-     so the box has no intrinsic content size for that algorithm to
-     size from. */
-  display: block; position: relative;
-  max-width: none; max-height: none; flex-shrink: 0;
-  overflow: visible;
-  /* items below are positioned via left/top percentages of *this* box
-     — padding-top:0 here (overriding the base rule's own) keeps that
-     percentage math anchored to the Figma coordinates exactly; desktop
-     doesn't have mobile's specific "first row clipped by the grid's own
-     top edge" problem in the first place (see .mg__ov-grid's comment),
-     since every item here sits well clear of this box's own top edge. */
-  padding-top: 0;
-}
-.mg__ov-grid--collage .mg__ov-item {
-  /* left/top/width are set inline, per item, in JS — see
-     OVERVIEW_LAYOUT_DESKTOP. */
-  position: absolute;
-}
 /* width/height are set inline, per item, in JS (buildOverviewCards) —
    the post-scale size of that slide's own natural content, so the grid
    reserves exactly the shrunk footprint rather than the full-size one. */
@@ -889,6 +888,18 @@ body.hide-kickoff .kickoff { display: none; }
      charcoal — confirmed live on mobile-webkit, not reproducible on
      desktop Chrome's own button default. */
   color: inherit;
+  /* same story for font-family: a <button>'s UA default doesn't
+     inherit it either, and nothing inside the clone (.mfig, .mcap,
+     h3, .mquote*) sets its own font-family explicitly — every one of
+     them relies on inheriting the page's Figtree/Lora stack. Without
+     this the whole clone silently fell back to the browser's default
+     UI font (confirmed live: computed fontFamily "Arial" on the
+     clone vs. the live slide's own "Figtree, ..." stack) — same
+     size/weight either way since those ARE set explicitly further
+     down, so this was invisible in computed font-size/weight checks
+     and only showed up as the live-to-overview handoff visibly
+     snapping to a different typeface right at the end of the movie. */
+  font-family: inherit;
 }
 /* .mquote__badge sits at top:-14px relative to its own line (-8px on
    mobile's narrower breakpoint — see .mquote__badge's own rules) — a
@@ -906,16 +917,14 @@ body.hide-kickoff .kickoff { display: none; }
    clone, in JS — see buildOverviewCards's own comment for why this is
    transform:scale and not the simpler-sounding zoom. */
 .mg__ov-clone { pointer-events: none; }
-/* Mobile's stacked grid (not the desktop collage, which deliberately
-   keeps the Figma design's own left-aligned quotes — see
-   .mg__ov-grid--collage) centers quote content instead of carrying
+/* The stacked list centers quote content instead of carrying
    over .mg__slide--quote's left-aligned convention: in a small,
    isolated single-column card, ragged-left quote text with nothing
    filling the rest of the row reads as mis-centered rather than as a
    deliberate editorial layout. Two classes' worth of specificity beats
    .mg__slide--quote's own align-items:flex-start without needing
    !important. */
-.mg__ov-grid:not(.mg__ov-grid--collage) .mg__ov-clone.mg__slide--quote {
+.mg__ov-clone.mg__slide--quote {
   align-items: center; text-align: center;
 }
 

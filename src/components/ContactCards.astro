@@ -1,11 +1,13 @@
 ---
 // ContactCards — the two-card cream section on Contact: a form (left)
-// and direct-contact details (right). Per the confirmed decision, the
-// form is structure and styling only — real labelled fields, ported
-// verbatim including the source's lack of `required` attributes
-// (matches "structure only, no backend AND no client-side validation
-// either" — not just an oversight), onSubmit prevented. No GSAP here;
-// nothing in this component animates.
+// and direct-contact details (right). The form is a Netlify Form
+// ("contact"): Netlify picks it up from the built HTML via
+// data-netlify, and submissions land in the Netlify dashboard. Getting
+// them emailed to michelle@clfacollective.com is a Netlify UI setting
+// (Forms → Form notifications), not something this file can configure.
+// Submitted via fetch so the page doesn't navigate away; the source's
+// lack of `required` attributes is kept as-is. No GSAP here; nothing in
+// this component animates.
 const FIELDS = [
   { id: "name", label: "Your name", placeholder: "e.g. Cathy Miller", type: "text", autoComplete: "name" },
   { id: "email", label: "Email address", placeholder: "e.g. cathy@clfacollective.com", type: "email", autoComplete: "email" },
@@ -21,7 +23,9 @@ const FIELDS = [
         Either way, we&rsquo;ll take it from here.
       </p>
 
-      <form class="ctc__form" id="ctcForm" novalidate>
+      <form class="ctc__form" id="ctcForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" novalidate>
+        <input type="hidden" name="form-name" value="contact" />
+        <p class="ctc__hp" aria-hidden="true"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off" /></label></p>
         {FIELDS.map((f) => (
           <p class="ctc__field">
             <label for={`ctc-${f.id}`}>{f.label}</label>
@@ -34,7 +38,8 @@ const FIELDS = [
           <textarea id="ctc-situation" name="situation" rows="1" placeholder="Tell us about your brand, timeline, and current challenges…"></textarea>
         </p>
 
-        <button class="ctc__submit" type="submit">Ready for kickoff</button>
+        <button class="ctc__submit" type="submit">Submit</button>
+        <p class="ctc__status" id="ctcStatus" role="status" aria-live="polite"></p>
       </form>
     </div>
 
@@ -44,10 +49,6 @@ const FIELDS = [
       <p class="ctc__eyebrow">Email us</p>
       <p><a href="mailto:hello@clfacollective.com">hello@clfacollective.com</a></p>
 
-      <!-- placeholders carried over from the Figma source — swap for
-           the real number/profile before ship -->
-      <p class="ctc__eyebrow">Call us</p>
-      <p class="ctc__plain">+1 (555) 234-5678</p>
 
       <p><a class="ctc__li" href="https://www.linkedin.com/" rel="noreferrer">LinkedIn</a></p>
     </aside>
@@ -107,7 +108,9 @@ const FIELDS = [
     .ctc__direct a:hover { color: var(--brown); }
   }
   .ctc__li { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; }
-  .ctc__plain { text-decoration: none; }
+  .ctc__hp { position: absolute; left: -9999px; }
+  .ctc__status { margin: 18px 0 0; font-size: 16px; }
+  .ctc__status:empty { display: none; }
 
   @media (max-width: 900px) {
     .ctc__inner { grid-template-columns: 1fr; }
@@ -115,5 +118,25 @@ const FIELDS = [
 </style>
 
 <script>
-  document.getElementById("ctcForm")?.addEventListener("submit", (e) => e.preventDefault());
+  const form = document.getElementById("ctcForm") as HTMLFormElement | null;
+  const status = document.getElementById("ctcStatus");
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = form.querySelector("button[type=submit]") as HTMLButtonElement;
+    button.disabled = true;
+    try {
+      const res = await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString(),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      form.reset();
+      if (status) status.textContent = "Thanks — we’ll be in touch soon.";
+    } catch {
+      if (status) status.textContent = "Something went wrong. Please email hello@clfacollective.com instead.";
+    } finally {
+      button.disabled = false;
+    }
+  });
 </script>

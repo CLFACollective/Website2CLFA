@@ -1,16 +1,11 @@
 ---
 // MomentumGallery — plays like a short movie, not a scroll-scrubbed
-// carousel: each slide flies in from a side, holds, then flies on
-// toward the camera and off-screen, 2 seconds total per slide — the
-// next slide starts its own entrance a bit before that finishes (see
-// NEXT_START_PROGRESS in momentumGallery.ts), not strictly one-at-a-time.
-// It plays automatically the first time the section scrolls into view
-// (never locking scroll). Once it finishes — or if the visitor scrolls
-// away first — the section settles on a static "overview" grid of every
-// slide's content at once; scrolling away and back into view restarts
-// the movie from slide 0, same as a fresh first visit, and a "Replay"
-// button on the overview grid does the same on demand. See
-// momentumGallery.ts.
+// carousel: each slide flies in from a side, holds, then fades out in
+// place, the next slide arriving as it fades. Once the last one is
+// done, a growing circle uncovers all five at their resting spots in
+// the Figma composition (desktop; a stacked list on mobile). Scrolling
+// away and back restarts the movie from slide 0, and a "Replay" button
+// does the same on demand. See momentumGallery.ts.
 //
 // Slide order (data-mg-index, top to bottom in the markup below): 0 is
 // "They move at the speed of business" — a quote, not a stat. 1-3 are
@@ -35,6 +30,10 @@ import ShineField from "./ShineField.astro";
 
     <div class="mg__scene" id="mgScene">
       <canvas class="mg__canvas" id="mgCanvas" aria-hidden="true"></canvas>
+      <!-- traces the edge of the circle that uncovers the resting
+           composition once the movie ends (momentumGallery.ts's
+           revealCircle) — same thin rose ring as Hero's .hcb__ring -->
+      <span class="mg__ring" id="mgRing" aria-hidden="true"></span>
 
       <div class="mg__slide mg__slide--quote" data-mg-index="0">
         <blockquote class="mquote">
@@ -97,15 +96,10 @@ import ShineField from "./ShineField.astro";
         <p class="mquote__by">VP/Head of Marketing</p>
       </div>
 
-      <!-- static layout of every slide's own content, built once from
-           each slide's own DOM (momentumGallery.ts's buildOverviewCards)
-           — no content duplicated by hand here. This is the section's
-           resting state once the movie has played through or been left;
-           hidden only while the movie is actually playing. Scoped to
-           #mgScene, not a sibling of it, so it only ever covers the
-           scene's own area below the heading — matching the Figma
-           design, where the heading sits above this composition, not
-           behind it. -->
+      <!-- mobile's resting state: a stacked list of every slide's own
+           content, cloned from each slide's DOM (momentumGallery.ts's
+           buildOverviewCards). Desktop rests on the live slides
+           themselves instead, placed by Three.js (placeRestDesktop). -->
       <div class="mg__overview" id="mgOverview" hidden>
         <div class="mg__ov-grid" id="mgOvGrid"></div>
       </div>

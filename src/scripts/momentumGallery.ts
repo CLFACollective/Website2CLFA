@@ -9,52 +9,25 @@ const DESKTOP_QUERY = "(min-width: 1000px)";
 // units instead of hand-derived ones.
 const CAMERA_Z = 1000;
 
-/* Per direct feedback ("don't overthink this"), this is deliberately
-   plain: each slide gets a fixed, short, total time on screen —
-   ARRIVE_DUR to fly in, HOLD_DUR to sit read­able, SETTLE_DUR to shrink
-   into its own resting spot in the overview — the same three numbers
-   for every slide, no per-slide exceptions. 2.4 seconds total (HOLD_DUR
-   carries the later +.4s "slow it down a bit" adjustment — arrive's own
-   speed was already the right feel, so that's what absorbs the extra
-   time, not it). One tween per phase, ordinary named eases — no split
-   timelines, no distance-fraction math. */
+/* Each slide flies in (ARRIVE_DUR), holds readable at centre (holdFor:
+   HOLD_DUR, plus LATER_SLIDE_EXTRA for slides 2-5), then simply fades
+   out where it is (FADE_DUR) — no blur, no shrinking off to a side.
+   The next slide starts its own entrance once the current one's fade
+   is NEXT_AFTER_FADE of the way done — it's nearly gone by then, so the
+   incoming slide never flies in over a ghost of the outgoing one. Once the last slide has faded, every slide is placed at its
+   resting spot in the Figma composition (node 3772:277 — see
+   REST_LAYOUT) and uncovered by a growing circle, the same reveal the
+   hero's opening beat uses (see revealRest). */
 const ARRIVE_DUR = 0.6;
-const HOLD_DUR = 1.1;
-const SETTLE_DUR = 0.7;
 const ARRIVE_EASE = "power2.out";
-// Every slide, not just the last, settles into its own resting spot
-// instead of flying off toward the camera and fading — see runSlide,
-// settleDesktop/settleMobile. Decelerating into place reads as "coming
-// to rest", not "departing".
-const SETTLE_EASE = "power2.out";
-// A settled slide dims rather than staying at full strength — at full
-// opacity, several already-finished (but still fairly large) resting
-// slides made whichever one is currently playing hard to pick out from
-// the rest. Never invisible, unlike the old depart fade — just visibly
-// "done, in the background" until the whole movie finishes.
-const SETTLED_OPACITY = 0.6;
-// As the *last* slide settles into its own spot, every already-dimmed
-// slide gently brightens back to full opacity too — one at a time, not
-// all at once — so the whole composition visibly comes together right
-// as the movie concludes, rather than the dim staying until an instant
-// cut to the (full-opacity) overview panel. See runSlide/
-// brightenSettledSlides. Deliberately slower than it looks like it
-// should need to be, with a symmetric ease (accelerates in, decelerates
-// out — no front-loaded rush at the start the way an "out" ease alone
-// would read): a quick opacity swing across 4 elements at once reads as
-// a pop no matter how many in-between frames it technically has.
-const BRIGHTEN_DUR = 1;
-const BRIGHTEN_STAGGER = 0.15;
-const BRIGHTEN_EASE = "sine.inOut";
-// how far into a slide's own total on-screen time (0-1) the *next* slide
-// starts its own entrance, overlapping the tail of one settle with the
-// head of the next arrival instead of waiting for a full, sequential
-// handoff. Never a visual clash: settling moves a slide *away* from
-// centre toward its own distinct resting spot while the next arrival
-// moves *into* centre from a different side each time, so the two are
-// occupying different screen space even while they overlap in time.
-const NEXT_START_PROGRESS = 0.75;
-const ADVANCE_DELAY = (ARRIVE_DUR + HOLD_DUR + SETTLE_DUR) * NEXT_START_PROGRESS;
+const HOLD_DUR = 1.1;
+const LATER_SLIDE_EXTRA = 0.3;
+const FADE_DUR = 0.7;
+const FADE_EASE = "power1.inOut";
+const NEXT_AFTER_FADE = 0.6;
+// mirrors hero.ts's REVEAL_DUR/ease for its own iris-open beat
+const REVEAL_DUR = 1.5;
+const REVEAL_EASE = "sine.inOut";
 // how far into its own arrival (0-1) a slide has to be before its number
 // starts counting up.
 const COUNT_START_PROGRESS = 0.75;
@@ -66,10 +39,7 @@ const WAIT_Z = -1700;
 // than "arrived".
 const HOLD_Z = 90;
 // constant world-units/second the depth keeps creeping forward at while
-// holding, so the pause never reads as a dead stop. Bounded to exactly
-// HOLD_DUR now (was an indefinite creep governed by scroll dwell, before
-// the settle-into-place phase was time-driven) — that phase always
-// starts right as this tween would complete anyway.
+// holding, so the pause never reads as a dead stop.
 const HOLD_CREEP_SPEED = 90;
 // a waiting slide isn't perfectly frozen either — a slow, barely-visible
 // ambient drift keeps it faintly alive in the background, so the next
@@ -109,75 +79,38 @@ const MOBILE_CENTER_LANE: MobileLane = { x: "0px", y: "0px", z: 0, scale: 1, blu
 const MOBILE_WAIT_Z = -480;
 const MOBILE_WAIT_SCALE = 0.22;
 const MOBILE_WAIT_BLUR = 14;
-function mobileWaitLaneFor(side: Side): MobileLane {
-  const base = { z: MOBILE_WAIT_Z, scale: MOBILE_WAIT_SCALE, blur: MOBILE_WAIT_BLUR, opacity: 0 };
-  switch (side) {
-    case "left": return { ...base, x: "-46vw", y: "0px" };
-    case "right": return { ...base, x: "46vw", y: "0px" };
-    case "top": return { ...base, x: "0px", y: "-34vh" };
-    case "bottom": return { ...base, x: "0px", y: "34vh" };
-  }
-}
+// Unlike desktop's 4 sides, a phone is too narrow for a sideways entrance
+// to read as anything but a slide drifting off-centre — every slide waits
+// small and blurred straight behind centre and comes right down the
+// middle toward the viewer.
+const MOBILE_WAIT_LANE: MobileLane = {
+  x: "0px", y: "0px", z: MOBILE_WAIT_Z, scale: MOBILE_WAIT_SCALE, blur: MOBILE_WAIT_BLUR, opacity: 0,
+};
 const MOBILE_HOLD_SCALE = 1.1;
 const MOBILE_HOLD_Z = 40;
 const MOBILE_HOLD_CREEP_SCALE_SPEED = 0.135;
 const MOBILE_HOLD_CREEP_Z_SPEED = 90;
-const MOBILE_WAIT_BREATHE_SCALE_BONUS = 0.06;
-const MOBILE_WAIT_BREATHE_Z_BONUS = 60;
-// Mobile has no Figma-derived collage of exact target positions to
-// settle into the way desktop does (OVERVIEW_LAYOUT_DESKTOP) — its real
-// overview is a plain vertical list whose exact row position for a
-// given slide depends on the other 4 items' own natural heights, not
-// something computable ahead of the browser laying it out. Instead,
-// each slide settles into a small, fixed slot in a short accumulating
-// filmstrip along the *top* of the scene — still genuinely visible and
-// out of the way of whichever slide is playing large and centred below
-// it, just not a pixel-exact preview of its real resting spot in the
-// list (see settleMobile). Top, not bottom: the bottom corners are both
-// already spoken for — .mg__ov-toggle (Replay) sits bottom-left and
-// #kickoff (the sticky "Is it go time?" CTA) sits bottom-right, with
-// barely a gap between them on a narrow phone; the scene's own top
-// edge, just below the heading, is reliably clear.
-const MOBILE_SETTLE_THUMB_WIDTH = 62;
-const MOBILE_SETTLE_GAP = 8;
-const MOBILE_SETTLE_TOP_MARGIN = 30;
 
 /**
  * MomentumGallery — a "back to front" depth-of-field carousel that plays
  * like a short movie, not a scroll-scrubbed one. A slide starts small
  * and invisible off to one of 4 sides — left, right, top, or bottom (see
  * waitLaneFor) — deep in the background, flies into dead centre
- * (ARRIVE_DUR), holds there readable (HOLD_DUR), then shrinks into its
- * own resting spot (SETTLE_DUR), dimming to SETTLED_OPACITY rather than
- * disappearing — on desktop, the exact position it'll occupy in the
- * final overview (see settleDesktop/OVERVIEW_LAYOUT_DESKTOP); on
- * mobile, a small accumulating filmstrip slot (see settleMobile).
- * Every slide does this, not just the last, so the resting composition
- * visibly builds up piece by piece as the movie plays — dimmed enough
- * that whichever slide is currently playing still reads clearly against
- * them — rather than appearing all at once at the end. 2.4 seconds
- * total per slide, the
- * same for every slide. The *next* slide doesn't wait for that whole
- * cycle — it starts its own entrance once the current one is
- * NEXT_START_PROGRESS (75%) through its own cycle (see runSlide),
- * overlapping the tail of one settle with the head of the next arrival
- * in time; they never visually clash because settling moves a slide
- * *away* from centre toward its own distinct resting spot while the
- * next arrival moves *into* centre — different screen space throughout.
+ * (ARRIVE_DUR), holds there readable (holdFor), then fades out in
+ * place (FADE_DUR). Nothing lingers on screen once its turn is over;
+ * the next slide's arrival begins just as the current one starts
+ * fading (see runSlide). After the last one, all five reappear at
+ * their Figma resting spots behind a growing circle (see revealRest).
  *
  * It plays automatically the first time the section scrolls into view —
  * the same idiom Hero's own intro movie uses (hero.ts), just without
  * locking scroll: this never traps the visitor, it just plays in the
  * background while they keep scrolling if they want to. If they scroll
  * away before it finishes, or once it finishes on its own, the section
- * settles on a static "overview" grid of all 5 slides' content at once
- * (see the "overview" section below) until the section is approached
- * again — scrolling away and back restarts the movie from slide 0, same
- * as a fresh first visit. A "Replay" button on the grid also restarts it
- * on demand, without needing to scroll away first. On desktop, since
- * every slide already settled into its exact final spot live during the
- * movie, this handoff is a plain instant swap, not a cross-fade — see
- * finishMovie/showOverview.
+ * rests on all 5 slides at once (see "resting state" below) until the
+ * section is approached again — scrolling away and back restarts the
+ * movie from slide 0, same as a fresh first visit. A "Replay" button
+ * also restarts it on demand.
  *
  * Desktop renders the depth with a real Three.js scene (a camera + one
  * invisible mesh per slide — see renderFrame) and syncs the real DOM
@@ -210,9 +143,7 @@ export function setupMomentumGallery() {
   /* Pins each stat figure to its own final rendered width up front,
      once, rather than letting it live-resize during count-up (see
      countUp below). .mg__slide--stat is width:fit-content (see that
-     rule's own comment — needed so the resting-collage scale math
-     reads each stat's real content width, not one shared fixed
-     width); count-up briefly displays every intermediate digit count
+     rule's own comment); count-up briefly displays every intermediate digit count
      (0, 22, 38, ... 150) on the way to its target, and without this,
      each of those ~50 intermediate values forced a real layout
      reflow on an element that's ALSO being transformed every frame
@@ -260,18 +191,11 @@ export function setupMomentumGallery() {
   // section further down ever runs) already reads it — a `let` declared
   // later would be in its temporal dead zone at that point.
   let overviewOpen = false;
+  // true while the section is showing its resting composition (see
+  // showRest) — renderFrame reads it during setup, so it lives up here.
+  let resting = false;
   let sectionVisible = false;
   const countedUp: boolean[] = new Array(N).fill(false);
-  // set to whichever slide is currently shrinking into its resting
-  // overview spot (see settleDesktop) — renderFrame's normal per-frame
-  // blur, driven off live scale, would otherwise blur it out mid-shrink
-  // (target scale is usually well under the 0.98 threshold), clashing
-  // with the perfectly sharp overview clone it hands off to right after.
-  // Only ever one slide at a time — consecutive slides' settle phases
-  // never overlap each other (only a settle and the *next* slide's
-  // arrival do — see NEXT_START_PROGRESS).
-  let settlingIndex: number | null = null;
-
   // desktop lane bookkeeping (Three.js world units)
   const laneOf = new Map<number, Lane>(); // slide index -> its current lane (centre or a waiting side)
   let lastSide: Side | null = null;
@@ -282,20 +206,13 @@ export function setupMomentumGallery() {
     return pick;
   }
 
-  // mobile lane bookkeeping — separate pool/units, see MobileLane above
+  // mobile lane bookkeeping — separate units, see MobileLane above
   const mobileLaneOf = new Map<number, MobileLane>();
-  let lastMobileSide: Side | null = null;
-  function pickMobileSide(): Side {
-    const pool = SIDES.filter((s) => s !== lastMobileSide);
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    lastMobileSide = pick;
-    return pick;
-  }
 
-  // seed every slide at its own (randomly picked) waiting side, invisible.
+  // seed every slide at its own waiting lane, invisible.
   for (let i = 0; i < N; i++) {
     laneOf.set(i, waitLaneFor(pickSide()));
-    mobileLaneOf.set(i, mobileWaitLaneFor(pickMobileSide()));
+    mobileLaneOf.set(i, MOBILE_WAIT_LANE);
     gsap.set(slides[i], { opacity: 0 });
   }
 
@@ -351,7 +268,7 @@ export function setupMomentumGallery() {
       const scale = CAMERA_Z / (CAMERA_Z - mesh.position.z);
       const el = slides[i];
       el.style.transform = `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px) translate(-50%, -50%) scale(${scale.toFixed(5)})`;
-      el.style.filter = i === settlingIndex || scale >= 0.98 ? "" : `blur(${((1 - Math.min(scale, 1)) * 12).toFixed(1)}px)`;
+      el.style.filter = resting || scale >= 0.98 ? "" : `blur(${((1 - Math.min(scale, 1)) * 12).toFixed(1)}px)`;
       el.style.zIndex = String(Math.round(scale * 100));
     });
   }
@@ -386,6 +303,7 @@ export function setupMomentumGallery() {
       camera.updateProjectionMatrix();
       renderer.setSize(w, h, false);
       if (three) { three.width = w; three.height = h; }
+      if (resting && mode === "desktop") placeRestDesktop();
     };
     const ro = new ResizeObserver(resize);
     ro.observe(sceneEl!);
@@ -419,32 +337,24 @@ export function setupMomentumGallery() {
       });
     }
   }
-  function startMobileWaitBreathe(i: number) {
-    const delay = Math.random() * WAIT_BREATHE_DUR;
-    gsap.to(slides[i], {
-      opacity: WAIT_BREATHE_OPACITY,
-      scale: MOBILE_WAIT_SCALE + MOBILE_WAIT_BREATHE_SCALE_BONUS,
-      z: MOBILE_WAIT_Z + MOBILE_WAIT_BREATHE_Z_BONUS,
-      duration: WAIT_BREATHE_DUR, delay, ease: "sine.inOut", yoyo: true, repeat: -1,
-    });
-  }
   // once a slide has arrived, its depth keeps creeping forward at a
-  // small but clearly-visible constant speed for exactly HOLD_DUR,
-  // instead of sitting dead still — settling into its resting spot
-  // always takes over right as this would complete anyway.
-  function startMobileHoldCreep(i: number) {
+  // small but clearly-visible constant speed through its hold and fade,
+  // instead of sitting dead still.
+  function startMobileHoldCreep(i: number, dur: number) {
     gsap.to(slides[i], {
-      scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_CREEP_SCALE_SPEED * HOLD_DUR,
-      z: MOBILE_HOLD_Z + MOBILE_HOLD_CREEP_Z_SPEED * HOLD_DUR,
-      duration: HOLD_DUR, ease: "none",
+      scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_CREEP_SCALE_SPEED * dur,
+      z: MOBILE_HOLD_Z + MOBILE_HOLD_CREEP_Z_SPEED * dur,
+      duration: dur, ease: "none",
     });
   }
-  function startDesktopHoldCreep(i: number) {
+  function startDesktopHoldCreep(i: number, dur: number) {
     if (!three) return;
     gsap.to(three.meshes[i].position, {
-      z: HOLD_Z + HOLD_CREEP_SPEED * HOLD_DUR, duration: HOLD_DUR, ease: "none",
+      z: HOLD_Z + HOLD_CREEP_SPEED * dur, duration: dur, ease: "none",
     });
   }
+
+  const holdFor = (i: number) => HOLD_DUR + (i > 0 ? LATER_SLIDE_EXTRA : 0);
 
   /* Arrival: one tween, ARRIVE_DUR, from wherever the slide is currently
      waiting (one of the 4 sides) straight to dead centre. Depth keeps
@@ -470,74 +380,17 @@ export function setupMomentumGallery() {
         }
       },
       onComplete: () => {
-        startDesktopHoldCreep(inIndex);
+        startDesktopHoldCreep(inIndex, holdFor(inIndex) + FADE_DUR);
         onArrived?.();
       },
     });
     gsap.fromTo(slides[inIndex], { opacity: 0 }, { opacity: 1, duration: ARRIVE_DUR, ease: ARRIVE_EASE });
   }
 
-  /* Computes exactly where slide i's own item will render once the
-     overview is shown — the same placement/scale math buildOverviewCards
-     itself uses (OVERVIEW_LAYOUT_DESKTOP, collageWidthEstimate), just
-     expressed as on-screen pixel coordinates within #mgScene rather than
-     percentages of the (still-hidden) collage box. Used by settleDesktop
-     so the final slide can shrink directly into that exact spot instead
-     of flying off toward the camera and fading. Defined here, ahead of
-     OVERVIEW_LAYOUT_DESKTOP/collageWidthEstimate's own declarations
-     further down — safe, since (like every function in this file) it
-     only ever runs later, off a real event, by which point the whole
-     module has finished its one-time setup. */
-  function collageItemTarget(i: number): { centerX: number; centerY: number; scale: number } | null {
-    if (!overview || !sceneEl) return null;
-    const layout = OVERVIEW_LAYOUT_DESKTOP[i];
-    const collageWidth = collageWidthEstimate();
-    const collageHeight = collageWidth * (1654 / 1920);
-    const overviewCs = getComputedStyle(overview);
-    const collageLeft = (sceneEl.clientWidth - collageWidth) / 2; // .mg__overview centres it horizontally
-    const collageTop = parseFloat(overviewCs.paddingTop); // ...and top-aligns it (align-items:flex-start) below that padding
-    const naturalWidth = parseFloat(getComputedStyle(slides[i]).width) || OV_TARGET_WIDTH;
-    const naturalHeight = parseFloat(getComputedStyle(slides[i]).height) || 0;
-    const widthPx = collageWidth * (layout.width / 100);
-    const scale = widthPx / naturalWidth;
-    const heightPx = naturalHeight * scale;
-    const leftPx = collageLeft + collageWidth * (layout.left / 100);
-    const topPx = collageTop + collageHeight * (layout.top / 100);
-    return { centerX: leftPx + widthPx / 2, centerY: topPx + heightPx / 2, scale };
-  }
-
-  /* Every slide (see runSlide) shrinks and moves directly to the exact
-     spot it'll occupy in the resting overview, instead of flying off
-     toward the camera and fading — dimming to SETTLED_OPACITY rather
-     than disappearing, so the overview's own final composition visibly
-     builds up one slide at a time as the movie plays, without the
-     just-finished slides competing for attention with whichever one is
-     currently playing. Inverts the same projection renderFrame uses
-     (screen = sceneCentre ± mesh·scale) to find the mesh x/y/z that
-     lands exactly on collageItemTarget's own screen coordinates. Once
-     the *last* slide settles, showOverview reveals the rest of the
-     overview panel with no cross-fade (see finishMovie) — nothing needs
-     to blend, since every slide is already sitting exactly where its
-     own overview item will be (at full opacity there — the dim is only
-     ever on the live, still-mid-movie slide, a completely separate
-     element from its overview clone). */
-  function settleDesktop(i: number, onDone?: () => void) {
-    const target = three && collageItemTarget(i);
-    if (!three || !target || !sceneEl) { onDone?.(); return; }
-    const mesh = three.meshes[i];
-    const sceneWidth = sceneEl.clientWidth;
-    const sceneHeight = sceneEl.clientHeight;
-    const targetZ = CAMERA_Z * (1 - 1 / target.scale);
-    const targetX = (target.centerX - sceneWidth / 2) / target.scale;
-    const targetY = (sceneHeight / 2 - target.centerY) / target.scale;
-    settlingIndex = i;
-    gsap.killTweensOf(mesh.position);
-    gsap.to(mesh.position, {
-      x: targetX, y: targetY, z: targetZ, duration: SETTLE_DUR, ease: SETTLE_EASE,
-      onComplete: () => { settlingIndex = null; onDone?.(); },
-    });
-    gsap.killTweensOf(slides[i]);
-    gsap.to(slides[i], { opacity: SETTLED_OPACITY, duration: SETTLE_DUR, ease: SETTLE_EASE });
+  /* Fades a finished slide out exactly where it is (its hold creep
+     keeps running underneath) — same on desktop and mobile. */
+  function fadeOutSlide(i: number, onDone?: () => void) {
+    gsap.to(slides[i], { opacity: 0, duration: FADE_DUR, ease: FADE_EASE, onComplete: onDone });
   }
 
   /* ================= CSS transform (mobile) ================= */
@@ -571,36 +424,9 @@ export function setupMomentumGallery() {
         }
       },
       onComplete: () => {
-        startMobileHoldCreep(inIndex);
+        startMobileHoldCreep(inIndex, holdFor(inIndex) + FADE_DUR);
         onArrived?.();
       },
-    });
-  }
-
-  /* Mirrors settleDesktop's intent (shrink into a resting spot instead
-     of flying off and fading, visible while the next slide plays) but
-     not its exact position-matching — mobile's real overview is a plain
-     vertical list whose exact row position for this item depends on the
-     other 4 items' own natural heights, not something computable ahead
-     of the browser actually laying it out. Settles into a small, fixed
-     slot in a short filmstrip along the bottom edge instead, one slot
-     per index so all 5 stay visible without overlapping each other or
-     the slide currently playing large and centred above them.
-     showOverview's own fade-in (kept for mobile — see finishMovie)
-     covers the difference between this approximate strip and wherever
-     each item actually lands once the real list renders. */
-  function settleMobile(i: number, onDone?: () => void) {
-    gsap.killTweensOf(slides[i]);
-    const naturalWidth = parseFloat(getComputedStyle(slides[i]).width) || OV_TARGET_WIDTH;
-    const targetScale = MOBILE_SETTLE_THUMB_WIDTH / naturalWidth;
-    const totalWidth = N * MOBILE_SETTLE_THUMB_WIDTH + (N - 1) * MOBILE_SETTLE_GAP;
-    const slotX = -totalWidth / 2 + i * (MOBILE_SETTLE_THUMB_WIDTH + MOBILE_SETTLE_GAP) + MOBILE_SETTLE_THUMB_WIDTH / 2;
-    const slotY = -(sceneEl!.clientHeight / 2) + MOBILE_SETTLE_TOP_MARGIN;
-    slides[i].style.zIndex = "10";
-    gsap.to(slides[i], {
-      scale: targetScale, x: slotX, y: slotY, z: 0, filter: "none", opacity: SETTLED_OPACITY,
-      duration: SETTLE_DUR, ease: SETTLE_EASE,
-      onComplete: onDone,
     });
   }
 
@@ -642,24 +468,20 @@ export function setupMomentumGallery() {
     const next: Mode = desktopQuery.matches ? "desktop" : "mobile";
     if (next !== mode) {
       enterMode(next);
-      // the overview's layout (collage vs. uniform grid) is mode-specific
       buildOverviewCards();
+      if (resting) {
+        if (mode === "desktop") { closeOverview(); placeRestDesktop(); }
+        else showOverview();
+      }
     }
   });
 
   /* ================= the movie ================= */
   // Plays automatically the first time the section scrolls into view,
-  // and restarts fresh any time it's scrolled away and back — see the
-  // IntersectionObserver further down. Each slide gets its own full
-  // ARRIVE_DUR (fly in) + HOLD_DUR (hold, still gently creeping) +
-  // SETTLE_DUR (shrink into its resting overview spot) cycle, but the
-  // *next* slide doesn't wait for that whole cycle to finish — it
-  // starts its own entrance once the current one is NEXT_START_PROGRESS
-  // through its own cycle (see runSlide), overlapping the tail of one
-  // settle with the head of the next arrival in time. They never
-  // visually clash: settling moves a slide away from centre toward its
-  // own distinct resting spot while the next arrival moves into centre
-  // from a different side — different screen space throughout.
+  // and restarts fresh any time it's scrolled away and back (see the
+  // ScrollTrigger further down). Each slide: ARRIVE_DUR in, holdFor(i)
+  // at centre, FADE_DUR out in place. The next slide starts its own
+  // entrance once that fade is NEXT_AFTER_FADE of the way done.
   let pendingTimers: gsap.core.Tween[] = [];
   function schedule(delay: number, fn: () => void): gsap.core.Tween {
     const t = gsap.delayedCall(delay, fn);
@@ -681,7 +503,7 @@ export function setupMomentumGallery() {
       three.meshes[i].position.set(lane.x, lane.y, lane.z);
       gsap.set(slides[i], { opacity: 0 });
     } else if (mode === "mobile") {
-      const lane = mobileWaitLaneFor(pickMobileSide());
+      const lane = MOBILE_WAIT_LANE;
       mobileLaneOf.set(i, lane);
       gsap.set(slides[i], {
         x: lane.x, y: lane.y, z: lane.z, scale: lane.scale, opacity: lane.opacity, filter: `blur(${lane.blur}px)`,
@@ -689,37 +511,13 @@ export function setupMomentumGallery() {
     }
   }
 
-  // Brightens every slide but the one currently settling (i.e. every
-  // already-dimmed, previously-settled one) back to full opacity, one
-  // at a time rather than all together — called as the *last* slide
-  // settles into place, so the whole composition visibly comes
-  // together right as the movie concludes. onDone fires once every
-  // staggered tween has actually finished, not just started.
-  function brightenSettledSlides(excludeIndex: number, onDone?: () => void) {
-    const targets = slides.filter((_, j) => j !== excludeIndex);
-    if (targets.length === 0) { onDone?.(); return; }
-    gsap.killTweensOf(targets);
-    gsap.to(targets, {
-      opacity: 1, duration: BRIGHTEN_DUR, ease: BRIGHTEN_EASE,
-      stagger: BRIGHTEN_STAGGER, onComplete: onDone,
-    });
-  }
-
-  // Runs one slide's full lifecycle: promote it to centre, hold, then
-  // settle it into its own resting overview spot (see settleDesktop/
-  // settleMobile) — every slide, not just the last, so the resting
-  // composition visibly builds up one piece at a time — and, separately,
-  // schedules the *next* slide's own runSlide at ADVANCE_DELAY
-  // regardless of whether this slide has finished settling yet (that's
-  // the overlap). The last slide also triggers every other (already
-  // dimmed) slide to brighten back up in a gentle stagger (see
-  // brightenSettledSlides) — the movie only actually ends, hanging off
-  // to finishMovie, once *both* that settle and that stagger are done.
+  // Runs one slide's full lifecycle — promote to centre, hold, fade out
+  // in place — and schedules the next slide's own runSlide partway
+  // through. The last slide's fade completing ends the movie.
   function runSlide(i: number) {
     idx = i;
     applyAria();
     const promote = mode === "desktop" ? promoteDesktop : promoteMobile;
-    const settle = mode === "desktop" ? settleDesktop : settleMobile;
     const isLast = i === N - 1;
 
     promote(i, () => {
@@ -727,41 +525,26 @@ export function setupMomentumGallery() {
       // release it now that the first slide is actually playing (see
       // engageScrollLock's own comment)
       if (i === 0) releaseScrollLock();
-      schedule(HOLD_DUR, () => {
-        if (isLast) {
-          let remaining = 2;
-          const onBothDone = () => { if (--remaining === 0) finishMovie(); };
-          settle(i, onBothDone);
-          brightenSettledSlides(i, onBothDone);
-        } else {
-          settle(i);
-        }
-      });
+      schedule(holdFor(i), () => fadeOutSlide(i, isLast ? finishMovie : undefined));
     });
 
-    if (i < N - 1) {
-      schedule(ADVANCE_DELAY, () => runSlide(i + 1));
+    if (!isLast) {
+      schedule(ARRIVE_DUR + holdFor(i) + FADE_DUR * NEXT_AFTER_FADE, () => runSlide(i + 1));
     }
   }
 
-  // By now every slide has already settled into place during its own
-  // turn (see runSlide/settleDesktop). On desktop that's the exact spot
-  // each one's overview item renders at (see collageItemTarget), so
-  // showOverview reveals the panel with no cross-fade — nothing needs
-  // to blend. Mobile's settle is only an approximate rest (see
-  // settleMobile's own comment), so it keeps the fade to cover that gap.
   function finishMovie() {
     playing = false;
     everPlayed = true;
     applyAria();
-    showOverview(mode === "desktop");
+    showRest(true);
   }
 
   // Starts the very first slide's own arrival directly (there's no
   // outgoing slide to depart from on a cold start).
   function playMovie() {
     if (playing) return;
-    closeOverview();
+    hideRest();
     // the render loop is normally started by handleReachTop once the
     // section is actually at the top — but that's *also* what calls
     // playMovie() in the first place, so in practice this is a no-op
@@ -776,19 +559,16 @@ export function setupMomentumGallery() {
     everActivated = true;
     countedUp.fill(false);
     for (let i = 0; i < N; i++) parkSlideAtWait(i);
-    for (let i = 1; i < N; i++) {
-      if (mode === "desktop") startDesktopWaitBreathe(i);
-      else startMobileWaitBreathe(i);
-    }
+    // desktop's waiting slides drift faintly at their sides; mobile's
+    // all wait directly behind centre, where any visible drift would sit
+    // right behind the playing slide's text — so they stay invisible
+    if (mode === "desktop") for (let i = 1; i < N; i++) startDesktopWaitBreathe(i);
     runSlide(0);
   }
 
   function stopMovie() {
     killMovieTimers();
     playing = false;
-    // a killed tween never fires its own onComplete, so if this lands
-    // mid-settle, nothing else would ever clear settlingIndex again
-    settlingIndex = null;
     // defensive — should already be released by the time slide 0 has
     // arrived, but a stray call here should never leave scroll stuck
     releaseScrollLock();
@@ -805,7 +585,7 @@ export function setupMomentumGallery() {
   // just parks every *other* slide invisibly and promotes the one
   // that was clicked directly.
   function previewSlide(i: number) {
-    closeOverview();
+    hideRest();
     stopMovie();
     if (mode === "desktop") startThreeTicker(); // see playMovie's own comment
     for (let j = 0; j < N; j++) {
@@ -834,7 +614,7 @@ export function setupMomentumGallery() {
   // them again — they can keep scrolling while the rest of the movie
   // plays in the background. If they scroll away before it finishes,
   // that's treated the same as it finishing on its own: the section
-  // settles on the overview until it's approached again.
+  // rests on every slide at once until it's approached again.
   //
   // `hasLeftSinceActivating` distinguishes a genuine "scrolled away,
   // now scrolled back" from an incidental one — e.g. clicking an
@@ -885,7 +665,8 @@ export function setupMomentumGallery() {
     if (playing) {
       stopMovie();
       everPlayed = true;
-      showOverview();
+      applyAria();
+      showRest(false);
     }
   }
   ScrollTrigger.create({
@@ -906,14 +687,194 @@ export function setupMomentumGallery() {
   // scroll nudged past the (now-correct) real one.
   document.fonts?.ready.then(() => ScrollTrigger.refresh()).catch(() => {});
 
-  /* ================= overview / replay ================= */
-  // The resting state once the movie has played through or been left —
-  // a static grid of every slide's own content at once, so a returning
-  // visitor gets the whole thing at a glance rather than the movie
-  // replaying itself unasked. "Replay" always restarts it from slide 0.
+  /* ================= resting state + replay ================= */
+  // Once the movie has played through (or been left), the section rests
+  // on every slide at once. Desktop: the live slides themselves, placed
+  // by their own Three.js meshes at the Figma composition's positions
+  // and type sizes (REST_LAYOUT) — the same rendering path as the movie,
+  // no separate HTML copy. Mobile (no WebGL): the stacked list of
+  // cloned slides in #mgOverview. Either way it's uncovered by a growing
+  // circle (revealCircle), mirroring the hero's own opening iris.
   const replayBtn = document.getElementById("mgOvToggle");
   const overview = document.getElementById("mgOverview");
   const ovGrid = document.getElementById("mgOvGrid");
+  const ring = document.getElementById("mgRing");
+
+  /* Desktop resting composition — Figma node 3772:277, a 1920-wide
+     frame. Per slide: where its content starts (x is the column's
+     centre for the centred stat columns, the left edge for the
+     left-aligned quotes; top is the content's top edge) and the font
+     size of its headline text (the .mfig figure or the .mquote lines)
+     in that frame. Each slide is scaled so its headline renders at
+     exactly that size relative to the frame. Slide 4 (the Michelle
+     quote) has no slot in that frame — it sits in the open space
+     between 150+ and 4M, at the smaller quote size the earlier
+     revision of this design used there. */
+  type RestSlot = { x: number; top: number; font: number; align: "center" | "left" };
+  const REST_LAYOUT: Record<number, RestSlot> = {
+    0: { x: 1077, top: 1098, font: 96, align: "left" }, // "They move at the speed of business"
+    1: { x: 568, top: 1170, font: 190, align: "center" }, // 100%
+    2: { x: 1509.5, top: 622, font: 190, align: "center" }, // 4M
+    3: { x: 438.5, top: 622, font: 190, align: "center" }, // 150+
+    4: { x: 740, top: 640, font: 36, align: "left" }, // Michelle quote
+  };
+  const FRAME_WIDTH = 1920;
+  // the whole composition shifts horizontally (as one block) so the "1"
+  // of 150+ lines up under the "m" of "momentum." in the heading
+  const ALIGN_SLIDE = 3;
+  const CONTENT_TOP = 622;
+  const QUOTE_BADGE_ALLOWANCE = 170; // a quote's badge sits outside its own box, past its first line
+  const REST_PAD_TOP = 8;
+  const REST_PAD_BOTTOM = 30;
+  const REST_PAD_SIDE = 24;
+
+  // the on-screen box of the first visible character inside `el`
+  function firstGlyphRect(el: HTMLElement): DOMRect | null {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent ?? "";
+      const at = text.search(/\S/);
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + 1);
+      return range.getBoundingClientRect();
+    }
+    return null;
+  }
+
+  function headlineFont(slide: HTMLElement): number {
+    const el = slide.querySelector<HTMLElement>(".mfig, .mquote");
+    return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
+  }
+
+  // Moves every mesh straight to its resting spot. Inverts renderFrame's
+  // own projection (screen = sceneCentre + mesh·scale) to find the mesh
+  // x/y/z that lands each slide exactly on its target.
+  //
+  // Each slide first gets --u: one Figma px expressed in its own live
+  // px (its headline's live font size / the Figma size). The
+  // [data-mg-rest] rules in global.css size the captions, sublines and
+  // gaps in multiples of it, so each slide's internal proportions match
+  // the Figma frame exactly; the whole slide is then scaled by k / u,
+  // k being Figma px -> screen px for the composition as a whole —
+  // chosen so the tallest column and the widest item both fit.
+  function placeRestDesktop() {
+    initThree();
+    if (!three || !sceneEl) return;
+    const W = three.width || sceneEl.clientWidth;
+    const H = three.height || sceneEl.clientHeight;
+
+    const geo = slides.map((slide, i) => {
+      const slot = REST_LAYOUT[i];
+      const u = (headlineFont(slide) || slot.font) / slot.font;
+      slide.style.setProperty("--u", `${u}px`);
+      const cs = getComputedStyle(slide);
+      // in Figma px, now that --u has been applied
+      const w = parseFloat(cs.width) / u;
+      const h = parseFloat(cs.height) / u;
+      const left = slot.align === "center" ? slot.x - w / 2 : slot.x;
+      const right = left + w + (slot.align === "left" ? QUOTE_BADGE_ALLOWANCE : 0);
+      return { u, w, h, left, right, bottom: slot.top + h };
+    });
+    const contentBottom = Math.max(...geo.map((g) => g.bottom));
+    const contentRight = Math.max(...geo.map((g) => g.right));
+    let k = Math.min(
+      (W - 2 * REST_PAD_SIDE) / FRAME_WIDTH,
+      (H - REST_PAD_TOP - REST_PAD_BOTTOM) / (contentBottom - CONTENT_TOP),
+    );
+
+    // Where the "1" glyph sits in Figma px, measured off the slide's own
+    // text (its offset inside the slide, unscaled, over --u), and where
+    // the heading's "m" sits on screen.
+    const sceneRect = sceneEl.getBoundingClientRect();
+    const alignSlide = slides[ALIGN_SLIDE];
+    const alignFig = alignSlide.querySelector<HTMLElement>(".mfig");
+    const headM = section!.querySelector<HTMLElement>(".hs__intro-head .hot");
+    const glyphRect = alignFig && firstGlyphRect(alignFig);
+    const headRect = headM && firstGlyphRect(headM);
+    let ox = (W - FRAME_WIDTH * k) / 2;
+    if (glyphRect && headRect) {
+      const slideRect = alignSlide.getBoundingClientRect();
+      const liveScale = slideRect.width / alignSlide.offsetWidth || 1;
+      const g = geo[ALIGN_SLIDE];
+      const glyphFigmaX = g.left + (glyphRect.left - slideRect.left) / liveScale / g.u;
+      const headX = headRect.left - sceneRect.left;
+      // keep the right-hand items on screen: shrink k rather than break
+      // the alignment
+      k = Math.min(k, (W - REST_PAD_SIDE - headX) / (contentRight - glyphFigmaX));
+      ox = headX - glyphFigmaX * k;
+    }
+    const oy = REST_PAD_TOP - CONTENT_TOP * k;
+
+    slides.forEach((slide, i) => {
+      const slot = REST_LAYOUT[i];
+      const g = geo[i];
+      const scale = k / g.u;
+      const cx = ox + (g.left + g.w / 2) * k;
+      const cy = oy + (slot.top + g.h / 2) * k;
+      const mesh = three!.meshes[i];
+      gsap.killTweensOf(mesh.position);
+      gsap.killTweensOf(slide);
+      mesh.position.set((cx - W / 2) / scale, (H / 2 - cy) / scale, CAMERA_Z * (1 - 1 / scale));
+      const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
+      if (fig) setCountText(fig, Number(fig.dataset.mgCount));
+      slide.style.opacity = "1";
+    });
+    three.scene.updateMatrixWorld();
+    renderFrame();
+  }
+
+  // Shows the resting state; `animate` runs the circle reveal (end of
+  // the movie), otherwise it's simply there (scrolled away mid-movie).
+  function showRest(animate: boolean) {
+    resting = true;
+    section!.dataset.mgRest = "true";
+    if (mode === "desktop") {
+      placeRestDesktop();
+      slides.forEach((slide) => slide.removeAttribute("aria-hidden"));
+    } else showOverview();
+    if (animate) revealCircle();
+    else sceneEl!.style.clipPath = "";
+  }
+  function hideRest() {
+    resting = false;
+    delete section!.dataset.mgRest;
+    slides.forEach((slide) => slide.style.removeProperty("--u"));
+    gsap.killTweensOf(revealState);
+    sceneEl!.style.clipPath = "";
+    if (ring) ring.style.opacity = "0";
+    closeOverview();
+    applyAria();
+  }
+
+  // Grows a clear circle from the scene's centre until it covers every
+  // corner, with the hero's thin rose ring tracing its edge (see
+  // Hero.astro's .hcb__ring) — fading once fully open.
+  const revealState = { r: 0 };
+  function revealCircle() {
+    const W = sceneEl!.clientWidth;
+    const H = sceneEl!.clientHeight;
+    const maxR = Math.hypot(W, H) / 2 + 2;
+    const apply = () => {
+      const r = revealState.r;
+      sceneEl!.style.clipPath = `circle(${r.toFixed(1)}px at 50% 50%)`;
+      if (ring) {
+        ring.style.width = ring.style.height = `${(r * 2).toFixed(1)}px`;
+      }
+    };
+    gsap.killTweensOf(revealState);
+    revealState.r = 0;
+    if (ring) ring.style.opacity = "0.55";
+    apply();
+    gsap.to(revealState, {
+      r: maxR, duration: REVEAL_DUR, ease: REVEAL_EASE, onUpdate: apply,
+      onComplete: () => {
+        sceneEl!.style.clipPath = "";
+        if (ring) gsap.to(ring, { opacity: 0, duration: 0.4 });
+      },
+    });
+  }
 
   // Each slide's quote badge is an inline SVG with its own id'd
   // <clipPath> (e.g. "clip0_2838_2564_g"), referenced via
@@ -943,96 +904,16 @@ export function setupMomentumGallery() {
     });
   }
 
-  // Each grid item is the real slide's own DOM, cloned once — its
-  // actual markup/classes, not a re-typed summary card. transform:scale
-  // (not zoom, which doesn't rescale this site's vw-relative type
-  // scale) shrinks the fully laid-out clone down to fit its own slot;
-  // the wrapping button's own width/height are set to that same
-  // post-scale size. Measured off the *original* slide via
-  // getComputedStyle, not the clone or getBoundingClientRect — the live
-  // slide already carries its own transform, and the overview panel
-  // starts [hidden] (display:none), so either would measure wrong.
-  const OV_TARGET_WIDTH = 220; // mobile's uniform grid target
-
-  // Desktop's resting layout: the specific scattered composition from
-  // the Figma design (node 3612:8791 — "Section - 4 · MOMENTUM"), not a
-  // uniform grid. left/top/width are percentages of the collage box,
-  // read directly off each element's own position in that design
-  // (itself 1920×1654: the "Container" child, node 3612:8792, plus its
-  // "Quote1"/"Quote2" siblings) — the collage box below locks to that
-  // same aspect ratio so the composition holds at any viewport width.
-  // Re-measured 2026-09-29 directly off get_design_context/get_metadata
-  // for those exact nodes — the previous values here were noticeably
-  // off (e.g. item 2's width read 21.81% vs the design's actual
-  // 27.15%), confirmed live as the resting screen not matching the
-  // Figma design. Slide 4 (the Kaylen quote) is placed in the design's
-  // smaller "Quote1" slot — that slot's own placeholder copy in Figma
-  // ("blah blah blah") is never used, only its position/size.
-  //
-  // Figma's own top values (in each comment below) centre the
-  // composition in the lower half of its own tall, unconstrained
-  // canvas — fine there, but #momentum's stage is a fixed 100svh (see
-  // .pin__stage), so that same placement reads as everything crammed
-  // near the bottom of the screen here. VERTICAL_SHIFT pulls the whole
-  // composition up so its centre sits roughly where the topmost item
-  // (the Kaylen quote, item 4) already was, near the top of the
-  // section rather than the bottom.
-  const VERTICAL_SHIFT = -22;
-  const OVERVIEW_LAYOUT_DESKTOP: Record<number, { left: number; top: number; width: number }> = {
-    0: { left: 50.52, top: 63.6 + VERTICAL_SHIFT, width: 35.54 }, // "They move at the speed of business" quote — Quote2 slot
-    1: { left: 15.1, top: 61.31 + VERTICAL_SHIFT, width: 26.76 }, // 100% on-time delivery
-    2: { left: 62.34, top: 30.77 + VERTICAL_SHIFT, width: 27.15 }, // 4M sales pipeline
-    3: { left: 10.11, top: 34.03 + VERTICAL_SHIFT, width: 22.43 }, // 150+ RSVPs
-    4: { left: 40.31, top: 37.12 + VERTICAL_SHIFT, width: 17.86 }, // Kaylen quote — Quote1 slot
-  };
-  // Approximates the collage box's own rendered pixel width without
-  // needing to measure it directly (it can't be — the overview panel
-  // starts [hidden]/display:none). #momentum's stage is a fixed 100svh
-  // (see .pin__stage), so this "contains" the design's own 1920:1654
-  // ratio within whichever of width or height is the tighter fit — same
-  // idea as object-fit:contain — rather than always sizing from width
-  // and relying on .mg__overview's own scroll fallback (see its CSS)
-  // for the common case. #mgScene's own box is never hidden, so its
-  // dimensions are always readable; padding figures come off
-  // .mg__overview's own computed style, which — being purely
-  // viewport-driven (clamp/vw), not layout-driven — still resolves
-  // correctly while it's hidden.
-  // Was 1.5 (a deliberate 50% overflow beyond a strict "contain" fit) —
-  // tuned back when each stat's own box was measured off the full,
-  // padded .mg__slide container rather than its actual content (see
-  // .mg__slide--stat's own comment), which left every number rendering
-  // under half its intended size. Now that that's fixed, the collage
-  // is close to a correct "contain" fit on its own again; kept as a
-  // small, no-longer-load-bearing nudge rather than 1.0 exactly, since
-  // this composition still deliberately overflows its box slightly
-  // rather than staying small enough to never need .mg__overview's own
-  // scroll fallback (see its CSS).
-  const COLLAGE_SIZE_BOOST = 1.2;
-  function collageWidthEstimate(): number {
-    const overviewCs = getComputedStyle(overview!);
-    const hPad = parseFloat(overviewCs.paddingLeft) + parseFloat(overviewCs.paddingRight);
-    const vPad = parseFloat(overviewCs.paddingTop) + parseFloat(overviewCs.paddingBottom);
-    const widthFromWidth = Math.min(section!.clientWidth - hPad, 1560);
-    const widthFromHeight = (sceneEl!.clientHeight - vPad) * (1920 / 1654);
-    // a floor for the unlikely case of a very short viewport, where
-    // padding alone could otherwise eat the whole available height
-    return Math.max(320, Math.min(widthFromWidth, widthFromHeight)) * COLLAGE_SIZE_BOOST;
-  }
+  // Mobile's resting list: each item is the real slide's own DOM,
+  // cloned once and shrunk with transform:scale (not zoom, which
+  // doesn't rescale this site's vw-relative type scale). Measured off
+  // the *original* slide via getComputedStyle — the live slide carries
+  // its own transform, and the panel starts [hidden] (display:none).
+  const OV_TARGET_WIDTH = 220;
 
   function buildOverviewCards() {
     if (!ovGrid) return;
     ovGrid.innerHTML = "";
-    const isCollage = mode === "desktop";
-    ovGrid.classList.toggle("mg__ov-grid--collage", isCollage);
-    const collageWidth = isCollage ? collageWidthEstimate() : 0;
-    if (isCollage) {
-      ovGrid.style.width = `${collageWidth}px`;
-      ovGrid.style.height = `${collageWidth * (1654 / 1920)}px`;
-    } else {
-      ovGrid.style.width = "";
-      ovGrid.style.height = "";
-    }
-
     slides.forEach((slide, i) => {
       const item = document.createElement("button");
       item.type = "button";
@@ -1042,25 +923,13 @@ export function setupMomentumGallery() {
       const naturalCs = getComputedStyle(slide);
       const naturalWidth = parseFloat(naturalCs.width) || OV_TARGET_WIDTH;
       const naturalHeight = parseFloat(naturalCs.height) || 0;
-
-      let scale: number;
-      if (isCollage) {
-        const layout = OVERVIEW_LAYOUT_DESKTOP[i];
-        // not capped at 1 (unlike mobile's grid, below) — COLLAGE_SIZE_BOOST
-        // deliberately renders these larger than the clone's own natural
-        // full-bleed size for some items, not just closer to it.
-        scale = (collageWidth * (layout.width / 100)) / naturalWidth;
-        item.style.left = `${layout.left}%`;
-        item.style.top = `${layout.top}%`;
-        item.style.width = `${layout.width}%`;
-      } else {
-        scale = Math.min(1, OV_TARGET_WIDTH / naturalWidth);
-        item.style.width = `${Math.round(naturalWidth * scale)}px`;
-      }
+      const scale = Math.min(1, OV_TARGET_WIDTH / naturalWidth);
+      item.style.width = `${Math.round(naturalWidth * scale)}px`;
       item.style.height = `${Math.round(naturalHeight * scale)}px`;
 
       const clone = slide.cloneNode(true) as HTMLElement;
       clone.removeAttribute("style");
+      clone.removeAttribute("aria-hidden");
       clone.classList.add("mg__ov-clone");
       clone.style.position = "absolute";
       clone.style.top = "0";
@@ -1068,8 +937,8 @@ export function setupMomentumGallery() {
       clone.style.transformOrigin = "top left";
       clone.style.transform = `scale(${scale})`;
       // stat figures start at their "0" placeholder and only count up
-      // once actually promoted — the overview always shows the real
-      // final number instead.
+      // once actually promoted — the list always shows the real final
+      // number instead.
       const clonedFig = clone.querySelector<HTMLElement>("[data-mg-count]");
       if (clonedFig) setCountText(clonedFig, Number(clonedFig.dataset.mgCount));
       deduplicateIds(clone, `ov${i}`);
@@ -1081,28 +950,19 @@ export function setupMomentumGallery() {
   }
   buildOverviewCards();
 
-  // skipFade: true right after the final slide's own desktop settle
-  // (see finishMovie) — it's already sitting exactly where its overview
-  // item will render, so cross-fading the whole panel in would fade
-  // that one slide's content in on top of itself. Every other caller
-  // (scroll-away mid-movie, mobile's approximate settle) has nothing
-  // already in place, so they keep the cross-fade.
-  function showOverview(skipFade = false) {
+  function showOverview() {
     if (!overview || overviewOpen) return;
     overviewOpen = true;
     overview.hidden = false;
+    overview.style.opacity = "1";
     // the live carousel goes away completely, not just behind the
     // overlay's own opaque background.
     sceneEl!.style.visibility = "hidden";
-    gsap.killTweensOf(overview);
-    if (skipFade) overview.style.opacity = "1";
-    else gsap.fromTo(overview, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" });
   }
   function closeOverview() {
     if (!overview || !overviewOpen) return;
     overviewOpen = false;
     sceneEl!.style.visibility = "";
-    gsap.killTweensOf(overview);
     overview.hidden = true;
     overview.style.opacity = "0";
   }

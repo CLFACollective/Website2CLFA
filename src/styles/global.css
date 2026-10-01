@@ -621,7 +621,11 @@ body.hide-kickoff .kickoff { display: none; }
 .hs__intro-head { font-size: clamp(33px, 5vw, 90px); font-weight: 300; line-height: .845; letter-spacing: -.038em; margin: 0 0 22px; max-width: 15ch; }
 .hs__intro-head .hot { font-size: clamp(32px, 5vw, 90px); font-weight: 600; line-height: 1; display: block; }
 
-.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 clamp(18px, 1.15vw, 22px); }
+/* Stat spacing is Figma's (node 3772:277), as ratios of each element's
+   own font size so it holds at every breakpoint: figure 190px on a
+   159.6px line (.84), caption 32px on 37px, subline 26px on 33px, with
+   a 17px gap after the figure and after the caption. */
+.mfig { font-size: clamp(64px, 11vw, 190px); font-weight: 900; letter-spacing: -3px; line-height: .84; margin: 0 0 calc(17em / 190); }
 /* the "150+" figure was measured with noticeably less negative tracking
    than the other two stats — not an oversight, Figma has it that way.
    Its point size matches the other two (190px on the 1920 frame, node
@@ -644,9 +648,9 @@ body.hide-kickoff .kickoff { display: none; }
    generically, so this stays as a general capability, not dead code. */
 .mfig .mfig__prefix { font-size: .4em; font-weight: 800; vertical-align: super; }
 .mcap {
-  margin: 0 0 clamp(20px, 2.4vw, 46px); color: var(--flare); font-weight: 600; letter-spacing: 0;
+  margin: 0 0 calc(17em / 32); color: var(--flare); font-weight: 600; letter-spacing: 0;
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
-  line-height: calc(1.2em + .5rem); max-width: 20ch;
+  line-height: calc(37 / 32); max-width: 20ch;
 }
 
 /* left:calc(100% + 20px) — not `right` — since the badge's own width
@@ -779,25 +783,24 @@ body.hide-kickoff .kickoff { display: none; }
    25% wider than the base .mg__slide so more of its own longer lines
    fit per row without needing as many manual breaks. */
 .mg__slide--wide { width: min(700px, 90vw); }
-.mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(24px + .5rem); max-width: 22ch; }
+.mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(33 / 26); max-width: 22ch; }
 
 /* Desktop resting composition (Figma node 3772:277): while
    #momentum[data-mg-rest] is set, the live slides sit at their Figma
    spots (placeRestDesktop in momentumGallery.ts) and take Figma's own
    caption/subline sizes and gaps. --u is one Figma px in each slide's
    own live px, set per slide by that same function; every value below
-   is the Figma frame's px figure times --u. Direct children of
+   is the Figma frame's px figure times --u. (Gaps and line-heights
+   come from the shared .mfig/.mcap/h3 ratios above.) Direct children of
    #mgScene only — mobile's resting list clones these same classes. */
 @media (min-width: 1000px) {
-  #momentum[data-mg-rest] #mgScene > .mg__slide--stat .mfig { margin-bottom: calc(17 * var(--u)); }
   #momentum[data-mg-rest] #mgScene > .mg__slide--stat .mcap {
-    font-size: calc(32 * var(--u)); line-height: calc(37 * var(--u)); letter-spacing: calc(-.52 * var(--u));
-    margin: 0 auto calc(17 * var(--u)); max-width: none;
+    font-size: calc(32 * var(--u)); letter-spacing: calc(-.52 * var(--u)); max-width: none;
   }
   /* 150+'s caption breaks after "Ontologies" in Figma */
   #momentum[data-mg-rest] #mgScene > .mg__slide--stat[data-mg-index="3"] .mcap { max-width: calc(400 * var(--u)); }
   #momentum[data-mg-rest] #mgScene > .mg__slide--stat h3 {
-    font-size: calc(26 * var(--u)); line-height: calc(33 * var(--u)); letter-spacing: calc(-.52 * var(--u));
+    font-size: calc(26 * var(--u)); letter-spacing: calc(-.52 * var(--u));
     max-width: calc(380 * var(--u));
   }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__by {

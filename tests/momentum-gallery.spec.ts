@@ -253,6 +253,34 @@ test.describe("MomentumGallery: the movie", () => {
     expect(worstDx).toBeLessThan(4);
   });
 
+  test("stat spacing matches Figma: 17px number -> caption -> subline, in the movie and at rest", async ({ page }) => {
+    // gaps converted back into Figma px (relative to each element's own
+    // font size vs. Figma's 190px figure / 32px caption), so this holds
+    // at any viewport and any live/rest scale
+    const measure = (root: Element) => {
+      const fig = root.querySelector<HTMLElement>(".mfig")!, cap = root.querySelector<HTMLElement>(".mcap")!, h3 = root.querySelector<HTMLElement>("h3")!;
+      const f = fig.getBoundingClientRect(), c = cap.getBoundingClientRect(), h = h3.getBoundingClientRect();
+      const scale = f.height / fig.offsetHeight;
+      const figFont = parseFloat(getComputedStyle(fig).fontSize), capFont = parseFloat(getComputedStyle(cap).fontSize);
+      return { numToCap: ((c.top - f.bottom) / scale / figFont) * 190, capToSub: ((h.top - c.bottom) / scale / capFont) * 32 };
+    };
+    const check = (g: { numToCap: number; capToSub: number }, label: string) => {
+      expect(Math.abs(g.numToCap - 17), `${label}: number -> caption`).toBeLessThan(1.5);
+      expect(Math.abs(g.capToSub - 17), `${label}: caption -> subline`).toBeLessThan(1.5);
+    };
+    for (const i of [1, 2, 3]) {
+      await page.evaluate((n) => (document.getElementById("momentum") as any).mgApi.goTo(n), i);
+      await page.waitForTimeout(ARRIVE_DUR + SETTLE);
+      check(await page.evaluate(`(${measure})(document.querySelector('#mgScene > .mg__slide[data-mg-index="${i}"]'))`), `movie slide ${i}`);
+    }
+    await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
+    await pollUntil(page, (s) => s.everPlayed === true, MOVIE_END_TIMEOUT);
+    for (const i of [1, 2, 3]) {
+      const sel = isDesktop(page) ? `#mgScene > .mg__slide[data-mg-index="${i}"]` : `.mg__ov-item[data-mg-index="${i}"]`;
+      check(await page.evaluate(`(${measure})(document.querySelector('${sel}'))`), `rest slide ${i}`);
+    }
+  });
+
   test("a stat's number counts up exactly once, never resetting on a later preview", async ({ page }) => {
     await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.goTo(1));
     const readFigure = () => page.evaluate(() => document.querySelector('.mg__slide[data-mg-index="1"] .mfig')?.textContent ?? "");

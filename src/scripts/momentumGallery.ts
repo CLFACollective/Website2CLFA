@@ -15,7 +15,7 @@ const CAMERA_Z = 1000;
    The next slide starts its own entrance once the current one's fade
    is NEXT_AFTER_FADE of the way done — it's nearly gone by then, so the
    incoming slide never flies in over a ghost of the outgoing one. Once the last slide has faded, every slide is placed at its
-   resting spot in the Figma composition (node 3772:277 — see
+   resting spot in the Figma composition (node 3612:8790 — see
    REST_LAYOUT) and uncovered by a growing circle, the same reveal the
    hero's opening beat uses (see revealRest). */
 const ARRIVE_DUR = 0.6;
@@ -107,10 +107,9 @@ const MOBILE_HOLD_CREEP_Z_SPEED = 90;
  * locking scroll: this never traps the visitor, it just plays in the
  * background while they keep scrolling if they want to. If they scroll
  * away before it finishes, or once it finishes on its own, the section
- * rests on all 5 slides at once (see "resting state" below) until the
- * section is approached again — scrolling away and back restarts the
- * movie from slide 0, same as a fresh first visit. A "Replay" button
- * also restarts it on demand.
+ * rests on all 5 slides at once (see "resting state" below) and stays
+ * there — scrolling back doesn't autoplay it again. Only the "Replay"
+ * button plays it again.
  *
  * Desktop renders the depth with a real Three.js scene (a camera + one
  * invisible mesh per slide — see renderFrame) and syncs the real DOM
@@ -477,9 +476,8 @@ export function setupMomentumGallery() {
   });
 
   /* ================= the movie ================= */
-  // Plays automatically the first time the section scrolls into view,
-  // and restarts fresh any time it's scrolled away and back (see the
-  // ScrollTrigger further down). Each slide: ARRIVE_DUR in, holdFor(i)
+  // Plays automatically the first time the section scrolls into view
+  // (see the ScrollTrigger further down), then only via Replay. Each slide: ARRIVE_DUR in, holdFor(i)
   // at centre, FADE_DUR out in place. The next slide starts its own
   // entrance once that fade is NEXT_AFTER_FADE of the way done.
   let pendingTimers: gsap.core.Tween[] = [];
@@ -600,10 +598,11 @@ export function setupMomentumGallery() {
 
   /* ================= visibility ================= */
   // Starts the movie the first time the section reaches the top of the
-  // viewport, and restarts it fresh from slide 0 every time it's
-  // scrolled away from and then reaches the top again — the same
-  // "is this section now the one at the top" idiom navTint.ts's own
-  // top-top/bottom-top triggers use, not raw intersection.
+  // viewport — the same "is this section now the one at the top" idiom
+  // navTint.ts's own top-top/bottom-top triggers use, not raw
+  // intersection. That's the only autoplay: once the movie has
+  // finished, or been left mid-play, the section rests on its final
+  // screen for good, and only the Replay button plays it again.
   //
   // Scroll is held in place — like the other pinned "scroll areas" —
   // from the moment it reaches the top until the first slide is
@@ -614,17 +613,7 @@ export function setupMomentumGallery() {
   // them again — they can keep scrolling while the rest of the movie
   // plays in the background. If they scroll away before it finishes,
   // that's treated the same as it finishing on its own: the section
-  // rests on every slide at once until it's approached again.
-  //
-  // `hasLeftSinceActivating` distinguishes a genuine "scrolled away,
-  // now scrolled back" from an incidental one — e.g. clicking an
-  // overview card or the Replay button can itself cause the browser to
-  // scroll the section into view if it wasn't already, which would
-  // otherwise read as "just arrived" and wrongly restart the movie (and
-  // re-lock scroll) out from under a manually-previewed slide. Only a
-  // transition this trigger itself already saw as a real *leave*
-  // re-arms the restart.
-  let hasLeftSinceActivating = false;
+  // rests on every slide at once.
 
   // Mirrors hero.ts's own scroll-lock idiom — overflow:hidden plus a
   // snap-back scroll listener, since overflow:hidden alone doesn't
@@ -652,7 +641,7 @@ export function setupMomentumGallery() {
   function handleReachTop() {
     sectionVisible = true;
     if (mode === "desktop") startThreeTicker();
-    if (!playing && (!everActivated || hasLeftSinceActivating)) {
+    if (!playing && !everActivated) {
       engageScrollLock();
       playMovie();
     }
@@ -660,10 +649,11 @@ export function setupMomentumGallery() {
   function handleLeaveTop() {
     sectionVisible = false;
     if (mode === "desktop") stopThreeTicker();
-    hasLeftSinceActivating = true;
     releaseScrollLock(); // defensive — scroll being blocked should make a real leave impossible while still locked
-    if (playing) {
-      stopMovie();
+    if (playing) stopMovie();
+    // a replay or a single previewed slide left mid-way also goes back
+    // to the final screen
+    if (everActivated && !resting) {
       everPlayed = true;
       applyAria();
       showRest(false);
@@ -700,29 +690,30 @@ export function setupMomentumGallery() {
   const ovGrid = document.getElementById("mgOvGrid");
   const ring = document.getElementById("mgRing");
 
-  /* Desktop resting composition — Figma node 3772:277, a 1920-wide
+  /* Desktop resting composition — Figma node 3612:8790, a 1920-wide
      frame. Per slide: where its content starts (x is the column's
      centre for the centred stat columns, the left edge for the
      left-aligned quotes; top is the content's top edge) and the font
      size of its headline text (the .mfig figure or the .mquote lines)
      in that frame. Each slide is scaled so its headline renders at
-     exactly that size relative to the frame. Slide 4 (the Michelle
-     quote) has no slot in that frame — it sits in the open space
-     between 150+ and 4M, at the smaller quote size the earlier
-     revision of this design used there. */
-  type RestSlot = { x: number; top: number; font: number; align: "center" | "left" };
+     exactly that size relative to the frame. cssFont is the headline
+     size the [data-mg-rest] rules in global.css are written against
+     (default: font) — every stat block in the frame is a uniform
+     scale of one 190px-figure layout, so the stats share one set of
+     rules at 190. */
+  type RestSlot = { x: number; top: number; font: number; align: "center" | "left"; cssFont?: number };
   const REST_LAYOUT: Record<number, RestSlot> = {
-    0: { x: 1077, top: 1098, font: 96, align: "left" }, // "They move at the speed of business"
-    1: { x: 568, top: 1170, font: 190, align: "center" }, // 100%
-    2: { x: 1509.5, top: 622, font: 190, align: "center" }, // 4M
-    3: { x: 438.5, top: 622, font: 190, align: "center" }, // 150+
-    4: { x: 740, top: 640, font: 36, align: "left" }, // Michelle quote
+    0: { x: 1073.8, top: 1059.3, font: 69.9, align: "left" }, // "They move at the speed of business"
+    1: { x: 643.4, top: 1042.3, font: 151.6, align: "center", cssFont: 190 }, // 100%
+    2: { x: 1500.4, top: 626.5, font: 166.5, align: "center", cssFont: 190 }, // 4M
+    3: { x: 398, top: 625.9, font: 154.06, align: "center", cssFont: 190 }, // 150+
+    4: { x: 714.5, top: 640.9, font: 36.28, align: "left" }, // Michelle quote
   };
   const FRAME_WIDTH = 1920;
   // the whole composition shifts horizontally (as one block) so the "1"
   // of 150+ lines up under the "m" of "momentum." in the heading
   const ALIGN_SLIDE = 3;
-  const CONTENT_TOP = 622;
+  const CONTENT_TOP = 626;
   const QUOTE_BADGE_ALLOWANCE = 170; // a quote's badge sits outside its own box, past its first line
   const REST_PAD_TOP = 8;
   const REST_PAD_BOTTOM = 30;
@@ -753,7 +744,8 @@ export function setupMomentumGallery() {
   // x/y/z that lands each slide exactly on its target.
   //
   // Each slide first gets --u: one Figma px expressed in its own live
-  // px (its headline's live font size / the Figma size). The
+  // px (its headline's live font size / the Figma size, taken at the
+  // slot's cssFont scale — see REST_LAYOUT). The
   // [data-mg-rest] rules in global.css size the captions, sublines and
   // gaps in multiples of it, so each slide's internal proportions match
   // the Figma frame exactly; the whole slide is then scaled by k / u,
@@ -767,8 +759,11 @@ export function setupMomentumGallery() {
 
     const geo = slides.map((slide, i) => {
       const slot = REST_LAYOUT[i];
-      const u = (headlineFont(slide) || slot.font) / slot.font;
-      slide.style.setProperty("--u", `${u}px`);
+      const ref = slot.cssFont ?? slot.font;
+      const cssU = (headlineFont(slide) || ref) / ref;
+      slide.style.setProperty("--u", `${cssU}px`);
+      // live px per Figma px
+      const u = (cssU * ref) / slot.font;
       const cs = getComputedStyle(slide);
       // in Figma px, now that --u has been applied
       const w = parseFloat(cs.width) / u;

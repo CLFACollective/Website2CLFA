@@ -785,7 +785,7 @@ body.hide-kickoff .kickoff { display: none; }
 .mg__slide--wide { width: min(700px, 90vw); }
 .mg__slide h3 { font-size: clamp(18px, 1.6vw, 26px); font-weight: 800; margin: 0; letter-spacing: -.02em; line-height: calc(33 / 26); max-width: 22ch; }
 
-/* Desktop resting composition (Figma node 3772:277): while
+/* Desktop resting composition (Figma node 3612:8790): while
    #momentum[data-mg-rest] is set, the live slides sit at their Figma
    spots (placeRestDesktop in momentumGallery.ts) and take Figma's own
    caption/subline sizes and gaps. --u is one Figma px in each slide's
@@ -805,17 +805,17 @@ body.hide-kickoff .kickoff { display: none; }
   }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__by {
     font-size: calc(26 * var(--u)); line-height: calc(39 * var(--u)); margin-top: calc(26 * var(--u));
+    white-space: nowrap; /* one line in Figma, wider than the quote's own lines */
   }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__badge {
     width: calc(112 * var(--u)); top: calc(-40 * var(--u)); left: calc(100% + 50 * var(--u));
   }
-  /* the Michelle quote — no slot in 3772:277; sized like the smaller
-     quote the previous revision of this design had in the same spot */
+  /* the Michelle quote — the smaller quote between 150+ and 4M */
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__by {
-    font-size: calc(14 * var(--u)); line-height: calc(20 * var(--u)); margin-top: calc(12 * var(--u));
+    font-size: calc(9.83 * var(--u)); line-height: calc(14.74 * var(--u)); margin-top: calc(9.83 * var(--u));
   }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__badge {
-    width: calc(42 * var(--u)); top: calc(-14 * var(--u)); left: calc(100% + 18 * var(--u));
+    width: calc(42.3 * var(--u)); top: calc(-15.3 * var(--u)); left: calc(100% + 28 * var(--u));
   }
 }
 

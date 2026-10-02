@@ -13,14 +13,14 @@ import { skipHeroMovie } from "./helpers";
  * Once the last slide has faded, the section rests on every slide at
  * once, uncovered by a growing circle (the hero's own iris reveal). On
  * desktop those are the live slides themselves, placed by Three.js at
- * the Figma composition's positions/type sizes (node 3772:277); mobile
+ * the Figma composition's positions/type sizes (node 3612:8790); mobile
  * (no WebGL) shows a stacked list of cloned slides (#mgOverview).
  * "Replay" watches it again from slide 0.
  *
  * Most tests drive the movie via the exposed mgApi (playMovie/goTo)
  * rather than real scroll, for determinism and speed — a couple of
  * tests specifically exercise the real scroll-triggered auto-play,
- * scroll-away, and scroll-back-restarts behavior.
+ * scroll-away, and scroll-back-stays-resting behavior.
  */
 const ARRIVE_DUR = 600; // ms
 const HOLD_DUR = 1100; // ms — slide 1's hold
@@ -390,7 +390,7 @@ test.describe("MomentumGallery: the movie", () => {
       expect(await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById("mgRing")!).opacity))).toBeLessThan(0.05);
     });
 
-      test("desktop rest matches Figma 3772:277 — the live slides at their spots, sharp, no overlaps", async ({ page }) => {
+      test("desktop rest matches Figma 3612:8790 — the live slides at their spots, sharp, no overlaps", async ({ page }) => {
       test.skip(!isDesktop(page), "desktop-only Three-placed composition");
       await playToEnd(page);
       await page.waitForTimeout(REVEAL_DUR + SETTLE);
@@ -412,10 +412,12 @@ test.describe("MomentumGallery: the movie", () => {
       });
       const [quote, stat100, stat4M, stat150, michelle] = geo;
 
-      // Figma: 150+, 4M and 100% figures are all 190px; the quote's lines 96px
-      expect(Math.abs(stat4M.font / stat150.font - 1)).toBeLessThan(0.02);
-      expect(Math.abs(stat100.font / stat150.font - 1)).toBeLessThan(0.02);
-      expect(Math.abs(quote.font / stat150.font - 96 / 190)).toBeLessThan(0.02);
+      // Figma: figures 150+ 154.06px, 4M 166.5px, 100% 151.6px; the
+      // quotes' lines 69.9px and (Michelle) 36.28px
+      expect(Math.abs(stat4M.font / stat150.font - 166.5 / 154.06)).toBeLessThan(0.02);
+      expect(Math.abs(stat100.font / stat150.font - 151.6 / 154.06)).toBeLessThan(0.02);
+      expect(Math.abs(quote.font / stat150.font - 69.9 / 154.06)).toBeLessThan(0.02);
+      expect(Math.abs(michelle.font / stat150.font - 36.28 / 154.06)).toBeLessThan(0.01);
 
       // arrangement: 150+ and 4M share the top row (150+ left, 4M right);
       // 100% and the quote share the bottom row; the Michelle quote sits
@@ -496,7 +498,7 @@ test.describe("MomentumGallery: the movie", () => {
       await expectResting(page);
     });
 
-    test("scrolling away and back into view restarts the movie from slide 0", async ({ page }) => {
+    test("scrolling away and back into view shows only the final screen — no autoplay", async ({ page }) => {
       await scrollIntoGallery(page);
       await pollUntil(page, (s) => s.playing === true);
       await pollUntil(page, (s) => s.idx >= 2, 10000); // let it get partway through first
@@ -505,10 +507,33 @@ test.describe("MomentumGallery: the movie", () => {
       await expectResting(page);
 
       await scrollIntoGallery(page);
+      await page.waitForTimeout(1000);
+      expect((await getState(page)).playing).toBe(false);
+      await expectResting(page);
+    });
+
+    test("once the movie has finished, scrolling away and back stays on the final screen", async ({ page }) => {
+      await playToEnd(page);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(300);
+      await scrollIntoGallery(page);
+      await page.waitForTimeout(1000);
+      expect((await getState(page)).playing).toBe(false);
+      await expectResting(page);
+    });
+
+    test("a replay left mid-way goes back to the final screen, and doesn't restart on return", async ({ page }) => {
+      await playToEnd(page);
+      await page.waitForTimeout(REVEAL_DUR + SETTLE);
+      await scrollIntoGallery(page);
+      await page.locator("#mgOvToggle").click();
       await pollUntil(page, (s) => s.playing === true);
-      await expect(page.locator("#mgOverview")).toBeHidden();
-      await expect(page.locator("#momentum")).not.toHaveAttribute("data-mg-rest", "true");
-      expect(await activeIndex(page)).toBe("0");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await pollUntil(page, (s) => s.playing === false);
+      await scrollIntoGallery(page);
+      await page.waitForTimeout(1000);
+      expect((await getState(page)).playing).toBe(false);
+      await expectResting(page);
     });
 
     test("mobile: tapping a list item previews that one slide directly", async ({ page }) => {

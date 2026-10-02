@@ -27,6 +27,11 @@ interface Card {
   body: string[];
 }
 
+// The whole row sits lower than the Figma frame, as one block: far
+// enough that the Brand infrastructure card (the top-most) just barely
+// overlaps the bottom of the orange "more rollout." line.
+const CARDS_DROP = 215;
+
 const CARDS: Card[] = [
   {
     x: 129, y: 488, rot: -10, ky: 0.05, kr: 0.0012,
@@ -81,7 +86,7 @@ const CARDS: Card[] = [
         {CARDS.map((c, n) => (
           <li
             class="mfe__card"
-            style={`--x:${c.x};--y:${c.y};--rot:${c.rot}deg;--ky:${c.ky};--kr:${c.kr}deg;--i:${n};`}
+            style={`--x:${c.x};--y:${c.y + CARDS_DROP};--rot:${c.rot}deg;--ky:${c.ky};--kr:${c.kr}deg;--i:${n};`}
           >
             <img
               class="mfe__icon"
@@ -116,7 +121,9 @@ const CARDS: Card[] = [
   }
   .mfe__frame {
     --u: 0.052083vw; /* replaced by the measured value on mount */
-    position: relative; width: 100%; height: calc(1023 * var(--u));
+    /* 1080, not the Figma frame's 1023: the room CARDS_DROP needs for
+       the lowest card's corner on a 16:9 screen */
+    position: relative; width: 100%; height: calc(1080 * var(--u));
   }
 
   .mfe__head {

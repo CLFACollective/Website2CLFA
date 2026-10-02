@@ -195,6 +195,40 @@ test.describe("reduced motion: every new animation resolves to its resting state
   });
 });
 
+test.describe("What We Do: conveyor card placement", () => {
+  test("at the belt's midpoint the Brand infrastructure card just barely overlaps the orange headline line, and every card fits on screen", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "the conveyor layout only applies above 900px");
+    await page.goto("/what-we-do");
+    await page.evaluate(() => {
+      const s = document.getElementById("equity")!;
+      window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) / 2);
+    });
+    await page.waitForTimeout(800);
+    const g = await page.evaluate(() => {
+      const s = document.getElementById("equity")!;
+      // the designed arrangement: zero belt displacement
+      s.style.setProperty("--d", "0");
+      s.style.setProperty("--dabs", "0");
+      const u = s.querySelector<HTMLElement>(".mfe__frame")!.clientWidth / 1920;
+      const lines = s.querySelector(".mfe__head strong")!.getClientRects();
+      const cards = Array.from(s.querySelectorAll(".mfe__card")).map((c) => c.getBoundingClientRect());
+      return {
+        u,
+        orangeBottom: lines[lines.length - 1].bottom,
+        brandTop: cards[2].top,
+        topMost: Math.min(...cards.map((c) => c.top)),
+        maxBottom: Math.max(...cards.map((c) => c.bottom)),
+        vh: innerHeight,
+      };
+    });
+    expect(g.topMost, "Brand infrastructure is the top-most card").toBeCloseTo(g.brandTop, 0);
+    const overlap = (g.orangeBottom - g.brandTop) / g.u; // design px
+    expect(overlap, "Brand's top edge reaches into the orange line's box").toBeGreaterThan(0);
+    expect(overlap, "...only barely").toBeLessThan(60);
+    expect(g.maxBottom, "the lowest card isn't cut off by the stage").toBeLessThanOrEqual(g.vh);
+  });
+});
+
 test.describe("GSAP-driven scroll values genuinely change (value-sampling, not getAnimations())", () => {
   test("What We Do: opener's --out advances as the page scrolls past it", async ({ page }) => {
     await page.goto("/what-we-do");

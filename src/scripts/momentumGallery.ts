@@ -707,7 +707,9 @@ export function setupMomentumGallery() {
     1: { x: 643.4, top: 1042.3, font: 151.6, align: "center", cssFont: 190 }, // 100%
     2: { x: 1500.4, top: 626.5, font: 166.5, align: "center", cssFont: 190 }, // 4M
     3: { x: 398, top: 625.9, font: 154.06, align: "center", cssFont: 190 }, // 150+
-    4: { x: 714.5, top: 640.9, font: 36.28, align: "left" }, // Michelle quote
+    // Michelle quote — Figma node 3837:5995: its text starts above the
+    // stats' top row (CONTENT_TOP), beside the heading rather than under it
+    4: { x: 796.8, top: 570.6, font: 45.285, align: "left" },
   };
   const FRAME_WIDTH = 1920;
   // the whole composition shifts horizontally (as one block) so the "1"

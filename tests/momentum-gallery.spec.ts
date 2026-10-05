@@ -390,13 +390,18 @@ test.describe("MomentumGallery: the movie", () => {
       expect(await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById("mgRing")!).opacity))).toBeLessThan(0.05);
     });
 
-      test("desktop rest matches Figma 3612:8790 — the live slides at their spots, sharp, no overlaps", async ({ page }) => {
+      test("desktop rest matches Figma 3612:8790 (Michelle: 3837:5995) — the live slides at their spots, sharp, no overlaps", async ({ page }) => {
       test.skip(!isDesktop(page), "desktop-only Three-placed composition");
       await playToEnd(page);
       await page.waitForTimeout(REVEAL_DUR + SETTLE);
-      const geo = await page.evaluate(() => {
+      const { geo, heading } = await page.evaluate(() => {
         const scene = document.getElementById("mgScene")!.getBoundingClientRect();
-        return Array.from({ length: 5 }, (_, i) => {
+        const h = document.querySelector(".hs__intro-head")!.getBoundingClientRect();
+        const text = document.querySelector<HTMLElement>(".hs__intro-head .hot")!;
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const ink = range.getBoundingClientRect();
+        const geo = Array.from({ length: 5 }, (_, i) => {
           const el = document.querySelector<HTMLElement>(`#mgScene > .mg__slide[data-mg-index="${i}"]`)!;
           const r = el.getBoundingClientRect();
           const scale = parseFloat(el.style.transform.match(/scale\(([\d.]+)\)/)?.[1] ?? "1");
@@ -407,17 +412,22 @@ test.describe("MomentumGallery: the movie", () => {
             font: parseFloat(getComputedStyle(head).fontSize) * scale,
             filter: el.style.filter,
             ariaHidden: el.getAttribute("aria-hidden"),
+            badge: (() => {
+              const b = el.querySelector(".mquote__badge")?.getBoundingClientRect();
+              return b ? { left: b.left - scene.left, top: b.top - scene.top } : null;
+            })(),
           };
         });
+        return { geo, heading: { right: ink.right - scene.left, bottom: h.bottom - scene.top } };
       });
       const [quote, stat100, stat4M, stat150, michelle] = geo;
 
       // Figma: figures 150+ 154.06px, 4M 166.5px, 100% 151.6px; the
-      // quotes' lines 69.9px and (Michelle) 36.28px
+      // quotes' lines 69.9px and (Michelle, node 3837:5995) 45.285px
       expect(Math.abs(stat4M.font / stat150.font - 166.5 / 154.06)).toBeLessThan(0.02);
       expect(Math.abs(stat100.font / stat150.font - 151.6 / 154.06)).toBeLessThan(0.02);
       expect(Math.abs(quote.font / stat150.font - 69.9 / 154.06)).toBeLessThan(0.02);
-      expect(Math.abs(michelle.font / stat150.font - 36.28 / 154.06)).toBeLessThan(0.01);
+      expect(Math.abs(michelle.font / stat150.font - 45.285 / 154.06)).toBeLessThan(0.01);
 
       // arrangement: 150+ and 4M share the top row (150+ left, 4M right);
       // 100% and the quote share the bottom row; the Michelle quote sits
@@ -428,6 +438,14 @@ test.describe("MomentumGallery: the movie", () => {
       expect(quote.left).toBeGreaterThan(stat100.right - 40);
       expect(michelle.left).toBeGreaterThan(stat150.right);
       expect(michelle.right).toBeLessThan(stat4M.left + 40);
+      // Figma starts the Michelle quote's text above the stats' top row,
+      // up beside the heading: higher than 150+, clear of "momentum."
+      expect(michelle.top).toBeLessThan(stat150.top);
+      expect(michelle.left, "Michelle quote clear of the heading").toBeGreaterThan(heading.right);
+      // its badge sits off the column's top-left corner (330.43, -34.2 Figma px)
+      const k = michelle.font / 45.285;
+      expect(Math.abs((michelle.badge!.left - michelle.left) / k - 330.43)).toBeLessThan(4);
+      expect(Math.abs((michelle.badge!.top - michelle.top) / k + 34.2)).toBeLessThan(4);
 
       for (let i = 0; i < N; i++) {
         const g = geo[i];
@@ -435,7 +453,8 @@ test.describe("MomentumGallery: the movie", () => {
         expect(g.ariaHidden, `slide ${i} exposed at rest`).toBeNull();
         expect(g.left, `slide ${i} inside the scene`).toBeGreaterThanOrEqual(0);
         expect(g.right).toBeLessThanOrEqual(g.sceneW);
-        expect(g.top).toBeGreaterThanOrEqual(0);
+        // (the Michelle quote rises above the scene, beside the heading — checked above)
+        if (i !== 4) expect(g.top).toBeGreaterThanOrEqual(0);
         expect(g.bottom, `slide ${i} not clipped at the bottom`).toBeLessThanOrEqual(g.sceneH);
         for (let j = i + 1; j < N; j++) {
           const h = geo[j];

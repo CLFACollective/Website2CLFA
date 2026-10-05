@@ -714,7 +714,8 @@ body.hide-kickoff .kickoff { display: none; }
    .mquote__l1,3/__l2's plain-vs-emphasis roles, reused across as many
    lines as needed (k1 for every plain line, not just the first — unlike
    .mquote__l1 which only ever appears once per quote). */
-.mquote--long { font-size: clamp(22px, 3.6vw, 54px); line-height: 1.14; }
+:root { --mquote-long: clamp(22px, 3.6vw, 54px); }
+.mquote--long { font-size: var(--mquote-long); line-height: 1.14; }
 .mquote__k1 { color: var(--charcoal); position: relative; }
 .mquote__k2 { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; letter-spacing: 0; }
 
@@ -810,23 +811,31 @@ body.hide-kickoff .kickoff { display: none; }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__badge {
     width: calc(112 * var(--u)); top: calc(-40 * var(--u)); left: calc(100% + 50 * var(--u));
   }
-  /* the Michelle quote between 150+ and 4M (Figma node 3837:5995): one
-     plain run of text wrapping in a 366px column — no forced line
-     breaks, no copper italic line — with the badge placed off the
-     column's top-left corner rather than off the end of the first line */
-  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] { width: calc(366.33 * var(--u)); }
-  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote {
+  /* the Michelle quote (Figma node 3837:5995): one plain run of text
+     wrapping in a 366px column — no forced line breaks, no copper
+     italic line — with the badge placed off the column's top-left
+     corner rather than off the end of the first line. Same look in the
+     movie and at rest: these rules aren't scoped to [data-mg-rest], and
+     --u falls back to the quote's own font size / Figma's 45.285px —
+     the same value placeRestDesktop sets inline at rest. "#momentum
+     #mgScene" ties the generic [data-mg-rest] quote rules above on
+     specificity, so coming later wins. */
+  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] {
+    --u: calc(var(--mquote-long) / 45.285);
+    width: calc(366.33 * var(--u));
+  }
+  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote {
     position: relative; line-height: calc(48.366 * var(--u));
   }
-  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote > span {
+  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote > span {
     display: inline; position: static;
     color: var(--charcoal); font-family: var(--sans); font-style: normal; letter-spacing: inherit;
   }
-  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__by {
+  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__by {
     font-size: calc(21.496 * var(--u)); line-height: calc(18.397 * var(--u));
     letter-spacing: calc(-.1226 * var(--u)); margin-top: calc(22.392 * var(--u));
   }
-  #momentum[data-mg-rest] #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__badge {
+  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__badge {
     width: calc(52.83 * var(--u)); top: calc(-34.2 * var(--u)); left: calc(330.43 * var(--u));
   }
 }

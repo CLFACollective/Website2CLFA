@@ -253,6 +253,45 @@ test.describe("MomentumGallery: the movie", () => {
     expect(worstDx).toBeLessThan(4);
   });
 
+  test("the Michelle quote looks the same in the movie as at rest (Figma 3837:5995)", async ({ page }) => {
+    test.skip(!isDesktop(page), "desktop formatting; mobile keeps its own line breaks");
+    // proportions in Figma px (relative to the quote's own 45.285px), so
+    // the same numbers hold at the movie's scale and the rest scale
+    const measure = () => {
+      const slide = document.querySelector<HTMLElement>('#mgScene > .mg__slide[data-mg-index="4"]')!;
+      const q = slide.querySelector<HTMLElement>(".mquote")!;
+      const by = slide.querySelector<HTMLElement>(".mquote__by")!;
+      const font = parseFloat(getComputedStyle(q).fontSize);
+      const u = font / 45.285;
+      const lines = new Set(
+        Array.from(q.querySelectorAll<HTMLElement>(":scope > span")).flatMap((s) =>
+          Array.from(s.getClientRects()).map((r) => Math.round(r.top)),
+        ),
+      ).size;
+      const colors = Array.from(q.querySelectorAll<HTMLElement>(":scope > span")).map((s) => getComputedStyle(s).color);
+      return {
+        lines,
+        oneColor: new Set(colors).size === 1,
+        italic: Array.from(q.querySelectorAll<HTMLElement>(":scope > span")).some((s) => getComputedStyle(s).fontStyle === "italic"),
+        width: slide.offsetWidth / u,
+        byFont: parseFloat(getComputedStyle(by).fontSize) / u,
+      };
+    };
+    const check = (g: Awaited<ReturnType<typeof measure>>, label: string) => {
+      expect(g.lines, `${label}: wraps to Figma's 7 lines`).toBe(7);
+      expect(g.oneColor, `${label}: one text color, no copper line`).toBe(true);
+      expect(g.italic, `${label}: no italic line`).toBe(false);
+      expect(Math.abs(g.width - 366.33), `${label}: 366px column`).toBeLessThan(1);
+      expect(Math.abs(g.byFont - 21.496), `${label}: byline size`).toBeLessThan(0.5);
+    };
+    await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.goTo(4));
+    await page.waitForTimeout(ARRIVE_DUR + SETTLE);
+    check(await page.evaluate(measure), "movie");
+    await page.evaluate(() => (document.getElementById("momentum") as any).mgApi.playMovie());
+    await pollUntil(page, (s) => s.everPlayed === true, MOVIE_END_TIMEOUT);
+    check(await page.evaluate(measure), "rest");
+  });
+
   test("stat spacing matches Figma: 17px number -> caption -> subline, in the movie and at rest", async ({ page }) => {
     // gaps converted back into Figma px (relative to each element's own
     // font size vs. Figma's 190px figure / 32px caption), so this holds

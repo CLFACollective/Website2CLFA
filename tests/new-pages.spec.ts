@@ -196,7 +196,7 @@ test.describe("reduced motion: every new animation resolves to its resting state
 });
 
 test.describe("What We Do: conveyor card placement", () => {
-  test("at the belt's midpoint the Brand infrastructure card just barely overlaps the orange headline line, and every card fits on screen", async ({ page }, testInfo) => {
+  test("at the belt's midpoint the Brand infrastructure card overlaps the orange headline line by ~105 design px, and every card fits on screen", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop", "the conveyor layout only applies above 900px");
     await page.goto("/what-we-do");
     await page.evaluate(() => {
@@ -223,8 +223,8 @@ test.describe("What We Do: conveyor card placement", () => {
     });
     expect(g.topMost, "Brand infrastructure is the top-most card").toBeCloseTo(g.brandTop, 0);
     const overlap = (g.orangeBottom - g.brandTop) / g.u; // design px
-    expect(overlap, "Brand's top edge reaches into the orange line's box").toBeGreaterThan(0);
-    expect(overlap, "...only barely").toBeLessThan(60);
+    expect(overlap, "Brand's top edge reaches into the orange line's box").toBeGreaterThan(85);
+    expect(overlap, "...by about 105 design px, not more").toBeLessThan(125);
     expect(g.maxBottom, "the lowest card isn't cut off by the stage").toBeLessThanOrEqual(g.vh);
   });
 });

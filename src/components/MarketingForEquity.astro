@@ -28,9 +28,9 @@ interface Card {
 }
 
 // The whole row sits lower than the Figma frame, as one block: far
-// enough that the Brand infrastructure card (the top-most) just barely
+// enough that the Brand infrastructure card (the top-most) slightly
 // overlaps the bottom of the orange "more rollout." line.
-const CARDS_DROP = 215;
+const CARDS_DROP = 150;
 
 const CARDS: Card[] = [
   {
@@ -121,9 +121,9 @@ const CARDS: Card[] = [
   }
   .mfe__frame {
     --u: 0.052083vw; /* replaced by the measured value on mount */
-    /* 1080, not the Figma frame's 1023: the room CARDS_DROP needs for
-       the lowest card's corner on a 16:9 screen */
-    position: relative; width: 100%; height: calc(1080 * var(--u));
+    /* The Figma frame height: with CARDS_DROP at 150 the lowest card
+       fits on a 16:9 screen without extra room */
+    position: relative; width: 100%; height: calc(1023 * var(--u));
   }
 
   .mfe__head {

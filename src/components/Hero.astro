@@ -16,6 +16,8 @@
 // ordinary scroll content from there, ridden in via the site's normal
 // .reveal fade-up, not part of the movie.
 import ClfaMark from "./ClfaMark.astro";
+import home from "../data/home.json";
+import { inlineMarkdown } from "../lib/inlineMarkdown";
 
 const CREAM = "#FEFCF4";
 const CHARCOAL = "#252525";
@@ -77,11 +79,7 @@ const ROSE = "#F06996";
 </section>
 
 <section class="hcb__after">
-  <p class="hcb__closing reveal">
-    We&rsquo;re an adaptable healthcare B2B agency network of highly
-    experienced thinkers who&nbsp;connect <strong>strategy, creative, and execution</strong> to
-    tackle it head-on.
-  </p>
+  <p class="hcb__closing reveal" set:html={inlineMarkdown(home.intro)} />
 </section>
 
 <script>
@@ -253,7 +251,9 @@ const ROSE = "#F06996";
     font-weight: 300; letter-spacing: -.042em; line-height: 1.16;
     font-size: clamp(22px, 4.2vw, 80px);
   }
-  .hcb__closing strong { display: block; font-weight: 700; color: var(--COPPER); }
+  /* :global — the strong comes from the CMS text (set:html), which
+     Astro doesn't stamp with this component's scoping attribute */
+  .hcb__closing :global(strong) { display: block; font-weight: 700; color: var(--COPPER); }
 
   .hcb__cue {
     position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);

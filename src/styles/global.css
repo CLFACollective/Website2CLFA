@@ -798,8 +798,9 @@ body.hide-kickoff .kickoff { display: none; }
   #momentum[data-mg-rest] #mgScene > .mg__slide--stat .mcap {
     font-size: calc(32 * var(--u)); letter-spacing: calc(-.52 * var(--u)); max-width: none;
   }
-  /* 150+'s caption breaks after "Ontologies" in Figma */
-  #momentum[data-mg-rest] #mgScene > .mg__slide--stat[data-mg-index="3"] .mcap { max-width: calc(400 * var(--u)); }
+  /* 150+'s caption breaks after "Ontologies" in Figma (its Figma slot —
+     set by placeRestDesktop only while the Figma composition applies) */
+  #momentum[data-mg-rest] #mgScene > .mg__slide--stat[data-mg-slot="150"] .mcap { max-width: calc(400 * var(--u)); }
   #momentum[data-mg-rest] #mgScene > .mg__slide--stat h3 {
     font-size: calc(26 * var(--u)); letter-spacing: calc(-.52 * var(--u));
     max-width: calc(380 * var(--u));
@@ -811,7 +812,7 @@ body.hide-kickoff .kickoff { display: none; }
   #momentum[data-mg-rest] #mgScene > .mg__slide--quote .mquote__badge {
     width: calc(112 * var(--u)); top: calc(-40 * var(--u)); left: calc(100% + 50 * var(--u));
   }
-  /* the Michelle quote (Figma node 3837:5995): one plain run of text
+  /* a long quote, e.g. the Michelle quote (Figma node 3837:5995): one plain run of text
      wrapping in a 366px column — no forced line breaks, no copper
      italic line — with the badge placed off the column's top-left
      corner rather than off the end of the first line. Same look in the
@@ -820,22 +821,22 @@ body.hide-kickoff .kickoff { display: none; }
      the same value placeRestDesktop sets inline at rest. "#momentum
      #mgScene" ties the generic [data-mg-rest] quote rules above on
      specificity, so coming later wins. */
-  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] {
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long {
     --u: calc(var(--mquote-long) / 45.285);
     width: calc(366.33 * var(--u));
   }
-  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote {
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote {
     position: relative; line-height: calc(48.366 * var(--u));
   }
-  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote > span {
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote > span {
     display: inline; position: static;
     color: var(--charcoal); font-family: var(--sans); font-style: normal; letter-spacing: inherit;
   }
-  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__by {
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote__by {
     font-size: calc(21.496 * var(--u)); line-height: calc(18.397 * var(--u));
     letter-spacing: calc(-.1226 * var(--u)); margin-top: calc(22.392 * var(--u));
   }
-  #momentum #mgScene > .mg__slide--quote[data-mg-index="4"] .mquote__badge {
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote__badge {
     width: calc(52.83 * var(--u)); top: calc(-34.2 * var(--u)); left: calc(330.43 * var(--u));
   }
 }

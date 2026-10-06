@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-const N = 5;
 const DESKTOP_QUERY = "(min-width: 1000px)";
 // world-space distance from the camera to the z=0 "front" plane — fov is
 // recomputed off this each resize so 1 Three.js unit at z=0 == 1 css px,
@@ -16,7 +15,7 @@ const CAMERA_Z = 1000;
    is NEXT_AFTER_FADE of the way done — it's nearly gone by then, so the
    incoming slide never flies in over a ghost of the outgoing one. Once the last slide has faded, every slide is placed at its
    resting spot in the Figma composition (node 3612:8790 — see
-   REST_LAYOUT) and uncovered by a growing circle, the same reveal the
+   FIGMA_REST, or an even grid for other card sets) and uncovered by a growing circle, the same reveal the
    hero's opening beat uses (see revealRest). */
 const ARRIVE_DUR = 0.6;
 const ARRIVE_EASE = "power2.out";
@@ -131,7 +130,9 @@ export function setupMomentumGallery() {
   const slides = Array.from(sceneEl.querySelectorAll<HTMLElement>(".mg__slide")).sort(
     (a, b) => Number(a.dataset.mgIndex) - Number(b.dataset.mgIndex),
   );
-  if (slides.length !== N) return;
+  // however many cards src/data/momentum.json holds (edited in the CMS)
+  const N = slides.length;
+  if (N === 0) return;
 
   const setCountText = (el: HTMLElement, value: number) => {
     const prefix = el.dataset.mgPrefix || "";
@@ -681,7 +682,7 @@ export function setupMomentumGallery() {
   // Once the movie has played through (or been left), the section rests
   // on every slide at once. Desktop: the live slides themselves, placed
   // by their own Three.js meshes at the Figma composition's positions
-  // and type sizes (REST_LAYOUT) — the same rendering path as the movie,
+  // and type sizes (FIGMA_REST / autoRestLayout) — the same rendering path as the movie,
   // no separate HTML copy. Mobile (no WebGL): the stacked list of
   // cloned slides in #mgOverview. Either way it's uncovered by a growing
   // circle (revealCircle), mirroring the hero's own opening iris.
@@ -700,19 +701,43 @@ export function setupMomentumGallery() {
      size the [data-mg-rest] rules in global.css are written against
      (default: font) — every stat block in the frame is a uniform
      scale of one 190px-figure layout, so the stats share one set of
-     rules at 190. */
-  type RestSlot = { x: number; top: number; font: number; align: "center" | "left"; cssFont?: number };
-  const REST_LAYOUT: Record<number, RestSlot> = {
-    0: { x: 1073.8, top: 1059.3, font: 69.9, align: "left" }, // "They move at the speed of business"
-    1: { x: 643.4, top: 1042.3, font: 151.6, align: "center", cssFont: 190 }, // 100%
-    2: { x: 1500.4, top: 626.5, font: 166.5, align: "center", cssFont: 190 }, // 4M
-    3: { x: 398, top: 625.9, font: 154.06, align: "center", cssFont: 190 }, // 150+
+     rules at 190. slot names the Figma spot (data-mg-slot, for CSS).
+
+     The Figma composition only fits the original five cards, so it
+     applies only while the cards (src/data/momentum.json, edited in
+     the CMS) keep that pattern — a short quote, three stats, a long
+     quote — whatever their text. Any other set gets an even grid
+     instead (autoRestLayout). */
+  type Kind = "stat" | "quote-short" | "quote-long";
+  type RestSlot = { x: number; top: number; font: number; align: "center" | "left"; cssFont?: number; slot?: string };
+  const FIGMA_PATTERN: Kind[] = ["quote-short", "stat", "stat", "stat", "quote-long"];
+  const FIGMA_REST: RestSlot[] = [
+    { x: 1073.8, top: 1059.3, font: 69.9, align: "left", slot: "quote" }, // "They move at the speed of business"
+    { x: 643.4, top: 1042.3, font: 151.6, align: "center", cssFont: 190, slot: "100" }, // 100%
+    { x: 1500.4, top: 626.5, font: 166.5, align: "center", cssFont: 190, slot: "4M" }, // 4M
+    { x: 398, top: 625.9, font: 154.06, align: "center", cssFont: 190, slot: "150" }, // 150+
     // Michelle quote — Figma node 3837:5995: its text starts above the
     // stats' top row (CONTENT_TOP), beside the heading rather than under it
-    4: { x: 796.8, top: 570.6, font: 45.285, align: "left" },
+    { x: 796.8, top: 570.6, font: 45.285, align: "left", slot: "michelle" },
+  ];
+  const kindOf = (slide: HTMLElement): Kind =>
+    slide.classList.contains("mg__slide--stat") ? "stat" : slide.classList.contains("mg__slide--long") ? "quote-long" : "quote-short";
+  const useFigmaRest = N === FIGMA_PATTERN.length && slides.every((slide, i) => kindOf(slide) === FIGMA_PATTERN[i]);
+  if (useFigmaRest) slides.forEach((slide, i) => (slide.dataset.mgSlot = FIGMA_REST[i].slot));
+
+  // Grid sizes, in the same 1920 frame: each kind's headline size
+  // (cssFont as above), rows of up to three, centred, shrunk to fit
+  // AUTO_ROW_WIDTH if a row's items run wider.
+  const AUTO_BASE: Record<Kind, Omit<RestSlot, "x" | "top">> = {
+    stat: { font: 150, cssFont: 190, align: "center" },
+    "quote-short": { font: 60, cssFont: 69.9, align: "left" },
+    "quote-long": { font: 45.285, align: "left" },
   };
+  const AUTO_ROW_WIDTH = 1640;
+  const AUTO_COL_GAP = 110;
+  const AUTO_ROW_GAP = 110;
   const FRAME_WIDTH = 1920;
-  // the whole composition shifts horizontally (as one block) so the "1"
+  // the Figma composition shifts horizontally (as one block) so the "1"
   // of 150+ lines up under the "m" of "momentum." in the heading
   const ALIGN_SLIDE = 3;
   const CONTENT_TOP = 626;
@@ -747,29 +772,74 @@ export function setupMomentumGallery() {
   //
   // Each slide first gets --u: one Figma px expressed in its own live
   // px (its headline's live font size / the Figma size, taken at the
-  // slot's cssFont scale — see REST_LAYOUT). The
+  // slot's cssFont scale — see FIGMA_REST). The
   // [data-mg-rest] rules in global.css size the captions, sublines and
   // gaps in multiples of it, so each slide's internal proportions match
   // the Figma frame exactly; the whole slide is then scaled by k / u,
   // k being Figma px -> screen px for the composition as a whole —
   // chosen so the tallest column and the widest item both fit.
+  // Sets the slide's --u for `slot` and returns its live px per Figma px
+  // and its box in Figma px.
+  function measureRest(slide: HTMLElement, slot: Pick<RestSlot, "font" | "cssFont">) {
+    const ref = slot.cssFont ?? slot.font;
+    const cssU = (headlineFont(slide) || ref) / ref;
+    slide.style.setProperty("--u", `${cssU}px`);
+    // live px per Figma px
+    const u = (cssU * ref) / slot.font;
+    const cs = getComputedStyle(slide);
+    // in Figma px, now that --u has been applied
+    return { u, w: parseFloat(cs.width) / u, h: parseFloat(cs.height) / u };
+  }
+
+  // How far (Figma px) a quote's badge pokes out past the right of its
+  // slide's box, for a slide measureRest has just sized.
+  function badgeOverhang(slide: HTMLElement, u: number): number {
+    const badge = slide.querySelector<HTMLElement>(".mquote__badge");
+    if (!badge) return 0;
+    const slideRect = slide.getBoundingClientRect();
+    const liveScale = slideRect.width / slide.offsetWidth || 1;
+    return Math.max(0, (badge.getBoundingClientRect().right - slideRect.right) / liveScale / u);
+  }
+
+  // The even grid for any card set the Figma composition doesn't fit.
+  // Everything in a slide scales with its slot's font, so a row that
+  // runs wider than AUTO_ROW_WIDTH is fixed by shrinking its fonts.
+  function autoRestLayout(): RestSlot[] {
+    const kinds = slides.map(kindOf);
+    const sizes = slides.map((slide, i) => {
+      const size = measureRest(slide, AUTO_BASE[kinds[i]]);
+      return { ...size, overhang: badgeOverhang(slide, size.u) };
+    });
+    const cols = N <= 3 ? N : N === 4 ? 2 : 3;
+    const out: RestSlot[] = [];
+    let top = CONTENT_TOP;
+    for (let start = 0; start < N; start += cols) {
+      const row = slides.slice(start, start + cols).map((_, j) => start + j);
+      const widths = row.map((i) => sizes[i].w + sizes[i].overhang);
+      const total = widths.reduce((a, b) => a + b, 0) + AUTO_COL_GAP * (row.length - 1);
+      const f = Math.min(1, AUTO_ROW_WIDTH / total);
+      let left = (FRAME_WIDTH - total * f) / 2;
+      row.forEach((i, j) => {
+        const base = AUTO_BASE[kinds[i]];
+        const slotW = widths[j] * f;
+        out[i] = { ...base, font: base.font * f, x: base.align === "center" ? left + slotW / 2 : left, top };
+        left += slotW + AUTO_COL_GAP * f;
+      });
+      top += Math.max(...row.map((i) => sizes[i].h * f)) + AUTO_ROW_GAP;
+    }
+    return out;
+  }
+
   function placeRestDesktop() {
     initThree();
     if (!three || !sceneEl) return;
     const W = three.width || sceneEl.clientWidth;
     const H = three.height || sceneEl.clientHeight;
 
+    const layout = useFigmaRest ? FIGMA_REST : autoRestLayout();
     const geo = slides.map((slide, i) => {
-      const slot = REST_LAYOUT[i];
-      const ref = slot.cssFont ?? slot.font;
-      const cssU = (headlineFont(slide) || ref) / ref;
-      slide.style.setProperty("--u", `${cssU}px`);
-      // live px per Figma px
-      const u = (cssU * ref) / slot.font;
-      const cs = getComputedStyle(slide);
-      // in Figma px, now that --u has been applied
-      const w = parseFloat(cs.width) / u;
-      const h = parseFloat(cs.height) / u;
+      const slot = layout[i];
+      const { u, w, h } = measureRest(slide, slot);
       const left = slot.align === "center" ? slot.x - w / 2 : slot.x;
       const right = left + w + (slot.align === "left" ? QUOTE_BADGE_ALLOWANCE : 0);
       return { u, w, h, left, right, bottom: slot.top + h };
@@ -785,13 +855,13 @@ export function setupMomentumGallery() {
     // text (its offset inside the slide, unscaled, over --u), and where
     // the heading's "m" sits on screen.
     const sceneRect = sceneEl.getBoundingClientRect();
-    const alignSlide = slides[ALIGN_SLIDE];
-    const alignFig = alignSlide.querySelector<HTMLElement>(".mfig");
+    const alignSlide = useFigmaRest ? slides[ALIGN_SLIDE] : null;
+    const alignFig = alignSlide?.querySelector<HTMLElement>(".mfig");
     const headM = section!.querySelector<HTMLElement>(".hs__intro-head .hot");
     const glyphRect = alignFig && firstGlyphRect(alignFig);
     const headRect = headM && firstGlyphRect(headM);
     let ox = (W - FRAME_WIDTH * k) / 2;
-    if (glyphRect && headRect) {
+    if (alignSlide && glyphRect && headRect) {
       const slideRect = alignSlide.getBoundingClientRect();
       const liveScale = slideRect.width / alignSlide.offsetWidth || 1;
       const g = geo[ALIGN_SLIDE];
@@ -802,10 +872,13 @@ export function setupMomentumGallery() {
       k = Math.min(k, (W - REST_PAD_SIDE - headX) / (contentRight - glyphFigmaX));
       ox = headX - glyphFigmaX * k;
     }
-    const oy = REST_PAD_TOP - CONTENT_TOP * k;
+    // the Figma composition hangs from the top; a grid that comes out
+    // shorter than the scene sits in its vertical middle instead
+    const spare = useFigmaRest ? 0 : Math.max(0, H - REST_PAD_TOP - REST_PAD_BOTTOM - (contentBottom - CONTENT_TOP) * k);
+    const oy = REST_PAD_TOP + spare / 2 - CONTENT_TOP * k;
 
     slides.forEach((slide, i) => {
-      const slot = REST_LAYOUT[i];
+      const slot = layout[i];
       const g = geo[i];
       const scale = k / g.u;
       const cx = ox + (g.left + g.w / 2) * k;

@@ -1,0 +1,164 @@
+# Sveltia CMS configuration — https://sveltiacms.app/en/docs
+#
+# Every editable area is a JSON file under src/data/, read by the page
+# components at build time. Saving in the CMS commits that file to the
+# branch below; Netlify rebuilds the site from the commit.
+#
+# Sign-in: GitHub, through Netlify's built-in OAuth provider (no
+# base_url needed when the site is hosted on Netlify). On localhost,
+# choose "Work with Local Repository" instead to edit the files on disk.
+backend:
+  name: github
+  repo: jderifaj/CLFA
+  # commits go to this branch — change to `main` when this branch is
+  # merged (see README "Editing content")
+  branch: Sveltia
+
+media_folder: public/img/uploads
+public_folder: /img/uploads
+
+collections:
+  # ---------------------------------------------------------------- Home
+  - name: home
+    label: Home page
+    icon: home
+    editor:
+      preview: false
+    files:
+      - name: home
+        label: Intro & client marquee
+        file: src/data/home.json
+        format: json
+        fields:
+          - name: intro
+            label: "\"We're an adaptable…\" paragraph"
+            widget: text
+            hint: Wrap words in **double asterisks** to make them bold.
+          - name: vendors
+            label: Client marquee ("Who tags us in.")
+            label_singular: Client
+            widget: list
+            hint: Drag to reorder. Both marquee rows use this list.
+            field:
+              name: name
+              label: Client name
+              widget: string
+
+      - name: momentum
+        label: Momentum cards
+        file: src/data/momentum.json
+        format: json
+        fields:
+          - name: cards
+            label: Cards
+            label_singular: Card
+            collapsed: true
+            widget: list
+            hint: >-
+              They play in this order. While the cards follow the original
+              pattern (short quote, three stats, long quote) the final screen
+              uses the designed layout; any other set is laid out on an even grid.
+            types:
+              - name: stat
+                label: Stat
+                summary: "{{fields.prefix}}{{fields.value}}{{fields.suffix}} — {{fields.caption}}"
+                fields:
+                  - { name: prefix, label: Before the number, widget: string, required: false, hint: "e.g. $" }
+                  - { name: value, label: Number, widget: number, value_type: int, min: 0, hint: Counts up from 0. }
+                  - { name: suffix, label: After the number, widget: string, required: false, hint: "e.g. %, M, +" }
+                  - { name: caption, label: "Caption (copper, italic)", widget: string }
+                  - { name: subline, label: Line below, widget: text, hint: Press Enter for a line break. }
+              - name: quote
+                label: Quote
+                summary: "{{fields.attribution}}"
+                fields:
+                  - name: size
+                    label: Size
+                    widget: select
+                    default: short
+                    options:
+                      - { label: "Short — a few big lines", value: short }
+                      - { label: "Long — a paragraph", value: long }
+                  - name: lines
+                    label: Lines
+                    label_singular: Line
+                    widget: list
+                    summary: "{{fields.text}}"
+                    hint: >-
+                      The quote mark sits after the first line. Press Enter inside
+                      a line to add a break that only shows on phones.
+                    fields:
+                      - { name: text, label: Text, widget: text }
+                      - { name: emphasis, label: Copper italic, widget: boolean, default: false, required: false }
+                  - { name: attribution, label: Attribution, widget: string }
+
+  # ---------------------------------------------------------- What We Do
+  - name: what_we_do
+    label: What We Do page
+    icon: work
+    editor:
+      preview: false
+    files:
+      - name: services
+        label: Services accordion
+        file: src/data/services.json
+        format: json
+        fields:
+          - name: services
+            label: Services
+            label_singular: Service
+            collapsed: true
+            widget: list
+            summary: "{{fields.title}}"
+            hint: Drag to reorder — the 01, 02… numbers follow the order automatically.
+            fields:
+              - { name: title, label: Title, widget: string }
+              - { name: word, label: Big display word, widget: string, hint: "Shown huge in the open panel after the number, e.g. STRATEGY." }
+              - name: icon
+                label: Icon
+                widget: image
+                media_folder: /public/icons/services
+                public_folder: /icons/services
+              - { name: body, label: Description, widget: text }
+              - name: iconScale
+                label: Icon size
+                widget: number
+                value_type: float
+                required: false
+                min: 0.5
+                max: 3
+                step: 0.1
+                hint: Optional. 1 is normal; raise it for an icon that looks small.
+
+  # ---------------------------------------------------------------- FAQs
+  - name: faqs
+    label: FAQs page
+    icon: quiz
+    editor:
+      preview: false
+    files:
+      - name: faqs
+        label: Questions
+        file: src/data/faqs.json
+        format: json
+        fields:
+          - name: groups
+            label: Groups
+            label_singular: Group
+            collapsed: true
+            widget: list
+            summary: "{{fields.title}}"
+            fields:
+              - { name: title, label: Group heading, widget: string }
+              - name: items
+                label: Questions
+                label_singular: Question
+                collapsed: true
+                widget: list
+                summary: "{{fields.question}}"
+                hint: Drag to reorder.
+                fields:
+                  - { name: question, label: Question, widget: string }
+                  - { name: lead, label: Bold opening, widget: string, required: false, hint: Optional bold words at the start of the answer. }
+                  - { name: answer, label: Answer, widget: text, hint: Leave a blank line between paragraphs. }
+                  - { name: tail, label: Bold closing line, widget: string, required: false }

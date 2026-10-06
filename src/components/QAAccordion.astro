@@ -5,7 +5,11 @@
 // they're reference material, not a guided sequence, and the page
 // lands with them all closed.
 //
-// Copy transcribed verbatim from the Figma source.
+// Groups and questions come from src/data/faqs.json — edited in the
+// CMS (/admin), where groups and questions can be added, removed, and
+// reordered. An answer's paragraphs are separated by a blank line.
+import data from "../data/faqs.json";
+
 interface QA {
   q: string;
   answer: string[];
@@ -17,104 +21,15 @@ interface Group {
   items: QA[];
 }
 
-const GROUPS: Group[] = [
-  {
-    title: "Working with us:",
-    items: [
-      {
-        q: "How fast can you actually start?",
-        answer: [
-          "Fast. We don't need a six-week onboarding. We've worked across healthcare and tech long enough that we orient ourselves quickly. Give us a brief, a deadline, and a point of contact. We'll take it from there.",
-        ],
-        tail: "Most engagements are active the day the contract's signed.",
-      },
-      {
-        q: "Do we need to have everything figured out before we reach out?",
-        answer: [
-          "Absolutely not. Half our clients come to us mid-chaos: post-acquisition, pre-launch, or somewhere in between with a brand story that hasn't caught up yet. If you knew exactly what you needed, you probably wouldn't need us. Come as you are.",
-        ],
-      },
-      {
-        q: "What size companies do you work with?",
-        answer: [
-          "We work with brands that are moving, not brands defined by headcount. That includes growth-stage startups that need to punch above their weight, mid-market companies navigating a transition, and established organizations that need an outside team to move faster than their internal structure allows.",
-        ],
-      },
-      {
-        q: "What does the engagement model look like? Retainer? Project? Both?",
-        answer: [
-          "Both, depending on what the work calls for. Most ongoing engagements run on a monthly retainer. Project work is scoped individually.",
-          "Some clients need us for a specific sprint, like a launch, a campaign, a rebrand. Others want us in their corner on an ongoing basis. We're flexible by design.",
-        ],
-      },
-    ],
-  },
-  {
-    title: "The work:",
-    items: [
-      {
-        q: "What does a healthcare and tech marketing agency actually do?",
-        answer: [
-          "Depends on the day. Brand strategy, content, paid media, web, launches — whatever gets your brand from where it is to where it needs to be. The short version: strategy, creative, and execution, connected instead of siloed.",
-        ],
-      },
-      {
-        q: "What industries do you specialize in?",
-        answer: [
-          "Healthcare and tech, and the increasingly busy space where the two overlap. We've worked with pharmaceutical companies, biotech, digital health, health IT, and medtech brands at every stage of the growth curve. If your brand exists at the intersection of science and market, we're in our element.",
-        ],
-      },
-      {
-        q: "What services can you handle?",
-        lead: "Check our services page out.",
-        answer: [
-          "But, in short: strategy, creative, re-branding, branding, and execution. We connect all the above and then some. We can run a full brand build, a go-to-market launch, a content and paid program, or a site launch. We can also plug into whatever piece you actually need rather than handing you a bundle of services you didn't ask for.",
-        ],
-      },
-      {
-        q: "Do you work with in-house teams or replace them?",
-        answer: [
-          "Work with. We're not here to take over. We're here to make your team faster and better resourced. Most of our clients have internal teams we collaborate with directly. We bring outside perspective, extra capacity, and specialized experience without the politics of adding headcount. (Final assets often delivered with tearful goodbyes.)",
-        ],
-      },
-      {
-        q: "How do I choose a healthcare marketing agency?",
-        answer: [
-          "Look for someone who's actually been in the room, not just read about it. Ask how fast they can start, whether you'll be working with senior people day to day, and whether they can point to real results, not just a nice deck.",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Results:",
-    items: [
-      {
-        q: "Can you share examples of past work?",
-        answer: ["Spoiler alert: we keep good stuff in a deck. All you have to do is ask!"],
-      },
-      {
-        q: "What does “measurable momentum” actually mean for our brand?",
-        answer: [
-          "It means results you can point to, not activity you have to explain. For us that's looked like launches that actually ship on time, content and paid programs that consistently outperform benchmarks, webinars that fill up and overflow, and brand stories that hold up in market. We track what moves the needle for your specific goals… not vanity metrics that make a deck look good. (But your deck will look very good too.)",
-        ],
-      },
-      {
-        q: "How does pricing work?",
-        answer: [
-          "We collectively allocate our time based on who you need, what you need, and when you need it. You’ll know how every hour is planned for and spent. Literally, down to the hour.",
-        ],
-      },
-      {
-        q: "Who would we actually be working with day to day?",
-        lead: "Us.",
-        answer: [
-          "Not a junior team that gets handed the brief after the sales call. Cathy and Michelle are hands-on across all engagements, and the broader CLFA network we bring in are experienced practitioners in their own right. You get senior thinking at every touchpoint.",
-        ],
-        tail: "Most engagements are active the day the contract’s signed.",
-      },
-    ],
-  },
-];
+const GROUPS: Group[] = data.groups.map((g) => ({
+  title: g.title,
+  items: (g.items ?? []).map((it) => ({
+    q: it.question,
+    answer: (it.answer ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+    lead: it.lead || undefined,
+    tail: it.tail || undefined,
+  })),
+}));
 ---
 
 <section class="qa" id="faq-list">

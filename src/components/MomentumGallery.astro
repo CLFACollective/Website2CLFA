@@ -7,10 +7,33 @@
 // autoplays only once; after that the section stays on that final
 // screen and only the "Replay" button plays it again. See momentumGallery.ts.
 //
-// Slide order (data-mg-index, top to bottom in the markup below): 0 is
-// "They move at the speed of business" — a quote, not a stat. 1-3 are
-// the three stats, 4 is the closing Kaylen quote.
+// The cards come from src/data/momentum.json, edited in the CMS
+// (/admin): stats and quotes can be added, removed, and reordered.
+// data-mg-index is each card's position. While the cards keep the
+// original pattern (short quote, three stats, long quote) the resting
+// screen uses the Figma composition; otherwise momentumGallery.ts lays
+// them out on an even grid (see restLayoutFor).
 import ShineField from "./ShineField.astro";
+import data from "../data/momentum.json";
+import { escapeHtml } from "../lib/inlineMarkdown";
+
+interface StatCard { type: "stat"; prefix?: string; value: number; suffix?: string; caption: string; subline: string }
+interface QuoteLine { text: string; emphasis?: boolean }
+interface QuoteCard { type: "quote"; size?: "short" | "long"; lines: QuoteLine[]; attribution: string }
+type Card = StatCard | QuoteCard;
+
+const cards = data.cards as Card[];
+// a line break where the editor pressed Enter, nothing else
+const withBreaks = (text: string) => escapeHtml(text.trim()).replace(/\r?\n/g, "<br />");
+// inside a quote line, Enter adds a break that only shows on phones
+// (.mobile-br) — where the lines are too long for the screen
+const withMobileBreaks = (text: string) => escapeHtml(text.trim()).replace(/\s*\r?\n\s*/g, '<br class="mobile-br" /> ');
+// short quote: the first line plain-or-emphasis carries the badge
+// (.mquote__l1); long quote: .mquote__k1 / __k2 for every line
+const lineClass = (card: QuoteCard, line: QuoteLine, n: number) =>
+  card.size === "long"
+    ? line.emphasis ? "mquote__k2" : "mquote__k1"
+    : n === 0 ? `mquote__l1${line.emphasis ? " mquote__l2" : ""}` : line.emphasis ? "mquote__l2" : "mquote__l3";
 ---
 
 <section class="pin" id="momentum">
@@ -35,66 +58,49 @@ import ShineField from "./ShineField.astro";
            revealCircle) — same thin rose ring as Hero's .hcb__ring -->
       <span class="mg__ring" id="mgRing" aria-hidden="true"></span>
 
-      <div class="mg__slide mg__slide--quote" data-mg-index="0">
-        <blockquote class="mquote">
-          <span class="mquote__l1">They move<span class="mquote__badge" aria-hidden="true">
-              <svg viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#clip0_2838_2564_g)">
+      {cards.map((card, i) => {
+        const clipId = `mg-badge-clip-${i}`;
+        if (card.type === "stat") {
+          return (
+            <div class="mg__slide mg__slide--stat" data-mg-index={i}>
+              <p
+                class:list={["mfig", { "mfig--wide": card.suffix === "+" }]}
+                data-mg-count={card.value}
+                data-mg-prefix={card.prefix || undefined}
+                data-mg-suffix={card.suffix ?? ""}
+              >{card.prefix}0<span class="unit">{card.suffix}</span></p>
+              <p class="mcap">{card.caption}</p>
+              <h3 set:html={withBreaks(card.subline)} />
+            </div>
+          );
+        }
+        return (
+          <div class:list={["mg__slide mg__slide--quote", { "mg__slide--wide mg__slide--long": card.size === "long" }]} data-mg-index={i}>
+            <blockquote class:list={["mquote", { "mquote--long": card.size === "long" }]}>
+              {card.lines.map((line, n) =>
+                n === 0 ? (
+                  <span class={lineClass(card, line, n)}><Fragment set:html={withMobileBreaks(line.text)} /><span class="mquote__badge" aria-hidden="true">
+                    <svg viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clip-path={`url(#${clipId})`}>
                   <path d="M0 56C0 25.0721 25.0721 0 56 0C86.9279 0 112 25.0721 112 56C112 86.9279 86.9279 112 56 112C25.0721 112 0 86.9279 0 56Z" fill="#BE7837"></path>
                   <path d="M70.0776 83.824L63.1196 77.65C64.6223 76.9967 66.6476 75.7227 69.1956 73.828C71.809 71.868 74.161 69.5487 76.2516 66.87C78.3423 64.1913 79.3876 61.382 79.3876 58.442C78.7996 59.0953 77.7216 59.618 76.1536 60.01C74.651 60.402 73.1156 60.598 71.5476 60.598C68.3463 60.598 65.3083 59.3567 62.4336 56.874C59.6243 54.326 58.2196 50.4387 58.2196 45.212C58.2196 39.4627 59.951 34.9547 63.4136 31.688C66.8763 28.356 71.123 26.69 76.1536 26.69C81.315 26.69 85.5943 28.4867 88.9916 32.08C92.4543 35.6733 94.1856 40.9653 94.1856 47.956C94.1856 53.9667 93.0096 59.324 90.6576 64.028C88.371 68.732 85.3983 72.75 81.7396 76.082C78.1463 79.3487 74.259 81.9293 70.0776 83.824ZM25.4876 83.824L18.4316 77.65C19.9343 76.9967 21.9596 75.7227 24.5076 73.828C27.121 71.868 29.473 69.5487 31.5636 66.87C33.6543 64.1913 34.6996 61.382 34.6996 58.442C34.1116 59.0953 33.0336 59.618 31.4656 60.01C29.963 60.402 28.4603 60.598 26.9576 60.598C23.691 60.598 20.6203 59.3567 17.7456 56.874C14.9363 54.326 13.5316 50.4387 13.5316 45.212C13.5316 39.4627 15.263 34.9547 18.7256 31.688C22.1883 28.356 26.435 26.69 31.4656 26.69C36.627 26.69 40.9063 28.4867 44.3036 32.08C47.7663 35.6733 49.4976 40.9653 49.4976 47.956C49.4976 53.9667 48.3543 59.324 46.0676 64.028C43.781 68.732 40.8083 72.75 37.1496 76.082C33.491 79.3487 29.6036 81.9293 25.4876 83.824Z" fill="#FFFAF5"></path>
                 </g>
                 <defs>
-                  <clipPath id="clip0_2838_2564_g">
+                  <clipPath id={clipId}>
                     <path d="M0 56C0 25.0721 25.0721 0 56 0C86.9279 0 112 25.0721 112 56C112 86.9279 86.9279 112 56 112C25.0721 112 0 86.9279 0 56Z" fill="white"></path>
                   </clipPath>
                 </defs>
               </svg>
-            </span></span>
-          <span class="mquote__l2">at the speed</span>
-          <span class="mquote__l3">of business</span>
-        </blockquote>
-        <p class="mquote__by">Client, Head of Marketing Center of Excellence</p>
-      </div>
-
-      <div class="mg__slide mg__slide--stat" data-mg-index="1">
-        <p class="mfig" data-mg-count="100" data-mg-suffix="%">0<span class="unit">%</span></p>
-        <p class="mcap">on-time delivery</p>
-        <h3>Launches that actually launch. On time.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--stat" data-mg-index="2">
-        <p class="mfig" data-mg-count="4" data-mg-suffix="M">0<span class="unit">M</span></p>
-        <p class="mcap">Sales pipeline in 4 months</p>
-        <h3>Metrics-busting content<br />and paid.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--stat" data-mg-index="3">
-        <p class="mfig mfig--wide" data-mg-count="150" data-mg-suffix="+">0<span class="unit">+</span></p>
-        <p class="mcap">RSVPs to an Ontologies insider talk</p>
-        <h3>Webinars so successful we need crowd control.</h3>
-      </div>
-
-      <div class="mg__slide mg__slide--quote mg__slide--wide" data-mg-index="4">
-        <blockquote class="mquote mquote--long">
-          <span class="mquote__k1">I forget Michelle<span class="mquote__badge" aria-hidden="true">
-              <svg viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#clip0_2838_2564_k)">
-                  <path d="M0 56C0 25.0721 25.0721 0 56 0C86.9279 0 112 25.0721 112 56C112 86.9279 86.9279 112 56 112C25.0721 112 0 86.9279 0 56Z" fill="#BE7837"></path>
-                  <path d="M70.0776 83.824L63.1196 77.65C64.6223 76.9967 66.6476 75.7227 69.1956 73.828C71.809 71.868 74.161 69.5487 76.2516 66.87C78.3423 64.1913 79.3876 61.382 79.3876 58.442C78.7996 59.0953 77.7216 59.618 76.1536 60.01C74.651 60.402 73.1156 60.598 71.5476 60.598C68.3463 60.598 65.3083 59.3567 62.4336 56.874C59.6243 54.326 58.2196 50.4387 58.2196 45.212C58.2196 39.4627 59.951 34.9547 63.4136 31.688C66.8763 28.356 71.123 26.69 76.1536 26.69C81.315 26.69 85.5943 28.4867 88.9916 32.08C92.4543 35.6733 94.1856 40.9653 94.1856 47.956C94.1856 53.9667 93.0096 59.324 90.6576 64.028C88.371 68.732 85.3983 72.75 81.7396 76.082C78.1463 79.3487 74.259 81.9293 70.0776 83.824ZM25.4876 83.824L18.4316 77.65C19.9343 76.9967 21.9596 75.7227 24.5076 73.828C27.121 71.868 29.473 69.5487 31.5636 66.87C33.6543 64.1913 34.6996 61.382 34.6996 58.442C34.1116 59.0953 33.0336 59.618 31.4656 60.01C29.963 60.402 28.4603 60.598 26.9576 60.598C23.691 60.598 20.6203 59.3567 17.7456 56.874C14.9363 54.326 13.5316 50.4387 13.5316 45.212C13.5316 39.4627 15.263 34.9547 18.7256 31.688C22.1883 28.356 26.435 26.69 31.4656 26.69C36.627 26.69 40.9063 28.4867 44.3036 32.08C47.7663 35.6733 49.4976 40.9653 49.4976 47.956C49.4976 53.9667 48.3543 59.324 46.0676 64.028C43.781 68.732 40.8083 72.75 37.1496 76.082C33.491 79.3487 29.6036 81.9293 25.4876 83.824Z" fill="#FFFAF5"></path>
-                </g>
-                <defs>
-                  <clipPath id="clip0_2838_2564_k">
-                    <path d="M0 56C0 25.0721 25.0721 0 56 0C86.9279 0 112 25.0721 112 56C112 86.9279 86.9279 112 56 112C25.0721 112 0 86.9279 0 56Z" fill="white"></path>
-                  </clipPath>
-                </defs>
-              </svg>
-            </span></span>
-          <span class="mquote__k1">isn&rsquo;t a partner<br class="mobile-br" /> in the company.</span>
-          <span class="mquote__k2">She&rsquo;s always sending<br class="mobile-br" /> ideas</span>
-          <span class="mquote__k1">and has our business<br class="mobile-br" /> strategy locked in.</span>
-        </blockquote>
-        <p class="mquote__by">VP/Head of Marketing</p>
-      </div>
+                  </span></span>
+                ) : (
+                  <>{" "}<span class={lineClass(card, line, n)} set:html={withMobileBreaks(line.text)} /></>
+                ),
+              )}
+            </blockquote>
+            <p class="mquote__by">{card.attribution}</p>
+          </div>
+        );
+      })}
 
       <!-- mobile's resting state: a stacked list of every slide's own
            content, cloned from each slide's DOM (momentumGallery.ts's

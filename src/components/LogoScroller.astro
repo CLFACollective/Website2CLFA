@@ -2,7 +2,9 @@
 // LogoScroller — the client-name marquee. Uppercase, heavy, in the
 // section's own text colour, with a rose dot between every name. The
 // set renders twice; the track loops via GSAP (src/scripts/marquee.ts).
-const CLFA_CLIENTS = ["Lux Infusion", "Rancho Biosciences", "Johnson & Johnson", "Endpoint", "Konovo", "Pfizer", "Insmed", "Novartis"];
+// Names come from src/data/home.json ("vendors"), edited in the CMS.
+import home from "../data/home.json";
+const CLFA_CLIENTS: string[] = home.vendors;
 
 interface Props {
   speed?: number;

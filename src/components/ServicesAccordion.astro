@@ -12,6 +12,11 @@
 // is a discrete state toggle, not a continuous/scroll-driven value —
 // the panel-height animation itself is a CSS grid-template-rows
 // 0fr→1fr transition, the same technique as the FAQ accordion).
+// Rows come from src/data/services.json — edited in the CMS (/admin),
+// where items can be added, removed, and reordered. The "01"-style
+// number is the row's position, so it stays in sequence on its own.
+import data from "../data/services.json";
+
 interface Row {
   title: string;
   num: string;
@@ -21,43 +26,10 @@ interface Row {
   iconScale?: number;
 }
 
-const ROWS: Row[] = [
-  {
-    title: "(Re-)Brand strategy & identity",
-    num: "01", word: "STRATEGY", icon: "/icons/services/strategy.svg",
-    body: "New logo, new leadership, or a brand that's outgrown its story — whatever's driving it, we build healthcare and tech brand strategy that holds up in market. Naming, positioning and re-positioning, messaging, visual identity, all calibrated to where your brand is headed, not just where it's been.",
-  },
-  {
-    title: "Go-to-market & launch strategy",
-    num: "02", word: "GO-TO-MARKET", icon: "/icons/services/go-to-market.svg",
-    body: "Launches don't get a second first impression. We plan the moment, build the assets, and make sure sales, marketing, and product are all saying the same thing when the clock starts.",
-  },
-  {
-    title: "Content marketing & thought leadership",
-    num: "03", word: "CONTENT", icon: "/icons/services/content-marketing.svg",
-    body: "Bylines, webinars, research, and social that show up on a drumbeat, not just launch week. We keep your brand in the conversation long after the announcement fades.",
-  },
-  {
-    title: "Paid media & advertising",
-    num: "04", word: "PAID MEDIA", icon: "/icons/services/paid-media.svg", iconScale: 1.6,
-    body: "Campaigns that learn as they go. Healthcare and tech advertising gets optimized in-flight, not just launched and left, so budget keeps working as hard as the creative does.",
-  },
-  {
-    title: "SEO & search marketing",
-    num: "05", word: "SEARCH", icon: "/icons/services/seo.svg",
-    body: "Healthcare SEO isn't just keywords, it's showing up where your buyers are actually searching. We handle the technical, local, and content-side work that gets you found and chosen.",
-  },
-  {
-    title: "Website & digital experience",
-    num: "06", word: "DIGITAL", icon: "/icons/services/digital.svg",
-    body: "Full site builds, campaign landing pages, digital rollouts, designed and shipped without a six-month timeline. If it's digital and it's got your name on it, we can build it.",
-  },
-  {
-    title: "Marketing strategy & messaging frameworks",
-    num: "07", word: "MESSAGING", icon: "/icons/services/messaging.svg",
-    body: "One system, every channel. We build messaging frameworks that keep sales decks, social, and campaigns saying the same thing, so your brand sounds like one brand everywhere it shows up.",
-  },
-];
+const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
+  ...r,
+  num: String(n + 1).padStart(2, "0"),
+}));
 ---
 
 <section class="svc" id="services">

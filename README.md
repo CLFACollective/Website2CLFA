@@ -32,6 +32,34 @@ canvas loop is the right tool there, same as it was in the source.
 | `npm run build`       | production build to `dist/`                |
 | `npm run preview`      | preview the production build              |
 
+## Editing content (Sveltia CMS)
+
+These areas are edited in [Sveltia CMS](https://sveltiacms.app) at
+`/admin`, not in code. Each one is a JSON file the page reads at build time:
+
+| Area | File |
+| --- | --- |
+| Home: "We're an adaptable…" paragraph, client marquee | `src/data/home.json` |
+| Home: Momentum cards (add, remove, reorder stats and quotes) | `src/data/momentum.json` |
+| What We Do: Services accordion | `src/data/services.json` |
+| FAQs: groups and questions | `src/data/faqs.json` |
+
+The CMS setup is `public/admin/config.yml`. Saving there commits the file
+to the branch named under `backend.branch`, and Netlify rebuilds from that commit.
+
+- **Locally:** run `npm run dev`, open `http://localhost:4321/admin/index.html`
+  in Chrome or Edge, choose **Work with Local Repository**, and pick this
+  folder. Saves go straight to the files on disk and the dev server reloads.
+  Nothing is committed. Review the change with `git diff`, then commit it yourself.
+- **On Netlify:** open `/admin/` on the deployed site and sign in with GitHub
+  (Netlify's OAuth provider. One-time setup: `docs/cms-netlify-setup.md`).
+  Editors need write access to the GitHub repo.
+- Text fields are plain text. `**double asterisks**` make words bold where
+  the field says so, and Enter makes a line break.
+- Momentum's final screen uses the designed Figma layout while the cards
+  follow the original pattern (short quote, three stats, long quote).
+  Any other set of cards is laid out on an even grid automatically.
+
 ## Structure
 
 ```

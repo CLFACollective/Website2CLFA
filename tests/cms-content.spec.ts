@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const data = (name: string) => JSON.parse(readFileSync(new URL(`../src/data/${name}.json`, import.meta.url), "utf8"));
 const home: { intro: string; vendors: string[] } = data("home");
@@ -7,6 +7,11 @@ const momentum: {
   cards: { type: string; value?: number; caption?: string; attribution?: string; lines?: unknown[] }[];
 } = data("momentum");
 const services: { services: { title: string; word: string }[] } = data("services");
+const ribbon: { phrases: string } = data("ribbon");
+const nav: {
+  links: { href: string; menuLabel: string; footerLabel?: string; inMenu?: boolean; inFooter?: boolean }[];
+  linkedin: string;
+} = data("navigation");
 const faqs: { groups: { title: string; items: { question: string; answer: string; tail?: string }[] }[] } = data("faqs");
 
 /**
@@ -71,6 +76,48 @@ test.describe("CMS content drives the pages", () => {
     }
   });
 
+  test("home: the ribbons show the Ribbon Section phrases, split on semicolons", async ({ page }) => {
+    await page.goto("/");
+    const phrases = ribbon.phrases.split(";").map((p) => p.trim()).filter(Boolean);
+    const firstRun = await page.locator(".rib__half").first().locator(".rib__item").allInnerTexts();
+    expect(firstRun.slice(0, phrases.length).map((t) => t.trim())).toEqual(phrases);
+    // screen readers get the list once (the bands themselves are aria-hidden)
+    await expect(page.locator("ul.sr-only li")).toHaveText(phrases);
+  });
+
+  test("menu and footer links both come from the navigation list", async ({ page }) => {
+    await page.goto("/");
+    const menu = nav.links.filter((l) => l.inMenu !== false);
+    const links = page.locator(".mega__link");
+    await expect(links).toHaveCount(menu.length);
+    for (const [i, l] of menu.entries()) {
+      await expect(links.nth(i)).toHaveAttribute("href", l.href);
+      await expect(links.nth(i).locator(".no")).toHaveText(String(i + 1).padStart(2, "0"));
+      await expect(links.nth(i)).toContainText(l.menuLabel);
+    }
+    const footer = nav.links.filter((l) => l.inFooter !== false);
+    const footLinks = page.locator(".foot__nav a");
+    await expect(footLinks).toHaveCount(footer.length);
+    for (const [i, l] of footer.entries()) {
+      await expect(footLinks.nth(i)).toHaveAttribute("href", l.href);
+      await expect(footLinks.nth(i)).toHaveText(l.footerLabel?.trim() || l.menuLabel);
+    }
+    // no LinkedIn link points nowhere
+    for (const a of await page.locator("a", { hasText: /^LinkedIn$/i }).all()) {
+      await expect(a).toHaveAttribute("href", nav.linkedin);
+    }
+  });
+
+  test("every page in src/pages is linked from the menu or footer", () => {
+    // A new page is built in code; this fails until its link is added
+    // to src/data/navigation.json (CMS: Site-wide → Menu & footer links).
+    const pages = readdirSync(new URL("../src/pages/", import.meta.url))
+      .filter((f) => f.endsWith(".astro") && f !== "index.astro" && f !== "404.astro")
+      .map((f) => `/${f.replace(/\.astro$/, "")}`);
+    const linked = nav.links.filter((l) => l.inMenu !== false || l.inFooter !== false).map((l) => l.href);
+    for (const p of pages) expect(linked, `${p} needs a link in navigation.json`).toContain(p);
+  });
+
   test("the CMS admin page and its config are published", async ({ request }) => {
     const admin = await request.get("/admin/index.html");
     expect(admin.ok()).toBe(true);
@@ -78,7 +125,7 @@ test.describe("CMS content drives the pages", () => {
     const config = await request.get("/admin/config.yml");
     expect(config.ok()).toBe(true);
     const text = await config.text();
-    for (const file of ["src/data/home.json", "src/data/momentum.json", "src/data/services.json", "src/data/faqs.json"]) {
+    for (const file of ["src/data/navigation.json", "src/data/ribbon.json", "src/data/home.json", "src/data/momentum.json", "src/data/services.json", "src/data/faqs.json"]) {
       expect(text).toContain(file);
     }
   });

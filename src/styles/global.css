@@ -116,6 +116,11 @@ a { color: inherit; }
   transition: transform .2s var(--ease);
 }
 .skip-link:focus { transform: translateY(0); }
+/* read by screen readers, not shown */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* ============================================================
    LOGO
@@ -257,6 +262,9 @@ body.menu-open .mega { pointer-events: auto; }
   .mega__link:hover { color: var(--flare); transform: translateX(18px); }
 }
 .mega__link .no { font-size: 14.4px; font-weight: 700; letter-spacing: .2em; color: var(--pink); flex: 0 0 auto; }
+/* the page you're on: pink link, white number */
+.mega__link[aria-current="page"] { color: var(--pink); }
+.mega__link[aria-current="page"] .no { color: #fff; }
 .mega__aside { align-self: end; display: grid; gap: 26px; }
 .mega__aside .eyebrow { margin-bottom: 8px; }
 /* 27ch specifically so "to get started." lands as its own line — a

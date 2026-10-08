@@ -39,7 +39,9 @@ These areas are edited in [Sveltia CMS](https://sveltiacms.app) at
 
 | Area | File |
 | --- | --- |
+| Site-wide: menu & footer links, LinkedIn URL | `src/data/navigation.json` |
 | Home: "We're an adaptable…" paragraph, client marquee | `src/data/home.json` |
+| Home: Ribbon Section (semicolon-separated phrases) | `src/data/ribbon.json` |
 | Home: Momentum cards (add, remove, reorder stats and quotes) | `src/data/momentum.json` |
 | What We Do: Services accordion | `src/data/services.json` |
 | FAQs: groups and questions | `src/data/faqs.json` |
@@ -56,6 +58,10 @@ to the branch named under `backend.branch`, and Netlify rebuilds from that commi
   Editors need write access to the GitHub repo.
 - Text fields are plain text. `**double asterisks**` make words bold where
   the field says so, and Enter makes a line break.
+- **Adding a page:** pages are built in code (`src/pages/*.astro`), not in
+  the CMS. Once a page exists, add its link under **Site-wide → Menu &
+  footer links** (one entry feeds both). The test suite fails until every
+  page is linked, and the sitemap picks new pages up automatically.
 - Momentum's final screen uses the designed Figma layout while the cards
   follow the original pattern (short quote, three stats, long quote).
   Any other set of cards is laid out on an even grid automatically.

@@ -1,5 +1,8 @@
 ---
 import ClfaWordmark from "./ClfaWordmark.astro";
+import { footerLinks, linkedinUrl, isCurrent } from "../lib/navigation";
+
+const path = Astro.url.pathname;
 ---
 
 <footer class="foot" id="contact">
@@ -12,17 +15,16 @@ import ClfaWordmark from "./ClfaWordmark.astro";
         </p>
         <a class="btn btn--fill" href="/contact">Meet Your Team</a>
       </div>
-      <nav class="foot__nav">
+      <nav class="foot__nav" aria-label="Footer">
         <p class="eyebrow">Explore</p>
-        <a href="/what-we-do">What we do</a>
-        <a href="/about">Who we are</a>
-        <a href="/faqs">FAQs</a>
-        <a href="/contact">Contact</a>
+        {footerLinks.map((l) => (
+          <a href={l.href} aria-current={isCurrent(l.href, path) ? "page" : undefined}>{l.footerLabel}</a>
+        ))}
       </nav>
       <div class="foot__contact">
         <p class="eyebrow">Get in touch</p>
         <a href="mailto:hello@clfacollective.com">hello@clfacollective.com</a>
-        <a href="#">LinkedIn</a>
+        <a href={linkedinUrl} rel="noreferrer">LinkedIn</a>
       </div>
     </div>
     <div class="foot__row">

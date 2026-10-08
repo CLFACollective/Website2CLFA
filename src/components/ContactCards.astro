@@ -8,6 +8,8 @@
 // Submitted via fetch so the page doesn't navigate away; the source's
 // lack of `required` attributes is kept as-is. No GSAP here; nothing in
 // this component animates.
+import { linkedinUrl } from "../lib/navigation";
+
 const FIELDS = [
   { id: "name", label: "Your name", placeholder: "e.g. Cathy Miller", type: "text", autoComplete: "name" },
   { id: "email", label: "Email address", placeholder: "e.g. cathy@clfacollective.com", type: "email", autoComplete: "email" },
@@ -50,7 +52,7 @@ const FIELDS = [
       <p><a href="mailto:hello@clfacollective.com">hello@clfacollective.com</a></p>
 
 
-      <p><a class="ctc__li" href="https://www.linkedin.com/" rel="noreferrer">LinkedIn</a></p>
+      <p><a class="ctc__li" href={linkedinUrl} rel="noreferrer">LinkedIn</a></p>
     </aside>
   </div>
 </section>
@@ -83,7 +85,8 @@ const FIELDS = [
     resize: none; width: 100%;
   }
   .ctc__field input::placeholder, .ctc__field textarea::placeholder { color: rgba(37, 37, 37, .42); }
-  .ctc__field input:focus, .ctc__field textarea:focus { outline: none; border-bottom-color: var(--brown); }
+  /* a 2px rule, not just a colour change, so keyboard focus is visible */
+  .ctc__field input:focus, .ctc__field textarea:focus { outline: none; border-bottom-color: var(--brown); box-shadow: 0 1px 0 var(--brown); }
 
   .ctc__submit {
     appearance: none; cursor: pointer;
@@ -110,7 +113,9 @@ const FIELDS = [
   .ctc__li { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; }
   .ctc__hp { position: absolute; left: -9999px; }
   .ctc__status { margin: 18px 0 0; font-size: 16px; }
-  .ctc__status:empty { display: none; }
+  /* stays rendered while empty: a live region that's display:none when
+     its text arrives isn't announced by some screen readers */
+  .ctc__status:empty { margin: 0; }
 
   @media (max-width: 900px) {
     .ctc__inner { grid-template-columns: 1fr; }

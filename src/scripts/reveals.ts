@@ -1,4 +1,5 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
+import { escapeHtml } from "../lib/inlineMarkdown";
 
 /**
  * Fade/rise-up reveals (.reveal, .archB) and the count-up figures
@@ -68,8 +69,8 @@ export function setupReveals() {
   }
 
   function setCountText(el: HTMLElement, value: number) {
-    const suffix = el.dataset.suffix || "";
-    const prefix = el.dataset.prefix || "";
+    const suffix = escapeHtml(el.dataset.suffix || "");
+    const prefix = escapeHtml(el.dataset.prefix || "");
     el.innerHTML = `${prefix}${Math.round(value)}<span class="unit">${suffix}</span>`;
   }
 }

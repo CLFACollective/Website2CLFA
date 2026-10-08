@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
+import { escapeHtml } from "../lib/inlineMarkdown";
 
 const DESKTOP_QUERY = "(min-width: 1000px)";
 // world-space distance from the camera to the z=0 "front" plane — fov is
@@ -135,8 +136,9 @@ export function setupMomentumGallery() {
   if (N === 0) return;
 
   const setCountText = (el: HTMLElement, value: number) => {
-    const prefix = el.dataset.mgPrefix || "";
-    const suffix = el.dataset.mgSuffix || "";
+    // CMS text (momentum.json) — escaped, since it's written as HTML
+    const prefix = escapeHtml(el.dataset.mgPrefix || "");
+    const suffix = escapeHtml(el.dataset.mgSuffix || "");
     el.innerHTML = `<span class="mfig__prefix">${prefix}</span>${Math.round(value)}<span class="unit">${suffix}</span>`;
   };
 
@@ -157,6 +159,8 @@ export function setupMomentumGallery() {
     if (!fig) return;
     setCountText(fig, Number(fig.dataset.mgCount));
     fig.style.minWidth = `${fig.getBoundingClientRect().width}px`;
+    // measured — back to 0, so the final number never shows before its count-up
+    setCountText(fig, 0);
   });
 
   if (prefersReducedMotion()) {
@@ -557,6 +561,12 @@ export function setupMomentumGallery() {
     playing = true;
     everActivated = true;
     countedUp.fill(false);
+    // the rest layout left every figure at its final value; each one
+    // starts from 0 again and counts up when its slide arrives
+    slides.forEach((slide) => {
+      const fig = slide.querySelector<HTMLElement>("[data-mg-count]");
+      if (fig) setCountText(fig, 0);
+    });
     for (let i = 0; i < N; i++) parkSlideAtWait(i);
     // desktop's waiting slides drift faintly at their sides; mobile's
     // all wait directly behind centre, where any visible drift would sit

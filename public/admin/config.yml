@@ -18,6 +18,44 @@ media_folder: public/img/uploads
 public_folder: /img/uploads
 
 collections:
+  # ---------------------------------------------------------- Site-wide
+  - name: site
+    label: Site-wide
+    icon: menu
+    editor:
+      preview: false
+    files:
+      - name: navigation
+        label: Menu & footer links
+        file: src/data/navigation.json
+        format: json
+        fields:
+          - name: links
+            label: Pages
+            label_singular: Page
+            collapsed: true
+            widget: list
+            summary: "{{fields.menuLabel}} — {{fields.href}}"
+            hint: >-
+              One list feeds both the menu and the footer. Drag to reorder;
+              the menu's 01, 02… numbers follow the order. A new page is
+              built by a developer first — then add its link here.
+            fields:
+              - name: href
+                label: Page address
+                widget: string
+                hint: "The part after the domain, e.g. /about"
+                pattern: ["^/[a-z0-9\\-/]*$", "Start with / and use lowercase letters, numbers, and dashes, e.g. /about"]
+              - { name: menuLabel, label: Menu label, widget: string, hint: The big link in the full-screen menu. }
+              - { name: footerLabel, label: Footer label, widget: string, required: false, hint: Optional. Leave blank to reuse the menu label. }
+              - { name: inMenu, label: Show in menu, widget: boolean, default: true, required: false }
+              - { name: inFooter, label: Show in footer, widget: boolean, default: true, required: false }
+          - name: linkedin
+            label: LinkedIn URL
+            widget: string
+            hint: Used by the LinkedIn links in the menu, footer, and Contact page.
+            pattern: ["^https://", "Use the full address, starting with https://"]
+
   # ---------------------------------------------------------------- Home
   - name: home
     label: Home page
@@ -43,6 +81,19 @@ collections:
               name: name
               label: Client name
               widget: string
+
+      - name: ribbon
+        label: Ribbon Section
+        file: src/data/ribbon.json
+        format: json
+        fields:
+          - name: phrases
+            label: Ribbon words
+            widget: text
+            hint: >-
+              Separate each block with a semicolon ( ; ). All three ribbons
+              show the same words, with a dot between each block —
+              e.g. Ready to launch?; Mid-merger?; Pivoting?
 
       - name: momentum
         label: Momentum cards

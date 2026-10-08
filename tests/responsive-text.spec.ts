@@ -77,37 +77,17 @@ test.describe("required one-line phrases", () => {
     expect(lines).toBe(1);
   });
 
-  test('Hero closing copy: "connect" never wraps alone, away from "who"', async ({ page }) => {
-    // Below 800px, "connect" could land alone on its own line (the word
-    // right before the forced <strong>{display:block} break) with
-    // "...experienced thinkers who" ending the line above it — a
-    // non-breaking space between "who" and "connect" ties them to the
-    // same line always, so this checks that tie holds rather than
-    // literal position within the paragraph (which shifts with viewport
-    // width and copy changes).
-    await page.locator(".hcb__closing").scrollIntoViewIfNeeded();
-    const closing = page.locator(".hcb__closing");
-    const sameLine = await closing.evaluate((el) => {
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      let node: Text | null;
-      // eslint-disable-next-line no-cond-assign
-      while ((node = walker.nextNode() as Text | null)) {
-        const text = node.textContent ?? "";
-        const idx = text.indexOf("who connect");
-        if (idx === -1) continue;
-        const whoRange = document.createRange();
-        whoRange.setStart(node, idx);
-        whoRange.setEnd(node, idx + 3);
-        const connectRange = document.createRange();
-        connectRange.setStart(node, idx + 4); // skip "who" + the nbsp
-        connectRange.setEnd(node, idx + 4 + 7);
-        const whoTop = Math.round(whoRange.getBoundingClientRect().top);
-        const connectTop = Math.round(connectRange.getBoundingClientRect().top);
-        return whoTop === connectTop;
-      }
-      return null;
+  test("Hero closing copy sits in the hero, under \"for brands in motion\" (Figma 2964:2012)", async ({ page }) => {
+    const g = await page.evaluate(() => {
+      const em = document.querySelector(".hcb__tail em")!.getBoundingClientRect();
+      const p = document.querySelector(".hcb__closing")!;
+      const r = p.getBoundingClientRect();
+      return { inHero: !!p.closest("#hero"), emLeft: em.left, emBottom: em.bottom, pLeft: r.left, pTop: r.top, wide: innerWidth >= 800 };
     });
-    expect(sameLine, 'expected a "who\\u00A0connect" run in .hcb__closing, tied to the same line').toBe(true);
+    expect(g.inHero).toBe(true);
+    expect(g.pTop).toBeGreaterThan(g.emBottom);
+    // desktop: left edges line up; phones run it full width instead
+    if (g.wide) expect(Math.abs(g.pLeft - g.emLeft)).toBeLessThan(4);
   });
 
   test('BrandInMotionCards: "Ready to launch" breaks before "(or..."', async ({ page }) => {

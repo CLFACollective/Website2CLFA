@@ -8,12 +8,41 @@ interface Props {
   /** The sticky "Is it go time?" pill only ever appears on the home
    * page, matching the Figma source — the 4 sub-pages pass this. */
   hideKickoff?: boolean;
+  /** share image (og:image), relative to the site root */
+  image?: string;
 }
 const {
   title,
   description = "CLFA Collective — an adaptable healthcare B2B agency network of highly experienced thinkers who connect strategy, creative, and execution.",
   hideKickoff = false,
+  image = "/og-image.png",
 } = Astro.props;
+
+// absolute URLs: social sites and search engines need the full address
+const site = Astro.site ?? Astro.url;
+// no trailing slash: the build renders /about as /about/index.html,
+// but every link and the sitemap use /about
+const canonical = new URL(Astro.url.pathname.replace(/(.)\/+$/, "$1"), site).href;
+const imageUrl = new URL(image, site).href;
+const SITE_NAME = "CLFA Collective";
+const TAGLINE = "We are the solve for brands in motion";
+
+// structured data so search engines know who the site belongs to
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": new URL("/#org", site).href,
+      name: SITE_NAME,
+      url: new URL("/", site).href,
+      logo: new URL("/apple-touch-icon.png", site).href,
+      slogan: TAGLINE,
+      email: "hello@clfacollective.com",
+    },
+    { "@type": "WebSite", name: SITE_NAME, url: new URL("/", site).href, publisher: { "@id": new URL("/#org", site).href } },
+  ],
+});
 ---
 
 <!doctype html>
@@ -22,9 +51,34 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <meta name="description" content={description} />
-    <meta name="generator" content={Astro.generator} />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#FFFAF5" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="sitemap" href="/sitemap.xml" />
+    <meta name="robots" content="index, follow" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- sharing (Facebook, LinkedIn, Slack, iMessage…) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${SITE_NAME} logo — ${TAGLINE}`} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content={`${SITE_NAME} logo — ${TAGLINE}`} />
+
+    <script type="application/ld+json" set:html={jsonLd} />
   </head>
   <body class:list={[hideKickoff && "hide-kickoff"]}>
     <a class="skip-link" href="#main">Skip to content</a>

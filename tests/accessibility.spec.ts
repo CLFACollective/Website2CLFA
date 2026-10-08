@@ -1,4 +1,51 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+const PAGES = ["/", "/what-we-do", "/about", "/faqs", "/contact"];
+// WCAG 2.1 A/AA + Section 508 rules. Colour contrast is excluded on
+// purpose: the brand palette was reviewed separately.
+const axe = (page: import("@playwright/test").Page) =>
+  new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "section508"])
+    .disableRules(["color-contrast"]);
+
+test.describe("automated WCAG / Section 508 scan (axe)", () => {
+  for (const path of PAGES) {
+    test(`${path} has no violations`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForTimeout(1200);
+      const { violations } = await axe(page).analyze();
+      expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+    });
+  }
+
+  test("the open menu has no violations", async ({ page }) => {
+    await page.goto("/about");
+    await page.locator("#menuBtn").click();
+    await page.waitForTimeout(1200);
+    const { violations } = await axe(page).include("#mega").analyze();
+    expect(violations.map((v) => v.id)).toEqual([]);
+  });
+});
+
+test.describe("menu: the current page is marked", () => {
+  test("aria-current on the matching link, pink text and a white number", async ({ page }) => {
+    await page.goto("/faqs");
+    await page.locator("#menuBtn").click();
+    await page.waitForTimeout(1200);
+    const current = page.locator('.mega__link[aria-current="page"]');
+    await expect(current).toHaveCount(1);
+    await expect(current).toHaveAttribute("href", "/faqs");
+    await expect(current).toHaveCSS("color", "rgb(240, 100, 150)");
+    await expect(current.locator(".no")).toHaveCSS("color", "rgb(255, 255, 255)");
+    // the others keep the normal look: cream text, pink number
+    const other = page.locator('.mega__link[href="/about"]');
+    await expect(other).not.toHaveAttribute("aria-current", /.*/);
+    await expect(other.locator(".no")).toHaveCSS("color", "rgb(240, 100, 150)");
+    // and the footer marks it too, for screen readers
+    await expect(page.locator('.foot__nav a[aria-current="page"]')).toHaveAttribute("href", "/faqs");
+  });
+});
 
 /**
  * The mega menu is a real, managed dialog (see src/scripts/nav.ts):

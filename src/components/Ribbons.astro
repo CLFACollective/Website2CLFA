@@ -4,7 +4,11 @@
 // way, laid over the top. Each band scrolls at its own speed via GSAP
 // (src/scripts/marquee.ts) rather than a CSS @keyframes loop, so every
 // looping band on the page shares one consistent animation engine.
-const PHRASES = ["Ready to launch?", "Mid-merger?", "Pivoting?", "Just acquired?", "Complex, inherited brand?"];
+import ribbon from "../data/ribbon.json";
+
+// One semicolon-separated line in the CMS ("Ribbon Section"); every
+// band shows the same phrases, each followed by a dot.
+const PHRASES = ribbon.phrases.split(";").map((p) => p.trim()).filter(Boolean);
 // Each "half" below has to stay wider than the band itself at every
 // viewport width for the xPercent 0 -> -50 loop to read as seamless —
 // otherwise, once the item font-size hits its clamp() ceiling, a wide
@@ -24,6 +28,9 @@ const ANGLE = -6;
 const CROSS_ANGLE = 6;
 ---
 
+<!-- the bands repeat the phrases dozens of times, so they're hidden
+     from screen readers and the list is read once instead -->
+<ul class="sr-only">{PHRASES.map((p) => <li>{p}</li>)}</ul>
 <div class="rib" aria-hidden="true">
   <div class="rib__stack" style={`transform:rotate(${ANGLE}deg)`}>
     {STACK.map((b, i) => (

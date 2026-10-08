@@ -7,7 +7,15 @@
     <title>CLFA Collective — Content</title>
   </head>
   <body>
-    <!-- Sveltia CMS: reads ./config.yml. See README "Editing content". -->
-    <script src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+    <!-- Sveltia CMS: reads ./config.yml. See README "Editing content".
+         Pinned to one version with an integrity hash, so a new (or
+         tampered) release can't load here unreviewed. To upgrade: change
+         the version, then replace the hash with the output of
+           curl -sL <script url> | openssl dgst -sha384 -binary | openssl base64 -A -->
+    <script
+      src="https://unpkg.com/@sveltia/cms@0.229.0/dist/sveltia-cms.js"
+      integrity="sha384-7UzSMzLyz+OPQAMgiUyOhH0RD60gmdQfgu6s7daTg868WnElfvyBsIUHOS1YWF22"
+      crossorigin="anonymous"
+    ></script>
   </body>
 </html>

@@ -123,6 +123,14 @@ test.describe("MomentumGallery: the movie", () => {
     await expect(page.locator("#mgOverview")).toBeHidden();
   });
 
+  test("every stat figure starts at 0, never showing its final number first", async ({ page }) => {
+    const figs = await page.locator("#mgScene > .mg__slide [data-mg-count]").evaluateAll((els) =>
+      els.map((el) => ({ text: el.textContent, prefix: (el as HTMLElement).dataset.mgPrefix ?? "", suffix: (el as HTMLElement).dataset.mgSuffix ?? "" })),
+    );
+    expect(figs.length).toBeGreaterThan(0);
+    for (const f of figs) expect(f.text).toBe(`${f.prefix}0${f.suffix}`);
+  });
+
   test("scrolling the section into view starts the movie automatically", async ({ page }) => {
     await scrollIntoGallery(page);
     await pollUntil(page, (s) => s.playing === true);
@@ -613,6 +621,11 @@ test.describe("MomentumGallery: the movie", () => {
       await expect(page.locator("#momentum")).not.toHaveAttribute("data-mg-rest", "true");
       expect((await getState(page)).playing).toBe(true);
       expect(await activeIndex(page)).toBe("0");
+      // the slides still to come start back at 0, not at the final values
+      // the rest layout left them on
+      const later = await page.locator('#mgScene > .mg__slide:not([data-mg-index="0"]) [data-mg-count]').allTextContents();
+      expect(later.length).toBeGreaterThan(0);
+      for (const t of later) expect(t.replace(/\D/g, "")).toBe("0");
     });
   });
 

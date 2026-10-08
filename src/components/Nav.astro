@@ -3,6 +3,9 @@
 // sticky "kick off" CTA. Open/close and the CTA's show/hide are both
 // driven by GSAP — see src/scripts/nav.ts and src/scripts/kickoff.ts.
 import ClfaWordmark from "./ClfaWordmark.astro";
+import { menuLinks, linkedinUrl, isCurrent } from "../lib/navigation";
+
+const path = Astro.url.pathname;
 ---
 
 <nav class="nav" id="nav">
@@ -19,10 +22,13 @@ import ClfaWordmark from "./ClfaWordmark.astro";
 
 <div class="mega" id="mega" role="dialog" aria-modal="true" aria-label="Site menu">
   <ul class="mega__list">
-    <li><a class="mega__link" href="/what-we-do"><span class="no">01</span> What we do</a></li>
-    <li><a class="mega__link" href="/about"><span class="no">02</span> Meet the collective</a></li>
-    <li><a class="mega__link" href="/faqs"><span class="no">03</span> FAQs</a></li>
-    <li><a class="mega__link" href="/contact"><span class="no">04</span> Let&rsquo;s go</a></li>
+    {menuLinks.map((l, n) => (
+      <li>
+        <a class="mega__link" href={l.href} aria-current={isCurrent(l.href, path) ? "page" : undefined}>
+          <span class="no">{String(n + 1).padStart(2, "0")}</span> {l.menuLabel}
+        </a>
+      </li>
+    ))}
   </ul>
   <div class="mega__aside">
     <div>
@@ -33,7 +39,7 @@ import ClfaWordmark from "./ClfaWordmark.astro";
       <p class="eyebrow">Direct</p>
       <p>
         <a class="plain" href="mailto:hello@clfacollective.com">hello@clfacollective.com</a><br />
-        <a class="plain" href="#contact">LinkedIn</a>
+        <a class="plain" href={linkedinUrl} rel="noreferrer">LinkedIn</a>
       </p>
     </div>
   </div>

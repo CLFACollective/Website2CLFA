@@ -660,6 +660,10 @@ body.hide-kickoff .kickoff { display: none; }
   font-family: "Lora", Georgia, serif; font-style: italic; font-size: clamp(21px, 1.9vw, 32px);
   line-height: calc(37 / 32); max-width: 20ch;
 }
+/* the CMS's "Copper italic" toggles on a stat slide: caption switched
+   off, or the line below switched on */
+.mcap.mcap--plain { color: var(--charcoal); font-family: inherit; font-style: normal; }
+.mg__slide h3.mg__sub--hot { color: var(--copper); font-weight: 600; font-family: "Lora", Georgia, serif; font-style: italic; }
 
 /* left:calc(100% + 20px) — not `right` — since the badge's own width
    is itself responsive (the clamp() below): `right:-20px` would anchor
@@ -821,8 +825,8 @@ body.hide-kickoff .kickoff { display: none; }
     width: calc(112 * var(--u)); top: calc(-40 * var(--u)); left: calc(100% + 50 * var(--u));
   }
   /* a long quote, e.g. the Michelle quote (Figma node 3837:5995): one plain run of text
-     wrapping in a 366px column — no forced line breaks, no copper
-     italic line — with the badge placed off the column's top-left
+     wrapping in a 366px column — no forced line breaks; a line is
+     copper italic only if its CMS toggle is on — with the badge placed off the column's top-left
      corner rather than off the end of the first line. Same look in the
      movie and at rest: these rules aren't scoped to [data-mg-rest], and
      --u falls back to the quote's own font size / Figma's 45.285px —
@@ -838,6 +842,9 @@ body.hide-kickoff .kickoff { display: none; }
   }
   #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote > span {
     display: inline; position: static;
+  }
+  /* plain unless the line's "Copper italic" toggle is on in the CMS */
+  #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote > span:not(.mquote__k2) {
     color: var(--charcoal); font-family: var(--sans); font-style: normal; letter-spacing: inherit;
   }
   #momentum #mgScene > .mg__slide--quote.mg__slide--long .mquote__by {

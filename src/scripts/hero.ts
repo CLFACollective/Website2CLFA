@@ -343,8 +343,8 @@ export function setupHero() {
   });
 
   /* BLOOM — the frame floods rose, the lockup fades up into it. Movie
-     ends here; the intro paragraph is part of the lockup and fades up
-     with it (Hero.astro's .hcb__closing).
+     ends here; the cream-rise + closing copy that used to follow are
+     ordinary scroll content below now (see Hero.astro's .hcb__after).
      The cue's pulse starts the moment the flood tween itself finishes
      (--flood hits 1, so .hcb__cue's opacity:var(--flood) is fully
      visible) rather than waiting for the *whole* timeline's onComplete

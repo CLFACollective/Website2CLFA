@@ -13,3 +13,10 @@ export function inlineMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/gs, "<strong>$1</strong>")
     .replace(/\r?\n/g, "<br />");
 }
+
+// *single asterisks* for the copper italic words, Enter for a line break
+export function italicMarkdown(text: string): string {
+  return escapeHtml(text.trim())
+    .replace(/\*(.+?)\*/gs, "<em>$1</em>")
+    .replace(/\r?\n/g, "<br />");
+}

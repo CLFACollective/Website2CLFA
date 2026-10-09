@@ -25,7 +25,9 @@
       "value": 100,
       "suffix": "%",
       "caption": "on-time delivery",
-      "subline": "Launches that actually launch. On time."
+      "captionEmphasis": true,
+      "subline": "Launches that actually launch. On time.",
+      "sublineEmphasis": false
     },
     {
       "type": "stat",
@@ -33,7 +35,9 @@
       "value": 4,
       "suffix": "M",
       "caption": "Sales pipeline in 4 months",
-      "subline": "Metrics-busting content\nand paid."
+      "captionEmphasis": true,
+      "subline": "Metrics-busting content\nand paid.",
+      "sublineEmphasis": false
     },
     {
       "type": "stat",
@@ -41,7 +45,9 @@
       "value": 150,
       "suffix": "+",
       "caption": "RSVPs to an Ontologies insider talk",
-      "subline": "Webinars so successful we need crowd control."
+      "captionEmphasis": true,
+      "subline": "Webinars so successful we need crowd control.",
+      "sublineEmphasis": false
     },
     {
       "type": "quote",
@@ -57,7 +63,7 @@
         },
         {
           "text": "She’s always sending\nideas",
-          "emphasis": true
+          "emphasis": false
         },
         {
           "text": "and has our business\nstrategy locked in.",

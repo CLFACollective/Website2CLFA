@@ -77,17 +77,20 @@ test.describe("required one-line phrases", () => {
     expect(lines).toBe(1);
   });
 
-  test("Hero closing copy sits in the hero, under \"for brands in motion\" (Figma 2964:2012)", async ({ page }) => {
-    const g = await page.evaluate(() => {
-      const em = document.querySelector(".hcb__tail em")!.getBoundingClientRect();
-      const p = document.querySelector(".hcb__closing")!;
-      const r = p.getBoundingClientRect();
-      return { inHero: !!p.closest("#hero"), emLeft: em.left, emBottom: em.bottom, pLeft: r.left, pTop: r.top, wide: innerWidth >= 800 };
+  test("Hero closing copy: its own band after the hero, bold run on its own line with the period", async ({ page }) => {
+    const closing = page.locator(".hcb__after .hcb__closing");
+    await expect(closing).toHaveCount(1);
+    expect(await closing.evaluate((el) => !el.closest("#hero"))).toBe(true);
+    await closing.scrollIntoViewIfNeeded();
+    // trailing punctuation stays with the bold line, never wraps alone
+    const g = await closing.evaluate((el) => {
+      const strong = el.querySelector("strong")!;
+      const rects = Array.from(el.getClientRects());
+      const last = el.lastChild;
+      return { strongLines: strong.getClientRects().length, endsInStrong: last === strong || (last?.textContent ?? "").trim() === "" , n: rects.length };
     });
-    expect(g.inHero).toBe(true);
-    expect(g.pTop).toBeGreaterThan(g.emBottom);
-    // desktop: left edges line up; phones run it full width instead
-    if (g.wide) expect(Math.abs(g.pLeft - g.emLeft)).toBeLessThan(4);
+    expect(g.strongLines).toBe(1);
+    expect(g.endsInStrong).toBe(true);
   });
 
   test('BrandInMotionCards: "Ready to launch" breaks before "(or..."', async ({ page }) => {

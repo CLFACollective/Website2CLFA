@@ -17,7 +17,10 @@ import ShineField from "./ShineField.astro";
 import data from "../data/momentum.json";
 import { escapeHtml } from "../lib/inlineMarkdown";
 
-interface StatCard { type: "stat"; prefix?: string; value: number; suffix?: string; caption: string; subline: string }
+interface StatCard {
+  type: "stat"; prefix?: string; value: number; suffix?: string;
+  caption: string; captionEmphasis?: boolean; subline: string; sublineEmphasis?: boolean;
+}
 interface QuoteLine { text: string; emphasis?: boolean }
 interface QuoteCard { type: "quote"; size?: "short" | "long"; lines: QuoteLine[]; attribution: string }
 type Card = StatCard | QuoteCard;
@@ -69,8 +72,10 @@ const lineClass = (card: QuoteCard, line: QuoteLine, n: number) =>
                 data-mg-prefix={card.prefix || undefined}
                 data-mg-suffix={card.suffix ?? ""}
               >{card.prefix}0<span class="unit">{card.suffix}</span></p>
-              <p class="mcap">{card.caption}</p>
-              <h3 set:html={withBreaks(card.subline)} />
+              {/* "Copper italic" toggles: the caption is on unless switched
+                  off, the line below is off unless switched on */}
+              <p class:list={["mcap", { "mcap--plain": card.captionEmphasis === false }]}>{card.caption}</p>
+              <h3 class:list={{ "mg__sub--hot": card.sublineEmphasis === true }} set:html={withBreaks(card.subline)} />
             </div>
           );
         }

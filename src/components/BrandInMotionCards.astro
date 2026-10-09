@@ -1,37 +1,28 @@
 ---
-// BrandInMotionCards — five cards fanned on one screen, on an arc rather
+// BrandInMotionCards — up to five cards fanned on one screen, on an arc rather
 // than a stack or a line. The section pins; scroll deals the deck into
 // the fan, then walks a lead card along the curve (see cardsFan.ts).
 // On narrow screens the arc has nowhere to spread, so the deck stacks
 // and shuffles instead as the section pins.
 import CardIcon from "./CardIcon.astro";
 import type { IconName } from "../lib/cardIcons";
+import { italicMarkdown } from "../lib/inlineMarkdown";
+import data from "../data/cards.json";
 
-type Card = {
-  pre?: string;
-  emph: string;
-  rest: string;
-  breakAfterEmph?: boolean;
-  bg: string;
-  fg: string;
-  hot: string;
-  icon: IconName;
-  idle: string;
-  hover: string;
+// Cards come from src/data/cards.json (CMS: Home page → Brand in motion
+// cards) — up to five, in order. Each picks one of the design's four
+// colour treatments; the text's *starred* words are the copper italics.
+type Theme = { bg: string; fg: string; hot: string; idle: string; hover: string };
+const THEMES: Record<string, Theme> = {
+  light: { bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", idle: "#A5B7BE", hover: "#BE7A3A" },
+  forest: { bg: "#344338", fg: "#FEFCF4", hot: "#FF981E", idle: "#858D83", hover: "#FF981E" },
+  azure: { bg: "#506E78", fg: "#FEFCF4", hot: "#FF981E", idle: "#9EBBC4", hover: "#FF981E" },
+  charcoal: { bg: "#252525", fg: "#FEFCF4", hot: "#FF981E", idle: "#7C7B78", hover: "#FF981E" },
 };
 
-const CARDS: Card[] = [
-  { pre: "Your ", emph: "equity-backed", rest: " company needs ASAP marketing services?",
-    bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "speed", idle: "#A5B7BE", hover: "#BE7A3A" },
-  { emph: "Just been acquired", rest: " and need to reintroduce yourself.", breakAfterEmph: true,
-    bg: "#344338", fg: "#FEFCF4", hot: "#FF981E", icon: "acquired", idle: "#858D83", hover: "#FF981E" },
-  { emph: "Ready to launch", rest: " (or should be ready to launch).", breakAfterEmph: true,
-    bg: "#506E78", fg: "#FEFCF4", hot: "#FF981E", icon: "launch", idle: "#9EBBC4", hover: "#FF981E" },
-  { emph: "Mid-merger", rest: " and the brand story hasn’t caught up yet.", breakAfterEmph: true,
-    bg: "#252525", fg: "#FEFCF4", hot: "#FF981E", icon: "merge", idle: "#7C7B78", hover: "#FF981E" },
-  { emph: "Pivoting", rest: " because the tech stack changed.", breakAfterEmph: true,
-    bg: "#DDE6ED", fg: "#252525", hot: "#BE7A3A", icon: "pivot", idle: "#A5B7BE", hover: "#BE7837" },
-];
+const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
+  .slice(0, 5)
+  .map((c) => ({ ...c, theme: THEMES[c.color] ?? THEMES.light }));
 ---
 
 <section class="bmc" id="motion">
@@ -45,9 +36,9 @@ const CARDS: Card[] = [
         {CARDS.map((c, i) => (
           <article
             class="bmc__card"
-            style={`background:${c.bg};color:${c.fg};--hot:${c.hot};--idle:${c.idle};--hover:${c.hover};--i:${i}`}
+            style={`background:${c.theme.bg};color:${c.theme.fg};--hot:${c.theme.hot};--idle:${c.theme.idle};--hover:${c.theme.hover};--i:${i}`}
           >
-            <p class="bmc__copy">{c.pre}<em>{c.emph}</em>{c.breakAfterEmph && <br />}{c.rest}</p>
+            <p class="bmc__copy" set:html={italicMarkdown(c.text)} />
             <span class="bmc__icon"><CardIcon name={c.icon} /></span>
           </article>
         ))}
@@ -144,7 +135,9 @@ const CARDS: Card[] = [
     margin: 0; font-weight: 300; letter-spacing: -.02em; line-height: 1.14;
     font-size: clamp(16px, 2.1vw, 36px);
   }
-  .bmc__copy em {
+  /* :global — the em comes from the CMS text (set:html), which Astro
+     doesn't stamp with this component's scoping attribute */
+  .bmc__copy :global(em) {
     font-family: var(--hc-serif, "Lora", Georgia, serif);
     font-style: italic; font-weight: 600; color: var(--hot);
   }

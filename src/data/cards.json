@@ -1,0 +1,29 @@
+{
+  "cards": [
+    {
+      "text": "Your *equity-backed* company needs ASAP marketing services?",
+      "icon": "speed",
+      "color": "light"
+    },
+    {
+      "text": "*Just been acquired*\nand need to reintroduce yourself.",
+      "icon": "acquired",
+      "color": "forest"
+    },
+    {
+      "text": "*Ready to launch*\n(or should be ready to launch).",
+      "icon": "launch",
+      "color": "azure"
+    },
+    {
+      "text": "*Mid-merger*\nand the brand story hasn’t caught up yet.",
+      "icon": "merge",
+      "color": "charcoal"
+    },
+    {
+      "text": "*Pivoting*\nbecause the tech stack changed.",
+      "icon": "pivot",
+      "color": "light"
+    }
+  ]
+}

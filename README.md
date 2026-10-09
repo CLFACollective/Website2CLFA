@@ -40,7 +40,8 @@ These areas are edited in [Sveltia CMS](https://sveltiacms.app) at
 | Area | File |
 | --- | --- |
 | Site-wide: menu & footer links, LinkedIn URL | `src/data/navigation.json` |
-| Home: "We're an adaptable…" paragraph, client marquee | `src/data/home.json` |
+| Home: intro paragraph, client marquee | `src/data/home.json` |
+| Home: "Brand in motion" cards (up to 5, reorderable) | `src/data/cards.json` |
 | Home: Ribbon Section (semicolon-separated phrases) | `src/data/ribbon.json` |
 | Home: Momentum cards (add, remove, reorder stats and quotes) | `src/data/momentum.json` |
 | What We Do: Services accordion | `src/data/services.json` |

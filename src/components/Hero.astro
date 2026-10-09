@@ -12,12 +12,19 @@
 // ~10s runtime so it's actually watched rather than however fast someone
 // happens to scroll past it. Once it completes, the pink bloom becomes
 // this section's resting frame, the "Scroll" cue arrives, and scrolling
-// unlocks. The intro paragraph (home.json, edited in the CMS) sits in
-// the lockup under "for brands in motion" (Figma 2964:2012) and fades
-// up with the headline.
+// unlocks — .hcb__after below (the old cream-circle-rise stage) is
+// ordinary scroll content from there, ridden in via the site's normal
+// .reveal fade-up, not part of the movie.
 import ClfaMark from "./ClfaMark.astro";
 import home from "../data/home.json";
 import { inlineMarkdown } from "../lib/inlineMarkdown";
+
+// The **bold** run sits on its own line; punctuation right after it
+// (the closing ".") rides along on that line instead of wrapping alone.
+const intro = inlineMarkdown(home.intro).replace(
+  /<\/strong>([.,;:!?…]+)/g,
+  '<span class="hcb__punct">$1</span></strong>',
+);
 
 const CREAM = "#FEFCF4";
 const CHARCOAL = "#252525";
@@ -64,7 +71,6 @@ const ROSE = "#F06996";
           <em>for brands in motion</em>
         </span>
       </h1>
-      <p class="hcb__closing" set:html={inlineMarkdown(home.intro)} />
     </div>
 
     <span class="hcb__cue" aria-hidden="true">Scroll<i></i></span>
@@ -77,6 +83,10 @@ const ROSE = "#F06996";
       </svg>
     </button>
   </div>
+</section>
+
+<section class="hcb__after">
+  <p class="hcb__closing reveal" set:html={intro} />
 </section>
 
 <script>
@@ -179,9 +189,6 @@ const ROSE = "#F06996";
   }
 
   .hcb__lockup {
-    /* "for brands in motion"'s size — the intro paragraph below is
-       sized and placed off it, so the two stay locked together */
-    --tail-fs: clamp(22px, 2.9vw, 54px);
     position: relative; z-index: 3;
     display: inline-grid; justify-items: stretch;
     padding: 0 clamp(24px, 5vw, 78px);
@@ -229,26 +236,32 @@ const ROSE = "#F06996";
     flex: 0 0 auto;
     font-family: var(--hc-serif, "Lora", Georgia, serif);
     font-style: italic; font-weight: 500; letter-spacing: -.01em;
-    font-size: var(--tail-fs);
+    font-size: clamp(22px, 2.9vw, 54px);
     color: var(--CHARCOAL);
   }
 
-  /* Figma 2964:2012: left edge on "for brands in motion"'s, right edge
-     on the lockup's, a little more than one line of that text below it.
-     Light charcoal with the CMS's **bold** run in ExtraBold, inline.
-     Sizes are ratios of --tail-fs (Figma: 31.8px text under 65px). */
+  /* The old cream-circle-rise stage — a big circle physically climbing
+     up to cover the pink — needed the scroll-scrubbed pin to work at
+     all (its position was a direct function of scroll progress). Now
+     that this is ordinary post-movie scroll content, it's just a plain
+     section with a cream background; the colour transition (pink ->
+     cream) still reads the same on scroll, it just isn't a bespoke
+     shape doing it. */
+  .hcb__after {
+    background: #DDE6ED; color: var(--CHARCOAL);
+    display: grid; place-items: center;
+    padding: clamp(72px, 10vw, 170px) var(--gut);
+  }
   .hcb__closing {
-    justify-self: end;
-    width: calc(var(--tail-fs) * 9.2);
-    margin: calc(var(--tail-fs) * 1.3) 0 0;
-    font-size: calc(var(--tail-fs) * .49); line-height: 1.4;
-    font-weight: 300; color: var(--CHARCOAL);
-    opacity: var(--head);
-    transform: translateY(calc((1 - var(--head)) * 22px));
+    margin: 0;
+    max-width: min(26ch, 90vw); text-align: center;
+    font-weight: 300; letter-spacing: -.042em; line-height: 1.16;
+    font-size: clamp(22px, 4.2vw, 80px);
   }
   /* :global — the strong comes from the CMS text (set:html), which
      Astro doesn't stamp with this component's scoping attribute */
-  .hcb__closing :global(strong) { font-weight: 800; white-space: nowrap; }
+  .hcb__closing :global(strong) { display: block; font-weight: 700; color: var(--COPPER); }
+  .hcb__closing :global(.hcb__punct) { font-weight: 300; color: var(--CHARCOAL); }
 
   .hcb__cue {
     position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
@@ -304,7 +317,7 @@ const ROSE = "#F06996";
     .hcb__lockup { padding: 0 32px; }
     .hcb__head .hcb__lead { font-size: 25px; }
     .hcb__solve { font-size: var(--solve-fit, 34vw); line-height: .76; }
-    .hcb__closing { justify-self: stretch; width: auto; font-size: 18px; margin-top: 32px; }
+    .hcb__closing { max-width: min(20ch, 86vw); }
   }
 
   /* No prefers-reduced-motion overrides needed for most of the above:
@@ -312,7 +325,8 @@ const ROSE = "#F06996";
      (--flood: 1, --head: 1, etc.) the completed movie ends at, straight
      away — the existing property-driven rules already render the
      correct resting frame from those values alone, animated or not.
-     .hcb__closing included: it rides the same --head.
+     .hcb__closing below gets its reduced-motion handling for free too,
+     from the sitewide .reveal rule in global.css.
      .hcb__replay is the one exception: that branch returns before ever
      wiring a click handler (there's no timeline to restart), so without
      this it would otherwise render as a live-looking, focusable button

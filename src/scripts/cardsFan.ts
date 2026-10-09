@@ -1,7 +1,5 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-const N = 5;
-const MID = (N - 1) / 2;
 const DEAL = 0.09; // deal-in is over by here
 const START = 0.2; // lead card starts moving here
 const END = 0.94; // and lands on the last card here
@@ -9,13 +7,12 @@ const SPREAD = 0.97; // spacing as a share of card width (<1 = overlap)
 const DEPTH = 0.105; // arc depth per step, as a share of card width
 const TILT = 0.82; // fraction of the true tangent each card rotates
 const PART = 70; // deck-parting strength (peaks ~42px at the neighbour)
-const BOW = (N * N - 1) / 12; // mean of o^2 — lifts the arc back to centre
 
 const ease = (v: number) => v * v * (3 - 2 * v);
 const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /**
- * BrandInMotionCards — five cards fanned on an arc. The section pins;
+ * BrandInMotionCards — up to five cards fanned on an arc. The section pins;
  * scroll deals the deck out and walks a lead card along the curve. The
  * geometry itself (place()) is the same closed-form math as the
  * original component; GSAP's job is turning the raw scroll fraction
@@ -33,6 +30,12 @@ export function setupBrandInMotionCards() {
 
   const { gsap, ScrollTrigger } = useGsap();
   const cards = Array.from(fan.children) as HTMLElement[];
+  // however many cards src/data/cards.json holds (the CMS caps it at 5)
+  const N = cards.length;
+  if (N === 0) return;
+  const STEPS = Math.max(N - 1, 1);
+  const MID = (N - 1) / 2;
+  const BOW = (N * N - 1) / 12; // mean of o^2 — lifts the arc back to centre
   const dots = Array.from(dotsHost.children) as HTMLElement[];
   const reduce = prefersReducedMotion();
 
@@ -197,7 +200,7 @@ export function setupBrandInMotionCards() {
     const w = cards[0].offsetWidth;
     const h = (w * 540) / 441;
     const avail = fan!.clientWidth - 16;
-    const span = Math.min(w * SPREAD, (avail - w) / (N - 1));
+    const span = Math.min(w * SPREAD, (avail - w) / STEPS);
     const depth = w * DEPTH;
 
     const d = ease(clamp(p / DEAL));

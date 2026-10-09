@@ -69,7 +69,7 @@ collections:
         format: json
         fields:
           - name: intro
-            label: "\"We're an adaptable…\" paragraph"
+            label: "Intro paragraph (\"We're a highly experienced…\")"
             widget: text
             hint: Wrap words in **double asterisks** to make them bold.
           - name: vendors
@@ -81,6 +81,46 @@ collections:
               name: name
               label: Client name
               widget: string
+
+      - name: cards
+        label: Brand in motion cards
+        file: src/data/cards.json
+        format: json
+        fields:
+          - name: cards
+            label: Cards
+            label_singular: Card
+            collapsed: true
+            widget: list
+            min: 1
+            max: 5
+            summary: "{{fields.text}}"
+            hint: Up to 5 cards. Drag to reorder — they fan out in this order.
+            fields:
+              - name: text
+                label: Text
+                widget: text
+                hint: >-
+                  Wrap words in *single asterisks* for the copper italic
+                  (e.g. *Pivoting*). Press Enter for a line break.
+              - name: icon
+                label: Icon
+                widget: select
+                options:
+                  - { label: "Speed (dots)", value: speed }
+                  - { label: "Acquired (linked rings)", value: acquired }
+                  - { label: "Launch (burst)", value: launch }
+                  - { label: "Merge (branches)", value: merge }
+                  - { label: "Pivot (orbit)", value: pivot }
+              - name: color
+                label: Card colour
+                widget: select
+                default: light
+                options:
+                  - { label: Light blue, value: light }
+                  - { label: Forest green, value: forest }
+                  - { label: Slate blue, value: azure }
+                  - { label: Charcoal, value: charcoal }
 
       - name: ribbon
         label: Ribbon Section
@@ -117,8 +157,10 @@ collections:
                   - { name: prefix, label: Before the number, widget: string, required: false, hint: "e.g. $" }
                   - { name: value, label: Number, widget: number, value_type: int, min: 0, hint: Counts up from 0. }
                   - { name: suffix, label: After the number, widget: string, required: false, hint: "e.g. %, M, +" }
-                  - { name: caption, label: "Caption (copper, italic)", widget: string }
+                  - { name: caption, label: Caption, widget: string }
+                  - { name: captionEmphasis, label: Copper italic, widget: boolean, default: true, required: false }
                   - { name: subline, label: Line below, widget: text, hint: Press Enter for a line break. }
+                  - { name: sublineEmphasis, label: Copper italic, widget: boolean, default: false, required: false }
               - name: quote
                 label: Quote
                 summary: "{{fields.attribution}}"

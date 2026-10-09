@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { skipHeroMovie } from "./helpers";
 
@@ -263,6 +264,8 @@ test.describe("MomentumGallery: the movie", () => {
 
   test("the Michelle quote looks the same in the movie as at rest (Figma 3837:5995)", async ({ page }) => {
     test.skip(!isDesktop(page), "desktop formatting; mobile keeps its own line breaks");
+    const michelle = JSON.parse(readFileSync(new URL("../src/data/momentum.json", import.meta.url), "utf8")).cards[4];
+    const michelleHasCopper = (michelle.lines as { emphasis?: boolean }[]).some((l) => l.emphasis);
     // proportions in Figma px (relative to the quote's own 45.285px), so
     // the same numbers hold at the movie's scale and the rest scale
     const measure = () => {
@@ -286,9 +289,14 @@ test.describe("MomentumGallery: the movie", () => {
       };
     };
     const check = (g: Awaited<ReturnType<typeof measure>>, label: string) => {
-      expect(g.lines, `${label}: wraps to Figma's 7 lines`).toBe(7);
-      expect(g.oneColor, `${label}: one text color, no copper line`).toBe(true);
-      expect(g.italic, `${label}: no italic line`).toBe(false);
+      // Figma has no copper line; a line's CMS "Copper italic" toggle
+      // adds one (and the wider italic rewraps), so these only hold
+      // while none is switched on
+      if (!michelleHasCopper) {
+        expect(g.lines, `${label}: wraps to Figma's 7 lines`).toBe(7);
+        expect(g.oneColor, `${label}: one text color, no copper line`).toBe(true);
+        expect(g.italic, `${label}: no italic line`).toBe(false);
+      }
       expect(Math.abs(g.width - 366.33), `${label}: 366px column`).toBeLessThan(1);
       expect(Math.abs(g.byFont - 21.496), `${label}: byline size`).toBeLessThan(0.5);
     };

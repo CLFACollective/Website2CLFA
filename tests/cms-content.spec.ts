@@ -8,6 +8,7 @@ const momentum: {
 } = data("momentum");
 const services: { services: { title: string; word: string }[] } = data("services");
 const ribbon: { phrases: string } = data("ribbon");
+const cards: { cards: { text: string; icon: string; color: string }[] } = data("cards");
 const nav: {
   links: { href: string; menuLabel: string; footerLabel?: string; inMenu?: boolean; inFooter?: boolean }[];
   linkedin: string;
@@ -26,7 +27,8 @@ test.describe("CMS content drives the pages", () => {
     const intro = page.locator(".hcb__closing");
     const bold = home.intro.match(/\*\*(.+?)\*\*/)?.[1];
     await expect(intro).toContainText(home.intro.replace(/\*\*/g, "").slice(0, 30));
-    if (bold) await expect(intro.locator("strong")).toHaveText(bold);
+    // punctuation right after the bold run is kept on its line (Hero.astro)
+    if (bold) await expect(intro.locator("strong")).toContainText(bold);
     // two marquee rows, each rendering the set twice
     const names = await page.locator(".lsc__set").first().locator(".lsc__name").allInnerTexts();
     expect(names.map((n) => n.toLowerCase())).toEqual(home.vendors.map((n) => n.toLowerCase()));
@@ -48,6 +50,45 @@ test.describe("CMS content drives the pages", () => {
         await expect(slide.locator(".mquote > span")).toHaveCount(card.lines!.length);
       }
     }
+  });
+
+  test("home: every Momentum text with a \"Copper italic\" toggle follows it", async ({ page }) => {
+    await page.goto("/");
+    const COPPER = "rgb(190, 120, 55)";
+    const look = (el: Element) => {
+      const cs = getComputedStyle(el);
+      return { italic: cs.fontStyle === "italic", color: cs.color };
+    };
+    const slides = page.locator("#mgScene > .mg__slide");
+    for (const [i, card] of momentum.cards.entries()) {
+      const slide = slides.nth(i);
+      if (card.type === "stat") {
+        const c = card as { captionEmphasis?: boolean; sublineEmphasis?: boolean };
+        const cap = await slide.locator(".mcap").evaluate(look);
+        expect(cap.italic, `slide ${i} caption`).toBe(c.captionEmphasis !== false);
+        const sub = await slide.locator("h3").evaluate(look);
+        expect(sub.italic, `slide ${i} line below`).toBe(c.sublineEmphasis === true);
+        if (c.sublineEmphasis) expect(sub.color).toBe(COPPER);
+      } else {
+        const lines = (card.lines ?? []) as { emphasis?: boolean }[];
+        const spans = slide.locator(".mquote > span");
+        for (const [n, line] of lines.entries()) {
+          const l = await spans.nth(n).evaluate(look);
+          expect(l.italic, `slide ${i} line ${n}`).toBe(!!line.emphasis);
+          if (line.emphasis) expect(l.color).toBe(COPPER);
+        }
+      }
+    }
+    // and the stat toggles in the positions the data above doesn't use
+    const flipped = await page.evaluate(() => {
+      const s = document.querySelector<HTMLElement>("#mgScene > .mg__slide--stat")!;
+      s.querySelector(".mcap")!.classList.add("mcap--plain");
+      s.querySelector("h3")!.classList.add("mg__sub--hot");
+      const cap = getComputedStyle(s.querySelector(".mcap")!);
+      const sub = getComputedStyle(s.querySelector("h3")!);
+      return { capItalic: cap.fontStyle, subItalic: sub.fontStyle, subColor: sub.color };
+    });
+    expect(flipped).toEqual({ capItalic: "normal", subItalic: "italic", subColor: COPPER });
   });
 
   test("what we do: one accordion row per service, numbered by position", async ({ page }) => {
@@ -83,6 +124,20 @@ test.describe("CMS content drives the pages", () => {
     expect(firstRun.slice(0, phrases.length).map((t) => t.trim())).toEqual(phrases);
     // screen readers get the list once (the bands themselves are aria-hidden)
     await expect(page.locator("ul.sr-only li")).toHaveText(phrases);
+  });
+
+  test("home: the brand-in-motion cards, in order, with their italics", async ({ page }) => {
+    await page.goto("/");
+    const els = page.locator("#bmcFan .bmc__card");
+    await expect(els).toHaveCount(cards.cards.length);
+    await expect(page.locator("#bmcDots .bmc__dot")).toHaveCount(cards.cards.length);
+    for (const [i, c] of cards.cards.entries()) {
+      const copy = els.nth(i).locator(".bmc__copy");
+      await expect(copy).toHaveText(c.text.replace(/\*/g, "").replace(/\s*\n\s*/g, ""));
+      const em = c.text.match(/\*(.+?)\*/)?.[1];
+      if (em) await expect(copy.locator("em")).toHaveText(em);
+      await expect(els.nth(i).locator(`svg.ci--${c.icon}`)).toHaveCount(1);
+    }
   });
 
   test("menu and footer links both come from the navigation list", async ({ page }) => {
@@ -125,7 +180,7 @@ test.describe("CMS content drives the pages", () => {
     const config = await request.get("/admin/config.yml");
     expect(config.ok()).toBe(true);
     const text = await config.text();
-    for (const file of ["src/data/navigation.json", "src/data/ribbon.json", "src/data/home.json", "src/data/momentum.json", "src/data/services.json", "src/data/faqs.json"]) {
+    for (const file of ["src/data/cards.json", "src/data/navigation.json", "src/data/ribbon.json", "src/data/home.json", "src/data/momentum.json", "src/data/services.json", "src/data/faqs.json"]) {
       expect(text).toContain(file);
     }
   });

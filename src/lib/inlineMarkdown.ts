@@ -18,5 +18,7 @@ export function inlineMarkdown(text: string): string {
 export function italicMarkdown(text: string): string {
   return escapeHtml(text.trim())
     .replace(/\*(.+?)\*/gs, "<em>$1</em>")
-    .replace(/\r?\n/g, "<br />");
+    // keep a space after the break, so the words don't run together
+    // for screen readers and copy/paste
+    .replace(/\s*\r?\n\s*/g, "<br /> ");
 }

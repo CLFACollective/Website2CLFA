@@ -133,7 +133,7 @@ test.describe("CMS content drives the pages", () => {
     await expect(page.locator("#bmcDots .bmc__dot")).toHaveCount(cards.cards.length);
     for (const [i, c] of cards.cards.entries()) {
       const copy = els.nth(i).locator(".bmc__copy");
-      await expect(copy).toHaveText(c.text.replace(/\*/g, "").replace(/\s*\n\s*/g, ""));
+      await expect(copy).toHaveText(c.text.replace(/\*/g, "").replace(/\s*\n\s*/g, " "));
       const em = c.text.match(/\*(.+?)\*/)?.[1];
       if (em) await expect(copy.locator("em")).toHaveText(em);
       await expect(els.nth(i).locator(`svg.ci--${c.icon}`)).toHaveCount(1);

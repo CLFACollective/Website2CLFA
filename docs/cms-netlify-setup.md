@@ -24,27 +24,19 @@ Client ID and secret.
 ## 3. Who can edit
 
 Anyone who signs in must have **write** access to the GitHub repo
-(`jderifaj/CLFA`): repo **Settings → Collaborators → Add people**.
+(`CLFACollective/Website2CLFA`): repo **Settings → Collaborators** (or
+an organization team with write access).
 
-## 4. Preview the `Sveltia` branch on Netlify (optional, before merging)
+## 4. How saves go live
 
-Netlify → **Site configuration → Build & deploy → Branches and deploy
-contexts → Branch deploys → Let me add individual branches**, then add
-`Sveltia`. After `git push -u origin Sveltia`, the branch builds at
-`https://sveltia--<site>.netlify.app`. The CMS is at `/admin/` there.
-`public/admin/config.yml` has `branch: Sveltia`, so edits made there commit
-to that branch and redeploy the preview. `main` and the live site are
-untouched.
+`public/admin/config.yml` points the CMS at `CLFACollective/Website2CLFA`,
+branch `main`. Each save in `/admin/` commits to `main`, and Netlify
+rebuilds and deploys the live site from that commit (a minute or two).
 
-## 5. Going live
+If Netlify deploys from a different repo or branch, update
+`backend.repo` / `backend.branch` in `public/admin/config.yml` to match.
 
-1. On the `Sveltia` branch, change `branch: Sveltia` to `branch: main`
-   in `public/admin/config.yml` and commit.
-2. Merge `Sveltia` into `main` (a GitHub pull request, or
-   `git checkout main && git merge Sveltia && git push`).
-3. Netlify deploys `main` as usual. The live site's `/admin/` now edits
-   and commits to `main`, and each save triggers a normal production deploy.
-
-If Netlify deploys from a different repo or branch than
-`jderifaj/CLFA` / `main`, update `backend.repo` / `backend.branch` in
-`public/admin/config.yml` to match.
+To try edits without touching the live site, add a branch deploy
+(Netlify → **Site configuration → Build & deploy → Branches and deploy
+contexts → Branch deploys**) and point `backend.branch` at that branch on
+it.

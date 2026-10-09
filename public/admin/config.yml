@@ -9,10 +9,9 @@
 # choose "Work with Local Repository" instead to edit the files on disk.
 backend:
   name: github
-  repo: jderifaj/CLFA
-  # commits go to this branch — change to `main` when this branch is
-  # merged (see README "Editing content")
-  branch: Sveltia
+  repo: CLFACollective/Website2CLFA
+  # the branch Netlify deploys — each save is a production deploy
+  branch: main
 
 media_folder: public/img/uploads
 public_folder: /img/uploads

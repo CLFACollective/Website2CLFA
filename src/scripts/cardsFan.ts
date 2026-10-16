@@ -8,6 +8,11 @@ const DEPTH = 0.105; // arc depth per step, as a share of card width
 const TILT = 0.82; // fraction of the true tangent each card rotates
 const PART = 70; // deck-parting strength (peaks ~42px at the neighbour)
 
+// sub-1000px deck (setupCardStack)
+const DECK_PER_CARD_SVH = 75; // scroll per card change
+const DECK_DEPTH_Y = 14; // px each card beneath sits higher
+const DECK_DEPTH_SCALE = 0.05; // and smaller
+
 const ease = (v: number) => v * v * (3 - 2 * v);
 const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -59,8 +64,8 @@ export function setupBrandInMotionCards() {
   );
   io.observe(stage);
 
-  /* Two layout modes, narrowest wins: below 1000px cards are dealt out
-     of a tight pile one at a time (setupCardStack); 1000px+ is the
+  /* Two layout modes, narrowest wins: below 1000px a pinned deck the
+     cards slide onto one at a time (setupCardStack); 1000px+ is the
      scroll-fan arc. (A third "pinned shuffle-deck" tier used to sit
      between 800–1000px — removed per user feedback, it read as an
      unwanted carousel-style card switch; the stack pattern now simply
@@ -101,78 +106,75 @@ export function setupBrandInMotionCards() {
   };
   stackQuery.addEventListener("change", onLayoutChange);
 
-  /* Below 1000px: card 1 starts fully dealt; cards 2–N sit behind it as
-     a tight pile, each showing only PEEK (~20%) of the one behind it —
-     the sliver where its icon sits. As you scroll, the pile deals out
-     one card at a time: card j's resting spot is
-       y(j) = min(j, k)·H + max(0, j − k)·PEEK·H
-     where k is "how many cards have been fully dealt" (0..N, driven
-     continuously by scroll progress) and H is the live card height.
-     For an already-dealt card (j < k) this reduces to y = j·H — it's
-     found its final slot and stays there, full stop. For a still-piled
-     card (j ≥ k) it reduces to y = k·H + (j−k)·PEEK·H — stacked tight
-     behind whatever's been dealt so far, trailing by PEEK·H per card.
-     At j = k the two halves agree (y = k·H), so there's no seam: the
-     "next up" card is already sitting exactly where it'll stay, it's
-     the cards *behind* it that are doing the visible work of spreading
-     out as k climbs past them. */
+  /* Below 1000px: a pinned deck. The stage pins with the heading in
+     view (feedback: on phones the heading scrolled away and the nav
+     covered the cards, and the old scroll-past pile dealt the cards too
+     fast to read). Card 1 sits centred; scrolling slides each next card
+     up onto the deck, the ones beneath easing back a step. Each card
+     holds before the next one moves — k (cards dealt, 0..N-1) only
+     advances through the middle half of each card's stretch of scroll.
+     The pin's height (set here, per card) is what sets the reading pace. */
   function setupCardStack(reducedMotion: boolean): () => void {
-    const PEEK = 0.25;
-    let cardH = 0;
-
-    const layout = () => {
-      cardH = cards[0].getBoundingClientRect().height;
-      fan!.style.height = `${cardH * N}px`;
+    const clear = () => {
+      pin!.style.height = "";
+      cards.forEach((c) => { c.style.transform = ""; c.style.zIndex = ""; c.style.opacity = ""; c.dataset.active = "false"; });
     };
+    if (reducedMotion) {
+      // the reduced-motion CSS lays the cards out as a plain list
+      clear();
+      cards.forEach((c) => { c.dataset.active = "true"; });
+      return clear;
+    }
+
+    pin!.style.height = `calc(100svh + ${(N - 1) * DECK_PER_CARD_SVH + 40}svh)`;
 
     const place = (k: number) => {
+      const travel = window.innerHeight * 0.8;
       cards.forEach((c, j) => {
-        const y = Math.min(j, k) * cardH + Math.max(0, j - k) * PEEK * cardH;
-        c.style.transform = `translate(-50%, ${y.toFixed(1)}px)`;
-        // The fan (desktop) mode lights an icon up via :hover or the
-        // scroll-driven lead card, neither of which exists here — a
-        // touch device has no :hover, and the stack has no single
-        // "current" card (every dealt card stays visible at once). So
-        // instead: a card's icon lights up the moment it's finished
-        // sliding into its own resting spot (k >= j, same condition
-        // that pins its y above), and stays lit — this was previously
-        // never set at all in this mode, so no card's icon ever lit up
-        // here regardless of scroll position.
-        c.dataset.active = k >= j ? "true" : "false";
+        const d = k - j; // >= 0: on the deck (d = how far down); < 0: still to come
+        let y: number, scale = 1, opacity = 1;
+        if (d >= 0) {
+          const depth = Math.min(d, 3);
+          y = -depth * DECK_DEPTH_Y;
+          scale = 1 - depth * DECK_DEPTH_SCALE;
+          if (d > 3) opacity = Math.max(0, 4 - d);
+        } else {
+          y = Math.min(1, -d) * travel; // slides up from below
+          if (d <= -1) opacity = 0;
+        }
+        c.style.transform = `translate(-50%, -50%) translateY(${y.toFixed(1)}px) scale(${scale.toFixed(3)})`;
+        c.style.opacity = String(opacity);
+        c.style.zIndex = String(10 + j);
+        // the top card's icon lights up (touch has no :hover)
+        c.dataset.active = d >= 0 && d < 0.5 ? "true" : "false";
       });
     };
-
-    layout();
-
-    if (reducedMotion) {
-      place(N);
-      return () => {};
-    }
+    const smooth = (v: number) => v * v * (3 - 2 * v);
+    const kAt = (p: number) => {
+      const raw = p * (N - 1);
+      const i = Math.min(Math.floor(raw), N - 1);
+      const f = raw - i;
+      return Math.min(N - 1, i + smooth(clamp((f - 0.25) / 0.5)));
+    };
 
     place(0);
     const state = { k: 0 };
     const trigger = ScrollTrigger.create({
-      trigger: fan,
+      trigger: pin,
       start: "top top",
       end: "bottom bottom",
       onUpdate: (self) => {
-        gsap.to(state, { k: self.progress * N, duration: 0.35, ease: "power2.out", overwrite: true, onUpdate: () => place(state.k) });
+        gsap.to(state, { k: kAt(self.progress), duration: 0.35, ease: "power2.out", overwrite: true, onUpdate: () => place(state.k) });
       },
     });
-
-    const onResize = () => {
-      layout();
-      trigger.refresh();
-      place(state.k);
-    };
+    const onResize = () => { trigger.refresh(); place(state.k); };
     window.addEventListener("resize", onResize);
 
     return () => {
       trigger.kill();
       window.removeEventListener("resize", onResize);
       gsap.killTweensOf(state);
-      fan!.style.height = "";
-      cards.forEach((c) => { c.style.transform = ""; c.dataset.active = "false"; });
+      clear();
     };
   }
 

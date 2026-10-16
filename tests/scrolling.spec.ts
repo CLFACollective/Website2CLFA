@@ -75,50 +75,61 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     });
   }
 
-  test("BrandInMotionCards: uses the static reveal-stack (not sticky pin) at this width", async ({ page }) => {
+  test("BrandInMotionCards: pins as a deck — the heading stays visible below the nav the whole way through", async ({ page }) => {
     const errors = collectErrors(page);
     const position = await page.evaluate(
       () => getComputedStyle(document.querySelector("#motion .bmc__stage")!).position,
     );
-    expect(position).toBe("static");
+    expect(position).toBe("sticky");
 
     const rect = await docRect(page, "#motion .bmc__pin");
     expect(rect).not.toBeNull();
     const { top, height } = rect!;
-    for (const frac of [0.25, 0.5, 0.75, 1]) {
-      await page.evaluate((y) => window.scrollTo(0, y), top + height * frac);
-      await page.waitForTimeout(120);
+    const vh = await page.evaluate(() => innerHeight);
+    for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
+      await page.evaluate((y) => window.scrollTo(0, y), top + (height - vh) * frac);
+      await page.waitForTimeout(450);
+      const g = await page.evaluate(() => {
+        const q = document.querySelector("#motion .bmc__q")!.getBoundingClientRect();
+        const nav = document.querySelector(".nav__logo")!.getBoundingClientRect();
+        const card = Array.from(document.querySelectorAll<HTMLElement>("#motion .bmc__card"))
+          .find((c) => c.dataset.active === "true")?.getBoundingClientRect();
+        return { qTop: q.top, qBottom: q.bottom, navBottom: nav.bottom, cardTop: card?.top ?? null };
+      });
+      expect(g.qTop, `heading in view at ${frac}`).toBeGreaterThanOrEqual(g.navBottom);
+      expect(g.qBottom).toBeLessThan(vh);
+      if (g.cardTop !== null) expect(g.cardTop, `front card clear of the heading at ${frac}`).toBeGreaterThan(g.qBottom - 4);
     }
     expect(errors).toEqual([]);
   });
 
-  test("BrandInMotionCards: a card's icon lights up once it's slid into its resting position", async ({ page }) => {
-    // Touch devices have no :hover, and the reveal-stack has no single
-    // "current" card the way the desktop arc does (every dealt card
-    // stays visible) — an icon lighting up here has to be driven by
-    // the card having finished sliding into place, not by hover or a
-    // scroll-driven "lead card" concept.
+  test("BrandInMotionCards: each card comes to the front of the deck in turn, centred and fully on screen", async ({ page }) => {
+    // touch has no :hover — the front card's icon lights up instead
     const rect = await docRect(page, "#motion .bmc__pin");
     expect(rect).not.toBeNull();
     const { top, height } = rect!;
-
-    const readActive = () =>
-      page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>("#motion .bmc__card")).map((c) => c.dataset.active));
-
-    // at rest (top of the stack): the first card starts already dealt
-    await page.evaluate((y) => window.scrollTo(0, y), top);
-    await page.waitForTimeout(150);
-    const atStart = await readActive();
-    expect(atStart[0]).toBe("true");
-    expect(atStart[4]).toBe("false");
-
-    // scrolled through the whole pile: every card has settled into place
-    await page.evaluate((y) => window.scrollTo(0, y), top + height);
-    await page.waitForTimeout(300);
-    const atEnd = await readActive();
-    expect(atEnd.every((v) => v === "true")).toBe(true);
+    const vh = await page.evaluate(() => innerHeight);
+    const front = () =>
+      page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll<HTMLElement>("#motion .bmc__card"));
+        const i = cards.findIndex((c) => c.dataset.active === "true");
+        const r = cards[i]?.getBoundingClientRect();
+        return { i, active: cards.filter((c) => c.dataset.active === "true").length, r: r && { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, vw: innerWidth };
+      });
+    const n = await page.locator("#motion .bmc__card").count();
+    for (let card = 0; card < n; card++) {
+      // each card's hold is the middle of its stretch of the pin
+      const p = n > 1 ? card / (n - 1) : 0;
+      await page.evaluate((y) => window.scrollTo(0, y), top + (height - vh) * p);
+      await page.waitForTimeout(500);
+      const f = await front();
+      expect(f.i, `card ${card} in front`).toBe(card);
+      expect(f.active).toBe(1);
+      expect(Math.abs((f.r!.left + f.r!.right) / 2 - f.vw / 2)).toBeLessThan(2);
+      expect(f.r!.top).toBeGreaterThan(0);
+      expect(f.r!.bottom).toBeLessThan(vh);
+    }
   });
-
 
   test("gradual scroll never stalls across the full page, forward and back", async ({ page, browserName }) => {
     const errors = collectErrors(page);

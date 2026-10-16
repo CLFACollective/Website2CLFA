@@ -76,6 +76,10 @@ export function setupKickoffCta() {
   let onRibbons = false;
   let pastHero = false;
   let nearFooter = false;
+  let onMomentum = false;
+  let swapping = false; // mid side-swap: hidden until it has moved
+  let swapCall: gsap.core.Tween | null = null;
+  const SWAP_FADE = 0.2;
 
   document.addEventListener("clfa:hero-ground", (e) => {
     inHeroPink = (e as CustomEvent<{ pink: boolean }>).detail.pink;
@@ -114,6 +118,42 @@ export function setupKickoffCta() {
     });
   }
 
+  /* Momentum's Replay sits bottom-right (matching the hero's), so at
+     800px+ (where the two would overlap) the pill moves to the
+     bottom-left while that section is on screen — the two swap corners.
+     It doesn't travel across: it fades out, jumps, and update() fades
+     it back in. x is measured live: the distance from its usual
+     right-hand spot to the same gutter on the left. */
+  const momentum = document.getElementById("momentum");
+  const placeSide = (animate: boolean) => {
+    const gut = parseFloat(getComputedStyle(cta).right) || 0;
+    // phones stack the pill above Replay (same as the hero), no clash
+    const x = onMomentum && !isMobile ? -(document.documentElement.clientWidth - 2 * gut - cta.offsetWidth) : 0;
+    if (Math.abs(Number(gsap.getProperty(cta, "x")) - x) < 1 && !swapCall) return;
+    swapCall?.kill();
+    swapCall = null;
+    if (!animate || prefersReducedMotion()) { swapping = false; gsap.set(cta, { x }); update(); return; }
+    // update() keeps it hidden while swapping (the scroll triggers call
+    // it every tick, so a plain fade tween would be overridden)
+    swapping = true;
+    update();
+    swapCall = gsap.delayedCall(SWAP_FADE + 0.02, () => {
+      swapCall = null;
+      gsap.set(cta, { x });
+      swapping = false;
+      update();
+    });
+  };
+  if (momentum) {
+    ScrollTrigger.create({
+      trigger: momentum,
+      start: "top center",
+      end: "bottom center",
+      onToggle: (self) => { onMomentum = self.isActive; placeSide(true); },
+    });
+    window.addEventListener("resize", () => placeSide(false));
+  }
+
   if (ribbons) {
     ScrollTrigger.create({
       trigger: ribbons,
@@ -142,12 +182,12 @@ export function setupKickoffCta() {
   }
 
   function update() {
-    const on = menuOpen
+    const on = swapping ? false : menuOpen
       ? false
       : isMobile
         ? !onMotion && !onRibbons
         : pastHero && !nearFooter && !onMotion;
-    gsap.to(cta, { autoAlpha: on ? 1 : 0, y: on ? 0 : 14, duration: 0.45, ease: "power2.out" });
+    gsap.to(cta, { autoAlpha: on ? 1 : 0, y: on ? 0 : 14, duration: swapping ? SWAP_FADE : 0.45, ease: "power2.out", overwrite: "auto" });
   }
 
   /* Every input above only calls update() reactively (on scroll cross,

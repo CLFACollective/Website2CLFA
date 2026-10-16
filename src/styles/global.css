@@ -116,6 +116,24 @@ a { color: inherit; }
   transition: transform .2s var(--ease);
 }
 .skip-link:focus { transform: translateY(0); }
+/* slim always-on scroll bar for touch screens (scrollHint.ts) — their
+   own scroll bar only appears mid-scroll */
+.scrollhint { display: none; }
+@media (pointer: coarse) {
+  .scrollhint {
+    display: block; position: fixed; z-index: 85; pointer-events: none;
+    top: 10px; bottom: 10px; right: 3px; width: 3px; border-radius: 3px;
+    background: rgba(240, 100, 150, .14);
+    transition: opacity .3s;
+  }
+  .scrollhint i {
+    position: absolute; left: 0; top: 0; width: 100%; border-radius: 3px;
+    background: var(--pink);
+    /* a thin cream edge keeps it visible on the pink hero too */
+    box-shadow: 0 0 0 1px rgba(255, 250, 245, .5);
+  }
+  body.menu-open .scrollhint { opacity: 0; }
+}
 /* read by screen readers, not shown */
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -856,19 +874,23 @@ body.hide-kickoff .kickoff { display: none; }
   }
 }
 
-/* "Replay" button — bottom-LEFT of the stage. Not bottom-right (where
-   the old scroll cue used to sit): the sticky #kickoff CTA is fixed at
-   right:var(--gut);bottom:26px with z-index:70 and persists over this
-   section (see kickoff.ts), which would sit on top of and intercept
-   clicks on a same-corner button. Reuses the shared .btn pill styling
-   (see PIN SCAFFOLD/its own section above) rather than a bespoke button. */
+/* "Replay" — the hero's Replay look (Hero.astro .hcb__replay): small
+   spaced caps and a circular arrow, bottom-RIGHT. The sticky #kickoff
+   pill normally sits in that corner; kickoff.ts slides it to the
+   bottom-left while this section is on screen, so the two swap sides. */
 .mg__ov-toggle {
-  /* z-index above .mg__overview's own (30) — this button is "Replay",
-     clickable *while the overview is showing* (that's its only real
-     job now), so it has to sit on top of that panel, not under it. */
-  position: absolute; left: var(--gut); bottom: clamp(20px, 4vh, 32px); z-index: 40;
-  background: var(--cream); font-size: 13px; min-height: 40px; padding: 10px 24px;
+  /* z-index above .mg__overview's own (30) — Replay is clickable while
+     the resting overview is showing, so it sits on top of that panel */
+  position: absolute; right: var(--gut); bottom: 26px; z-index: 40;
+  display: flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+  color: var(--charcoal); background: none; border: 0; padding: 4px; margin: 0; cursor: pointer;
 }
+.mg__replay-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+@media (hover: hover) {
+  .mg__ov-toggle:hover { color: var(--copper); }
+}
+
 
 /* Mobile's resting state (desktop rests on the live slides instead —
    see placeRestDesktop in momentumGallery.ts): a stacked list of every
@@ -968,9 +990,6 @@ body.hide-kickoff .kickoff { display: none; }
   align-items: center; text-align: center;
 }
 
-@media (max-width: 799px) {
-  .mg__ov-toggle { font-size: 12px; padding: 8px 18px; min-height: 36px; }
-}
 
 /* mobile/touch: no WebGL, a plain CSS 3D transform stack instead */
 @media (max-width: 999px) {
@@ -983,6 +1002,13 @@ body.hide-kickoff .kickoff { display: none; }
      already sit at the scene's centre, not its corner. */
   .mg__slide { width: min(320px, 82vw); top: 50%; left: 50%; }
   .mg__slide--wide { width: min(400px, 88vw); }
+  /* quotes fly in and hold dead centre, centred text (left-aligned
+     text in a near-screen-wide box read as sliding off to the left);
+     a little narrower than the stats so their zoom has room
+     (momentumGallery.ts's quoteFitScale) */
+  #mgScene > .mg__slide--quote { width: min(300px, 76vw); align-items: center; text-align: center; }
+  #mgScene > .mg__slide--quote.mg__slide--wide { width: min(340px, 80vw); }
+  #mgScene > .mg__slide--quote .mquote > span { margin-left: auto; margin-right: auto; }
 }
 
 /* ============================================================

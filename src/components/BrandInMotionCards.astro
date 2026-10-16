@@ -190,70 +190,48 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
   }
 
   @media (max-width: 1000px) {
-    .bmc__pin { height: auto; }
-    .bmc__stage { position: static; height: auto; padding: 11vh clamp(22px, 6vw, 48px) 9vh; }
-    .bmc__top { padding-left: 0; padding-right: 0; padding-top: 30px; }
-    .bmc__copy { font-size: clamp(20px, 8vw, 30px); }
-    .bmc__icon { width: clamp(56px, 21vw, 86px); right: clamp(16px, 6.4vw, 26px); bottom: clamp(16px, 6.4vw, 26px); }
+    .bmc__top { padding-left: 0; padding-right: 0; }
+    .bmc__icon { right: clamp(16px, 6.4vw, 26px); bottom: clamp(16px, 6.4vw, 26px); }
   }
 
-  /* Below 1000px: card 1 starts fully visible, dealt out; cards 2–5 sit
-     behind it as a tight pile, each showing only a ~20% sliver (where
-     its icon sits) of the one behind it. Scrolling deals the pile out
-     one card at a time — the next card rises to sit fully revealed
-     directly below the ones already dealt, which freeze in place; the
-     remaining cards stay piled tight, now trailing the new one. This
-     is JS-driven (setupCardStack in cardsFan.ts), not CSS sticky — a
-     card's resting spot needs to *change* as more of the pile empties
-     out ahead of it, which sticky's one-way "don't scroll past this
-     point" clamp can't express; the cascade version above could
-     because every card's threshold was fixed for its whole life. */
+  /* Below 1000px: a pinned deck (setupCardStack in cardsFan.ts). The
+     stage pins full-height with the heading kept in view under the nav;
+     the cards stack in the middle, each sliding up onto the last, sized
+     to fit what's left of the screen. The pin's height is set by the
+     script (scroll per card). */
   @media (max-width: 999px) {
-    .bmc__pin { height: auto; }
     .bmc__stage {
-      position: static; height: auto; overflow: visible;
-      padding: clamp(60px, 8vh, 84px) clamp(20px, 6vw, 32px) 40px;
+      position: sticky; top: 0; height: 100svh; overflow: hidden;
+      /* top padding clears the fixed nav (logo + menu button) */
+      padding: 96px clamp(20px, 6vw, 48px) 24px;
     }
-    .bmc__top { padding-top: 0; }
+    .bmc__top { padding-top: 0; margin-bottom: 12px; }
     .bmc__q {
-      font-size: 30px; font-weight: 400; line-height: 1.15; letter-spacing: -.02em;
+      font-size: clamp(28px, 6vw, 44px); font-weight: 400; line-height: 1.15; letter-spacing: -.02em;
     }
     .bmc__q b {
       display: block; margin-top: 4px;
       font-family: var(--hc-serif, "Lora", Georgia, serif);
       font-style: italic; font-weight: 600; color: var(--flare);
-      font-size: 35px; letter-spacing: -.01em;
+      font-size: clamp(33px, 7vw, 52px); letter-spacing: -.01em;
     }
 
-    .bmc__fan {
-      display: block; position: relative; margin-top: 24px;
-      /* height is set by cardsFan.ts once it knows the live card
-         height — cards are position:absolute, so without an explicit
-         height here the container would collapse to nothing. */
-    }
+    .bmc__fan { flex: 1 1 auto; min-height: 0; position: relative; }
     .bmc__card {
-      position: absolute; left: 50%; top: 0; margin: 0;
-      width: min(310px, 82vw);
-      /* y (the reveal position) is set by cardsFan.ts. z-index has to
-         go the opposite way from DOM order: card 1 needs to stay on
-         top of every card piled behind it (so it — and each card once
-         it's dealt — reads as fully in front, not as a sliver peeking
-         out from under later cards), which means *earlier* cards need
-         the *higher* z-index. Left to the default (later DOM paints
-         on top), the pile is inverted: the last card ends up fully
-         exposed and every pending card shows its top edge peeking out
-         instead of the bottom edge where its icon sits. */
-      z-index: calc(5 - var(--i, 0));
+      left: 50%; top: 50%;
+      /* as wide as fits, and no taller than the space between the
+         heading and "Sound familiar?" (card is 441:540) */
+      width: min(420px, 80vw, calc((100svh - 330px) * 441 / 540));
+      padding: clamp(20px, 6vw, 32px);
+      justify-content: center; /* copy centred top-to-bottom */
     }
-    .bmc__copy { font-size: clamp(22px, 8.6vw, 29px); }
+    .bmc__copy { font-size: clamp(26px, 7.4vw, 40px); line-height: 1.15; padding-bottom: 12%; }
+    .bmc__icon { width: clamp(52px, 15vw, 86px); }
 
-    /* the reveal-stack mechanic has no single "current" card the way
-       the arc/deck do, so these dots have nothing meaningful to
-       indicate at this width — drop them rather than leave a row of
-       static, never-updating circles. */
+    /* the deck has no fan position to show */
     .bmc__dots { display: none; }
-
-    .bmc__payoff { margin-top: 20px; }
+    .bmc__aside { margin-top: 12px; gap: 10px; }
+    .bmc__payoff { font-size: clamp(22px, 5vw, 32px); }
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -116,8 +116,13 @@ const lineClass = (card: QuoteCard, line: QuoteLine, n: number) =>
       </div>
     </div>
 
-    <button class="mg__ov-toggle btn" id="mgOvToggle" type="button">
-      Replay
+    <!-- same look as the hero's Replay (Hero.astro .hcb__replay) -->
+    <button class="mg__ov-toggle" id="mgOvToggle" type="button" aria-label="Replay Measurable momentum" data-cursor="ring">
+      <span>Replay</span>
+      <svg class="mg__replay-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M20 4v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
     </button>
   </div>
 </section>

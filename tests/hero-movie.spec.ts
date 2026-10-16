@@ -18,12 +18,12 @@ import { test, expect, type Page } from "@playwright/test";
  */
 const BEAT_DUR = 2.3;
 const BEAT_FADE = BEAT_DUR * 0.3; // 0.69 — beats 1/2's fade in/out window
-const GROW_DUR = 1.0;
-const HOLD1_DUR = 2.0;
-const REVEAL_DUR = 1.5;
-const HOLD2_DUR = 2.0;
-const BEAT0_DUR = GROW_DUR + HOLD1_DUR + REVEAL_DUR + HOLD2_DUR + BEAT_FADE; // 7.19
-const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // 3.0 — ring-open/text-reveal begins here
+const GROW_DUR = 0.9;
+const HOLD1_DUR = 1.4;
+const REVEAL_DUR = 1.2;
+const HOLD2_DUR = 1.4;
+const BEAT0_DUR = GROW_DUR + HOLD1_DUR + REVEAL_DUR + HOLD2_DUR + BEAT_FADE; // 5.59
+const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // 2.3 — ring-open/text-reveal begins here
 const BEAT1_START = BEAT0_DUR; // 7.19
 const BEAT2_START = BEAT1_START + BEAT_DUR; // 9.49
 // beat 2's word cycle: "smarter" holds BEAT_DUR/3, "faster"/"better"
@@ -268,6 +268,26 @@ test.describe("Hero movie: plays once, locks scroll, hands off cleanly", () => {
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForTimeout(200);
     expect(await page.evaluate(() => window.scrollY), "scroll should unlock again once the replay completes").toBeGreaterThan(400);
+  });
+
+  test("phones: swiping up (scrolling down) mid-movie ends it at once and unlocks scroll", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page.waitForTimeout(600); // still in the opening
+    const swipe = (type: string, y: number) =>
+      page.evaluate(([type, y]) => {
+        // a plain Event carrying `touches` works in every engine (WebKit
+        // has no Touch constructor); the handlers only read clientY
+        const e = new Event(type as string, { bubbles: true });
+        Object.defineProperty(e, "touches", { value: [{ clientY: y }] });
+        window.dispatchEvent(e);
+      }, [type, y] as const);
+    expect(await page.evaluate(() => (document.getElementById("hero") as any).heroTimeline.time())).toBeLessThan(OPEN_T);
+    await swipe("touchstart", 600);
+    await swipe("touchmove", 480);
+    // finished and unlocked in the same moment, so the swipe keeps scrolling
+    expect(await page.evaluate(() => (document.getElementById("hero") as any).heroTimeline.progress())).toBe(1);
+    await expect(page.locator("#hero")).toHaveAttribute("data-hero-done", "true");
+    expect(await page.evaluate(() => document.documentElement.style.overflow)).toBe("");
   });
 
   test("reduced motion skips the movie entirely — no scroll lock, resting frame immediately", async ({ page }) => {

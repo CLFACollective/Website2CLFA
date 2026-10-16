@@ -637,6 +637,87 @@ test.describe("MomentumGallery: the movie", () => {
     });
   });
 
+  test("phones: quotes fly in and hold dead centre, never running off the screen", async ({ page }) => {
+    test.skip(isDesktop(page), "phone/tablet movie (CSS 3D) only");
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+    await page.locator("#momentum").scrollIntoViewIfNeeded();
+    const quotes = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>("#mgScene > .mg__slide--quote")).map((el) => Number(el.dataset.mgIndex)),
+    );
+    expect(quotes.length).toBeGreaterThan(0);
+    for (const i of quotes) {
+      await page.evaluate((n) => (document.getElementById("momentum") as any).mgApi.goTo(n), i);
+      // arrival, then most of the hold's zoom
+      for (const wait of [ARRIVE_DUR + SETTLE, HOLD_DUR]) {
+        await page.waitForTimeout(wait);
+        const g = await page.evaluate((n) => {
+          const el = document.querySelector<HTMLElement>(`#mgScene > .mg__slide[data-mg-index="${n}"]`)!;
+          const rects = Array.from(el.querySelectorAll(".mquote > span, .mquote__by")).flatMap((s) => Array.from(s.getClientRects()));
+          const l = Math.min(...rects.map((r) => r.left)), r = Math.max(...rects.map((r) => r.right));
+          return { l, r, vw: innerWidth };
+        }, i);
+        expect(g.l, `quote ${i}: left edge on screen`).toBeGreaterThanOrEqual(0);
+        expect(g.r, `quote ${i}: right edge on screen`).toBeLessThanOrEqual(g.vw);
+        expect(Math.abs((g.l + g.r) / 2 - g.vw / 2), `quote ${i}: centred`).toBeLessThan(12);
+      }
+    }
+  });
+
+  test("Replay: the hero's Replay look, bottom-right, on every screen size", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+    await page.locator("#momentum").scrollIntoViewIfNeeded();
+    const btn = page.locator("#mgOvToggle");
+    await expect(btn).toBeVisible();
+    await expect(btn.locator("svg")).toBeVisible();
+    await expect(btn.locator("span"), "the word Replay shows on phones too").toHaveText("Replay");
+    await expect(btn.locator("span")).toBeVisible();
+    const g = await btn.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const hero = getComputedStyle(document.querySelector(".hcb__replay")!);
+      const r = el.getBoundingClientRect(), stage = document.getElementById("mgStage")!.getBoundingClientRect();
+      return {
+        same: ["fontSize", "letterSpacing", "textTransform"].every((k) => cs[k as any] === hero[k as any]),
+        border: cs.borderTopWidth, bg: cs.backgroundColor,
+        rightGap: stage.right - r.right, leftGap: r.left - stage.left,
+      };
+    });
+    expect(g.same, "same type as the hero's Replay").toBe(true);
+    expect(g.border).toBe("0px");
+    expect(g.bg).toBe("rgba(0, 0, 0, 0)");
+    expect(g.rightGap).toBeLessThan(g.leftGap);
+  });
+
+  test("desktop: the 'Is it go time?' pill swaps to the bottom-left while Momentum is on screen", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 800, "phones stack the pill above Replay instead");
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+    await scrollIntoGallery(page);
+    await page.waitForTimeout(900);
+    const side = () => page.evaluate(() => {
+      const r = document.getElementById("kickoff")!.getBoundingClientRect();
+      return r.left + r.width / 2 < innerWidth / 2 ? "left" : "right";
+    });
+    expect(await side()).toBe("left");
+    // it fades out and back in — never seen travelling across the screen
+    const sampled = page.evaluate(async () => {
+      const el = document.getElementById("kickoff")!;
+      const seen: number[] = [];
+      const t0 = performance.now();
+      while (performance.now() - t0 < 1200) {
+        const r = el.getBoundingClientRect();
+        if (parseFloat(getComputedStyle(el).opacity) > 0.15) seen.push((r.left + r.width / 2) / innerWidth);
+        await new Promise((res) => requestAnimationFrame(res));
+      }
+      return seen;
+    });
+    await page.locator("#who").scrollIntoViewIfNeeded();
+    const xs = await sampled;
+    expect(xs.filter((x) => x > 0.25 && x < 0.75), "visible mid-screen").toEqual([]);
+    expect(await side()).toBe("right");
+  });
+
   test("reduced motion: all slides visible statically, no movie, no replay button", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/", { waitUntil: "networkidle" });

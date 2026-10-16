@@ -58,10 +58,13 @@ const BEAT_FADE = BEAT_DUR * 0.3; // their fade in/out window (beat 0 gets its o
 // fade-in — see how GROW/REVEAL feed the tween construction below),
 // which then *also* holds for 2s once fully readable, before fading
 // out into beat 1 same as everything else.
-const GROW_DUR = 1.0; // branded circle grows from nothing to full size
-const HOLD1_DUR = 2.0; // pause — held at full size, mark showing
-const REVEAL_DUR = 1.5; // slow ring-open, revealing beat 0's text in step
-const HOLD2_DUR = 2.0; // pause — beat 0 fully visible and readable
+// Tightened by 1.4s overall (feedback: the pink CLFA opening and the
+// "Where healthcare meets tech" frame read a little slow) — still long
+// enough for the mark to register and the line to be read.
+const GROW_DUR = 0.9; // branded circle grows from nothing to full size
+const HOLD1_DUR = 1.4; // pause — held at full size, mark showing
+const REVEAL_DUR = 1.2; // ring-open, revealing beat 0's text in step
+const HOLD2_DUR = 1.4; // pause — beat 0 fully visible and readable
 const BEAT0_DUR = GROW_DUR + HOLD1_DUR + REVEAL_DUR + HOLD2_DUR + BEAT_FADE;
 const B0_REVEAL_AT = GROW_DUR + HOLD1_DUR; // movie time the ring-open (and text fade-in) begins
 
@@ -372,6 +375,29 @@ export function setupHero() {
   document.body.style.overflow = "hidden";
   const snapBackToTop = () => window.scrollTo(0, 0);
   window.addEventListener("scroll", snapBackToTop);
+
+  /* Phones: scrolling down ends the movie. A swipe up (or, on a narrow
+     or touch screen, a wheel scroll) jumps straight to the finished
+     frame and unlocks scrolling in the same moment — so the swipe that
+     ended it carries on scrolling the page (checked with real touch
+     input: the first swipe moves the page). Desktop keeps the full
+     movie, scroll-locked. */
+  const SKIP_SWIPE = 40; // px of upward finger travel that counts as a scroll down
+  const skippable = window.matchMedia("(max-width: 999px), (pointer: coarse)");
+  const skip = () => {
+    if (!tl.isActive() || tl.progress() >= 1) return;
+    tl.progress(1);
+  };
+  let touchY: number | null = null;
+  const onTouchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY ?? null; };
+  const onTouchMove = (e: TouchEvent) => {
+    if (touchY === null) return;
+    if (touchY - (e.touches[0]?.clientY ?? touchY) > SKIP_SWIPE) { touchY = null; skip(); }
+  };
+  const onWheel = (e: WheelEvent) => { if (skippable.matches && e.deltaY > 0) skip(); };
+  window.addEventListener("touchstart", onTouchStart, { passive: true });
+  window.addEventListener("touchmove", onTouchMove, { passive: true });
+  window.addEventListener("wheel", onWheel, { passive: true });
 
   // Exposed for automated tests, which otherwise have to burn this
   // movie's real ~9.5s runtime on every single test that just needs

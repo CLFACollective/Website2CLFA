@@ -14,22 +14,41 @@ test.describe("homepage smoke", () => {
     expect(errors).toEqual([]);
   });
 
-  test("every major section is present", async ({ page }) => {
+  test("every major section is present, in order", async ({ page }) => {
     await page.goto("/");
-    for (const selector of [
+    const order = [
       "#hero",
+      ".hcb__after", // intro paragraph band
       "#motion", // BrandInMotionCards
       ".rib", // Ribbons
       "[data-win]", // WindowA
       "#partnering", // DayOne
       "[data-keep]", // KeepUp
+      "#who", // "Who tags us in" — above Momentum
       "#momentum",
-      "#who",
       ".wev", // WindowB
       ".foot",
-    ]) {
-      await expect(page.locator(selector)).toHaveCount(1);
+    ];
+    for (const selector of order) await expect(page.locator(selector)).toHaveCount(1);
+    const tops = await page.evaluate((sels) => sels.map((q) => document.querySelector(q)!.getBoundingClientRect().top + scrollY), order);
+    for (let i = 1; i < tops.length; i++) expect(tops[i], `${order[i]} comes after ${order[i - 1]}`).toBeGreaterThan(tops[i - 1]);
+  });
+
+  test("touch screens get a slim always-on scroll bar that follows the page; desktop doesn't", async ({ page, hasTouch }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await skipHeroMovie(page);
+    const bar = page.locator(".scrollhint");
+    if (!hasTouch) {
+      await expect(bar).toBeHidden();
+      return;
     }
+    await expect(bar).toBeVisible();
+    const thumbY = () => bar.locator("i").evaluate((el) => el.getBoundingClientRect().top);
+    const atTop = await thumbY();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
+    await page.waitForTimeout(200);
+    const mid = await thumbY();
+    expect(mid).toBeGreaterThan(atTop + 20);
   });
 
   test("full scroll-through produces no console or page errors", async ({ page }) => {

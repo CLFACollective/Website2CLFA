@@ -344,7 +344,28 @@ export function setupMomentumGallery() {
   // once a slide has arrived, its depth keeps creeping forward at a
   // small but clearly-visible constant speed through its hold and fade,
   // instead of sitting dead still.
+  /* Quotes are nearly screen-wide on a phone, so the hold's zoom (scale
+     plus a push toward the camera through the scene's 1000px
+     perspective) would carry their text off both edges. They zoom only
+     as far as still fits — 94% of the screen width, perspective
+     included — and creep by scale alone. Stats are narrow and centred,
+     so they keep the full creep. */
+  const MOBILE_PERSPECTIVE = 1000;
+  const isQuote = (i: number) => slides[i].classList.contains("mg__slide--quote");
+  const quoteFitScale = (i: number, z: number) =>
+    ((window.innerWidth * 0.94) / slides[i].offsetWidth) * ((MOBILE_PERSPECTIVE - z) / MOBILE_PERSPECTIVE);
+  const mobileHoldScale = (i: number) =>
+    isQuote(i) ? Math.min(MOBILE_HOLD_SCALE, quoteFitScale(i, MOBILE_HOLD_Z)) : MOBILE_HOLD_SCALE;
+
   function startMobileHoldCreep(i: number, dur: number) {
+    if (isQuote(i)) {
+      const start = mobileHoldScale(i);
+      gsap.to(slides[i], {
+        scale: Math.max(start, Math.min(start + MOBILE_HOLD_CREEP_SCALE_SPEED * dur, quoteFitScale(i, MOBILE_HOLD_Z))),
+        duration: dur, ease: "none",
+      });
+      return;
+    }
     gsap.to(slides[i], {
       scale: MOBILE_HOLD_SCALE + MOBILE_HOLD_CREEP_SCALE_SPEED * dur,
       z: MOBILE_HOLD_Z + MOBILE_HOLD_CREEP_Z_SPEED * dur,
@@ -419,7 +440,7 @@ export function setupMomentumGallery() {
     slides[inIndex].style.zIndex = "100";
     gsap.to(slides[inIndex], {
       x: MOBILE_CENTER_LANE.x, y: MOBILE_CENTER_LANE.y,
-      scale: MOBILE_HOLD_SCALE, z: MOBILE_HOLD_Z, opacity: 1, filter: "none",
+      scale: mobileHoldScale(inIndex), z: MOBILE_HOLD_Z, opacity: 1, filter: "none",
       duration: ARRIVE_DUR, ease: ARRIVE_EASE,
       onUpdate: function () {
         if (!countedUp[inIndex] && this.progress() >= COUNT_START_PROGRESS) {

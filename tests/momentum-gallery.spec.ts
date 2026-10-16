@@ -689,8 +689,7 @@ test.describe("MomentumGallery: the movie", () => {
     expect(g.rightGap).toBeLessThan(g.leftGap);
   });
 
-  test("desktop: the 'Is it go time?' pill swaps to the bottom-left while Momentum is on screen", async ({ page }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 800, "phones stack the pill above Replay instead");
+  test("the 'Is it go time?' pill swaps to the bottom-left while Momentum is on screen", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
     await skipHeroMovie(page);
     await scrollIntoGallery(page);

@@ -118,17 +118,16 @@ export function setupKickoffCta() {
     });
   }
 
-  /* Momentum's Replay sits bottom-right (matching the hero's), so at
-     800px+ (where the two would overlap) the pill moves to the
-     bottom-left while that section is on screen — the two swap corners.
+  /* Momentum's Replay sits bottom-right (matching the hero's), so the
+     pill moves to the bottom-left while that section is on screen, at
+     every width — the two swap corners.
      It doesn't travel across: it fades out, jumps, and update() fades
      it back in. x is measured live: the distance from its usual
      right-hand spot to the same gutter on the left. */
   const momentum = document.getElementById("momentum");
   const placeSide = (animate: boolean) => {
     const gut = parseFloat(getComputedStyle(cta).right) || 0;
-    // phones stack the pill above Replay (same as the hero), no clash
-    const x = onMomentum && !isMobile ? -(document.documentElement.clientWidth - 2 * gut - cta.offsetWidth) : 0;
+    const x = onMomentum ? -(document.documentElement.clientWidth - 2 * gut - cta.offsetWidth) : 0;
     if (Math.abs(Number(gsap.getProperty(cta, "x")) - x) < 1 && !swapCall) return;
     swapCall?.kill();
     swapCall = null;

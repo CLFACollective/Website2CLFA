@@ -6,7 +6,7 @@
       "color": "light"
     },
     {
-      "text": "*Just been acquired*\nand need to reintroduce yourself.",
+      "text": "*Just been through M&A*\nand need to reintroduce yourself?",
       "icon": "acquired",
       "color": "forest"
     },
@@ -21,7 +21,7 @@
       "color": "charcoal"
     },
     {
-      "text": "*Pivoting*\nbecause the tech stack changed.",
+      "text": "*Constantly Pivoting tech stack*\nfor pressures from the changing tech landscape.",
       "icon": "pivot",
       "color": "light"
     }

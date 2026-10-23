@@ -50,7 +50,11 @@ export default defineConfig({
   webServer: process.env.PW_BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
+        // --ignore-lock keeps the server in the foreground, owned by
+        // Playwright. Astro 7 otherwise detaches `astro dev` into a
+        // background daemon when it detects an AI agent (Claude Code),
+        // and Playwright reads the foreground exit as a crash.
+        command: "npm run dev -- --ignore-lock",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 30_000,

@@ -14,7 +14,7 @@
     "test:report": "playwright show-report"
   },
   "dependencies": {
-    "astro": "^5.2.0",
+    "astro": "^7.4.2",
     "gsap": "^3.12.7",
     "three": "^0.169.0"
   },

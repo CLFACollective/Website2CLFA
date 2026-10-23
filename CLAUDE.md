@@ -41,6 +41,11 @@ not just ad-hoc manual checking:
   PW_BASE_URL=http://localhost:4321 npm test
   ```
 
+- Astro 7 detaches `astro dev` into a background daemon when it detects
+  an AI agent, so `npm run dev` exits immediately when Claude runs it.
+  Pass `--ignore-lock` for a foreground server (the Playwright config
+  already does), and `npx astro dev stop` to stop a stray daemon.
+
 - `npm run test:ui` for interactive/watch mode while writing a test.
   `npm run test:report` to open the last HTML report.
 

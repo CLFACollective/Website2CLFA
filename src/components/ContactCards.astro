@@ -37,7 +37,7 @@ const FIELDS = [
 
         <p class="ctc__field">
           <label for="ctc-situation">What&rsquo;s your situation?</label>
-          <textarea id="ctc-situation" name="situation" rows="1" placeholder="Tell us about your brand, timeline, and current challenges…"></textarea>
+          <textarea id="ctc-situation" name="situation" rows="3" placeholder="Tell us about your brand, timeline, and current challenges…"></textarea>
         </p>
 
         <button class="ctc__submit" type="submit">Submit</button>
@@ -84,6 +84,14 @@ const FIELDS = [
     border-radius: 0; /* iOS rounds inputs by default */
     resize: none; width: 100%;
   }
+  /* "What's your situation?": room for the whole placeholder, and it
+     grows with what's typed rather than scrolling inside itself —
+     field-sizing where supported, the script below elsewhere */
+  .ctc__field textarea {
+    line-height: 1.5; padding-top: 6px;
+    min-height: calc(1.5em * 3 + 20px);
+    overflow: hidden; field-sizing: content;
+  }
   .ctc__field input::placeholder, .ctc__field textarea::placeholder { color: rgba(37, 37, 37, .42); }
   /* a 2px rule, not just a colour change, so keyboard focus is visible */
   .ctc__field input:focus, .ctc__field textarea:focus { outline: none; border-bottom-color: var(--brown); box-shadow: 0 1px 0 var(--brown); }
@@ -125,6 +133,17 @@ const FIELDS = [
 <script>
   const form = document.getElementById("ctcForm") as HTMLFormElement | null;
   const status = document.getElementById("ctcStatus");
+
+  // grow the situation box with its text (where field-sizing isn't supported)
+  const situation = document.getElementById("ctc-situation") as HTMLTextAreaElement | null;
+  const fit = () => {
+    if (!situation || CSS.supports("field-sizing", "content")) return;
+    situation.style.height = "auto";
+    situation.style.height = `${situation.scrollHeight}px`;
+  };
+  situation?.addEventListener("input", fit);
+  window.addEventListener("resize", fit);
+  fit();
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const button = form.querySelector("button[type=submit]") as HTMLButtonElement;
@@ -137,6 +156,7 @@ const FIELDS = [
       });
       if (!res.ok) throw new Error(String(res.status));
       form.reset();
+      fit();
       if (status) status.textContent = "Thanks — we’ll be in touch soon.";
     } catch {
       if (status) status.textContent = "Something went wrong. Please email hello@clfacollective.com instead.";

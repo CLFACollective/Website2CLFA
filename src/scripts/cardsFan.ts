@@ -1,8 +1,7 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
-const DEAL = 0.09; // deal-in is over by here
-const START = 0.2; // lead card starts moving here
-const END = 0.94; // and lands on the last card here
+const DEAL_DUR = 1.1; // s — the deck dealing into the fan, once in view
+const HOVER_DUR = 0.5; // s — easing toward / away from a hovered card
 const SPREAD = 0.97; // spacing as a share of card width (<1 = overlap)
 const DEPTH = 0.105; // arc depth per step, as a share of card width
 const TILT = 0.82; // fraction of the true tangent each card rotates
@@ -16,22 +15,42 @@ const DECK_DEPTH_SCALE = 0.05; // and smaller
 const ease = (v: number) => v * v * (3 - 2 * v);
 const clamp = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/**
- * BrandInMotionCards — up to five cards fanned on an arc. The section pins;
- * scroll deals the deck out and walks a lead card along the curve. The
- * geometry itself (place()) is the same closed-form math as the
- * original component; GSAP's job is turning the raw scroll fraction
- * into an eased "catch up" value each tick (a `gsap.to` retargeted on
- * every ScrollTrigger update — the standard GSAP smooth-scrub recipe)
- * rather than a hand-rolled per-frame lerp.
- */
+/** Home page "So… what's a brand in motion?" cards. */
 export function setupBrandInMotionCards() {
   const section = document.getElementById("motion");
-  const pin = document.getElementById("bmcPin");
-  const stage = document.getElementById("bmcStage");
-  const fan = document.getElementById("bmcFan");
-  const dotsHost = document.getElementById("bmcDots");
-  if (!section || !pin || !stage || !fan || !dotsHost) return;
+  if (!section) return;
+  setupCardFan({
+    pin: document.getElementById("bmcPin"),
+    stage: document.getElementById("bmcStage"),
+    fan: document.getElementById("bmcFan"),
+    introEls: Array.from(section.querySelectorAll<HTMLElement>(".bmc__q, .bmc__aside")),
+  });
+}
+
+interface CardFanOptions {
+  pin: HTMLElement | null;
+  stage: HTMLElement | null;
+  fan: HTMLElement | null;
+  /** faded up when the stage first comes into view */
+  introEls?: HTMLElement[];
+  /** an element inside each card held upright while the card tilts */
+  uprightSelector?: string;
+  /** card spacing as a share of card width (<1 overlaps); squarer cards need more */
+  spread?: number;
+}
+
+/**
+ * Up to five cards fanned on an arc (home's brand-in-motion cards, What
+ * We Do's equity cards). On desktop the deck deals into the fan once it
+ * comes into view, then sits still; hovering a card makes it the lead —
+ * it lifts and grows, its neighbours part, the fan tilts toward it — and
+ * leaving the cards eases back to the plain arc. Nothing is tied to
+ * scroll. The geometry (place()) is the same closed-form math as the
+ * original component; GSAP tweens its inputs (deal, lead position,
+ * focus). Below 1000px it's a pinned deck instead (setupCardStack).
+ */
+export function setupCardFan({ pin, stage, fan, introEls = [], uprightSelector, spread = SPREAD }: CardFanOptions) {
+  if (!pin || !stage || !fan) return;
 
   const { gsap, ScrollTrigger } = useGsap();
   const cards = Array.from(fan.children) as HTMLElement[];
@@ -41,14 +60,12 @@ export function setupBrandInMotionCards() {
   const STEPS = Math.max(N - 1, 1);
   const MID = (N - 1) / 2;
   const BOW = (N * N - 1) / 12; // mean of o^2 — lifts the arc back to centre
-  const dots = Array.from(dotsHost.children) as HTMLElement[];
   const reduce = prefersReducedMotion();
+  const upright = uprightSelector
+    ? cards.map((c) => c.querySelector<HTMLElement>(uprightSelector))
+    : [];
 
   let live = false;
-  const introEls = [
-    ...Array.from(section.querySelectorAll<HTMLElement>(".bmc__q, .bmc__aside")),
-    dotsHost,
-  ];
 
   let drawn = false;
   const io = new IntersectionObserver(
@@ -56,7 +73,7 @@ export function setupBrandInMotionCards() {
       live = e.isIntersecting;
       stage.classList.toggle("is-live", live);
       if (live) {
-        gsap.to(introEls, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.08 });
+        if (introEls.length) gsap.to(introEls, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.08 });
         if (!drawn) { drawn = true; drawIcons(cards); }
       }
     }),
@@ -66,7 +83,7 @@ export function setupBrandInMotionCards() {
 
   /* Two layout modes, narrowest wins: below 1000px a pinned deck the
      cards slide onto one at a time (setupCardStack); 1000px+ is the
-     scroll-fan arc. (A third "pinned shuffle-deck" tier used to sit
+     hover fan. (A third "pinned shuffle-deck" tier used to sit
      between 800–1000px — removed per user feedback, it read as an
      unwanted carousel-style card switch; the stack pattern now simply
      covers the whole sub-1000px range instead.) */
@@ -76,10 +93,10 @@ export function setupBrandInMotionCards() {
   let mode = getMode();
 
   if (reduce) {
-    gsap.set(introEls, { opacity: 1, y: 0 });
+    if (introEls.length) gsap.set(introEls, { opacity: 1, y: 0 });
     const applyReducedLayout = () => {
       if (getMode() === "stack") setupCardStack(true);
-      else place(0.6);
+      else place(1, MID, 0);
     };
     applyReducedLayout();
     stackQuery.addEventListener("change", applyReducedLayout);
@@ -95,14 +112,15 @@ export function setupBrandInMotionCards() {
      starts from a blank slate instead of fighting leftover values —
      inline styles win over the CSS breakpoint rules that would
      otherwise reset them. */
-  let teardown: () => void = mode === "fan" ? setupScrollFan() : setupCardStack(false);
+  let dealt = false; // the deal-in plays once per page load, not per mode switch
+  let teardown: () => void = mode === "fan" ? setupHoverFan() : setupCardStack(false);
 
   const onLayoutChange = () => {
     const next = getMode();
     if (next === mode) return;
     mode = next;
     teardown();
-    teardown = mode === "fan" ? setupScrollFan() : setupCardStack(false);
+    teardown = mode === "fan" ? setupHoverFan() : setupCardStack(false);
   };
   stackQuery.addEventListener("change", onLayoutChange);
 
@@ -178,38 +196,88 @@ export function setupBrandInMotionCards() {
     };
   }
 
-  function setupScrollFan(): () => void {
-    place(0);
-    const state = { p: 0 };
-    const trigger = ScrollTrigger.create({
-      trigger: pin,
-      start: "top top",
-      end: "bottom bottom",
-      onUpdate: (self) => {
-        gsap.to(state, { p: self.progress, duration: 0.5, ease: "power2.out", overwrite: true, onUpdate: () => place(state.p) });
+  function setupHoverFan(): () => void {
+    // d: dealt into the fan (0 = squared-up deck); pos: which card leads
+    // (MID = the centre, no lean); focus: how far the lead is lifted out
+    const state = { d: dealt ? 1 : 0, pos: MID, focus: 0 };
+    const draw = () => place(state.d, state.pos, state.focus);
+    draw();
+
+    const dealIO = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        dealIO.disconnect();
+        dealt = true;
+        gsap.to(state, { d: 1, duration: DEAL_DUR, ease: "power3.out", onUpdate: draw });
       },
+      { rootMargin: "0px 0px -14% 0px" },
+    );
+    if (!dealt) dealIO.observe(stage!);
+
+    const lead = (i: number) =>
+      gsap.to(state, { pos: i, focus: 1, duration: HOVER_DUR, ease: "power2.out", overwrite: "auto", onUpdate: draw });
+    const release = () =>
+      gsap.to(state, { focus: 0, duration: HOVER_DUR, ease: "power2.out", overwrite: "auto", onUpdate: draw });
+
+    /* Entering a card hands it the lead straight away. Letting go is
+       looser: the lead lifts ~30px, so releasing on plain mouseleave
+       would drop it back under a pointer near its edge and loop. It
+       releases only once the pointer is RELEASE_MARGIN clear of the
+       card (re-checked on scroll, since the card moves then too). */
+    const RELEASE_MARGIN = 40;
+    let leadIdx = -1;
+    let px = -1, py = -1;
+    // desktop only: a tap on a big touch screen (iPad landscape) fires
+    // mouseenter too, and would leave the card lifted with no way out
+    const canHover = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const enters = cards.map((_, i) => () => {
+      if (!canHover.matches) return;
+      leadIdx = i;
+      lead(i);
     });
+    const check = () => {
+      if (leadIdx < 0) return;
+      const r = cards[leadIdx].getBoundingClientRect();
+      const m = RELEASE_MARGIN;
+      if (px < r.left - m || px > r.right + m || py < r.top - m || py > r.bottom + m) {
+        leadIdx = -1;
+        release();
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      px = e.clientX; py = e.clientY;
+      check();
+    };
+    cards.forEach((c, i) => c.addEventListener("mouseenter", enters[i]));
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", draw);
 
     return () => {
-      trigger.kill();
+      dealIO.disconnect();
       gsap.killTweensOf(state);
+      cards.forEach((c, i) => c.removeEventListener("mouseenter", enters[i]));
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", draw);
       fan!.style.transform = "";
       cards.forEach((c) => { c.style.transform = ""; c.style.zIndex = ""; c.dataset.active = "false"; });
+      upright.forEach((el) => { if (el) el.style.transform = ""; });
     };
   }
 
-  function place(p: number) {
+  function place(deal: number, pos: number, focus: number) {
     const w = cards[0].offsetWidth;
-    const h = (w * 540) / 441;
+    const h = cards[0].offsetHeight;
     const avail = fan!.clientWidth - 16;
-    const span = Math.min(w * SPREAD, (avail - w) / STEPS);
+    const span = Math.min(w * spread, (avail - w) / STEPS);
     const depth = w * DEPTH;
 
-    const d = ease(clamp(p / DEAL));
-    const t = clamp((p - START) / (END - START));
-    const pos = t * (N - 1);
+    const d = ease(clamp(deal));
 
-    fan!.style.transform = `rotate(${((MID - pos) * 0.7).toFixed(2)}deg)`;
+    const fanRot = (MID - pos) * 0.7 * focus;
+    fan!.style.transform = `rotate(${fanRot.toFixed(2)}deg)`;
 
     cards.forEach((c, i) => {
       const o = i - MID;
@@ -226,11 +294,11 @@ export function setupBrandInMotionCards() {
 
       const s = i - pos;
       const near = Math.abs(s);
-      const k = near < 1 ? 0.5 * (1 + Math.cos(Math.PI * near)) : 0;
+      const k = (near < 1 ? 0.5 * (1 + Math.cos(Math.PI * near)) : 0) * focus;
       const scale = (0.96 + k * 0.1) * (0.9 + d * 0.1);
       const lift = -k * 30 * d;
 
-      x += PART * s * Math.exp((-s * s) / 2) * d;
+      x += PART * s * Math.exp((-s * s) / 2) * d * focus;
 
       const rad = (Math.abs(rot) * Math.PI) / 180;
       const half = ((w * Math.cos(rad) + h * Math.sin(rad)) / 2) * scale;
@@ -241,10 +309,11 @@ export function setupBrandInMotionCards() {
         `translate(-50%,-50%) translate(${x.toFixed(1)}px,${(y + lift).toFixed(1)}px) ` +
         `rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
       c.style.zIndex = String(50 - i);
-      c.dataset.active = d > 0.9 && near < 0.5 ? "true" : "false";
+      c.dataset.active = d > 0.9 && focus > 0.5 && near < 0.5 ? "true" : "false";
+      // undo both the card's tilt and the fan's lean
+      const up = upright[i];
+      if (up) up.style.transform = `rotate(${(-(rot + fanRot)).toFixed(2)}deg)`;
     });
-
-    dots.forEach((dot, i) => { dot.dataset.on = pos + 0.5 >= i ? "true" : "false"; });
   }
 
   function drawIcons(cardEls: HTMLElement[]) {

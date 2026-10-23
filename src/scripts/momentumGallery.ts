@@ -655,6 +655,7 @@ export function setupMomentumGallery() {
   // intro: the point is to hold it exactly where it was reached, not
   // jump anywhere else.
   let lockedScrollY = 0;
+  let relayingOut = false; // see refreshLayout
   function snapBackToLock() {
     window.scrollTo(0, lockedScrollY);
   }
@@ -679,6 +680,9 @@ export function setupMomentumGallery() {
     }
   }
   function handleLeaveTop() {
+    // the section changing its own height (the mobile list opening or
+    // closing) isn't the reader leaving it
+    if (relayingOut) return;
     sectionVisible = false;
     if (mode === "desktop") stopThreeTicker();
     releaseScrollLock(); // defensive — scroll being blocked should make a real leave impossible while still locked
@@ -1015,7 +1019,13 @@ export function setupMomentumGallery() {
   function buildOverviewCards() {
     if (!ovGrid) return;
     ovGrid.innerHTML = "";
-    slides.forEach((slide, i) => {
+    // stats first, the quotes together at the bottom — interleaved in a
+    // single column the quotes looked out of place between the figures.
+    // Each item keeps its slide's own index (previewSlide).
+    const isQuote = (el: HTMLElement) => el.classList.contains("mg__slide--quote");
+    const listed = [...slides.filter((el) => !isQuote(el)), ...slides.filter(isQuote)];
+    listed.forEach((slide) => {
+      const i = slides.indexOf(slide);
       const item = document.createElement("button");
       item.type = "button";
       item.className = "mg__ov-item";
@@ -1036,6 +1046,10 @@ export function setupMomentumGallery() {
       clone.style.top = "0";
       clone.style.left = "0";
       clone.style.transformOrigin = "top left";
+      // lay out at the live slide's own width, so the text wraps the same
+      // and the item (sized off that slide) fits the clone exactly — no
+      // empty strip under it throwing the list's spacing off
+      clone.style.width = `${naturalWidth}px`;
       clone.style.transform = `scale(${scale})`;
       // stat figures start at their "0" placeholder and only count up
       // once actually promoted — the list always shows the real final
@@ -1051,14 +1065,57 @@ export function setupMomentumGallery() {
   }
   buildOverviewCards();
 
+  /* Every quote in the list sits the same distance below whatever is
+     above it, counted from the quote's own mark (the ” badge) to the
+     last line of text before it. Box-to-box spacing can't do this: a
+     quote's box carries different empty room under its attribution
+     depending on its scale, so the second quote sat lower than the
+     first. Measured once the list is laid out. */
+  const QUOTE_GAP = 34; // px
+  function spaceQuotes() {
+    if (!ovGrid) return;
+    const items = Array.from(ovGrid.children) as HTMLElement[];
+    items.forEach((it) => (it.style.marginTop = ""));
+    const inkBottom = (it: HTMLElement) =>
+      Math.max(...Array.from(it.querySelectorAll(".mfig, .mcap, h3, .mquote > span, .mquote__by"))
+        .flatMap((el) => Array.from(el.getClientRects()).map((r) => r.bottom)));
+    const markTop = (it: HTMLElement) =>
+      Math.min(...Array.from(it.querySelectorAll(".mquote__badge, .mquote > span"))
+        .flatMap((el) => Array.from(el.getClientRects()).map((r) => r.top)));
+    // measure every gap first: one item's margin moves those after it,
+    // but never the distance between two neighbours further down
+    const fixes = items.map((it, k) =>
+      k > 0 && it.querySelector(".mg__slide--quote") ? QUOTE_GAP - (markTop(it) - inkBottom(items[k - 1])) : 0,
+    );
+    items.forEach((it, k) => { if (fixes[k]) it.style.marginTop = `${fixes[k]}px`; });
+  }
+  window.addEventListener("resize", () => { if (overviewOpen) spaceQuotes(); });
+
   function showOverview() {
     if (!overview || overviewOpen) return;
     overviewOpen = true;
+    const before = section!.getBoundingClientRect();
     overview.hidden = false;
+    spaceQuotes();
     overview.style.opacity = "1";
     // the live carousel goes away completely, not just behind the
     // overlay's own opaque background.
     sceneEl!.style.visibility = "hidden";
+    // The list now sets the section's height (global.css). If the reader
+    // already scrolled past (left mid-movie, downward), it grew above
+    // them: hold what's on screen still. Chrome's scroll anchoring may
+    // already have done that — measuring off the section's bottom edge
+    // makes the correction zero then. Safari has no scroll anchoring.
+    if (before.bottom <= 0) {
+      const shift = section!.getBoundingClientRect().bottom - before.bottom;
+      if (shift) window.scrollBy(0, shift);
+    }
+    refreshLayout();
+  }
+  function refreshLayout() {
+    relayingOut = true;
+    ScrollTrigger.refresh();
+    relayingOut = false;
   }
   function closeOverview() {
     if (!overview || !overviewOpen) return;
@@ -1066,6 +1123,15 @@ export function setupMomentumGallery() {
     sceneEl!.style.visibility = "";
     overview.hidden = true;
     overview.style.opacity = "0";
+    // back to one screen: if the reader was further down the (taller)
+    // list, bring the section's top back into view for what plays next —
+    // just inside it, rounded up: the section's top can sit on a
+    // fractional pixel, and landing exactly on the trigger's start (or
+    // a hair before it) counts as not entered, so leaving it again
+    // would go unnoticed and the movie would play on off-screen
+    const top = section!.getBoundingClientRect().top;
+    if (top < 0) window.scrollTo(0, Math.ceil(window.scrollY + top) + 1);
+    refreshLayout();
   }
 
   replayBtn?.addEventListener("click", () => {

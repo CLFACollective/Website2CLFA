@@ -6,10 +6,9 @@ import { useGsap, prefersReducedMotion } from "./gsapSetup";
  * frame (.abt__why-pin, CSS position:sticky) holds while its parent
  * (.abt__why, --track tall) scrolls underneath it, and the whole rise
  * is spent over that run — you arrive, the copy sits still and
- * legible for most of a screen before anything moves. On a portrait/
- * phone frame there's no tall track to pin against (see the
- * component's own media query), so the same math runs off the
- * section's own pass through the viewport instead.
+ * legible for a beat before anything moves. On a portrait/phone frame
+ * a full-height pin would be mostly empty cream, so the arch-height
+ * frame pins vertically centred instead, over a shorter run.
  *
  * scrub:true ties --in directly to scroll position with no JS-side
  * damping — the CSS transitions already on .abt__arch/.abt__result
@@ -23,7 +22,9 @@ import { useGsap, prefersReducedMotion } from "./gsapSetup";
  * any earlier and the two headings are legible at once, which reads
  * as a crossfade instead of one thing replacing another.
  */
-const HOLD_IN = 0.16;
+// a real beat: the copy sits still for 30% of the run before the arch
+// starts climbing (feedback: it was covered before anyone could read it)
+const HOLD_IN = 0.3;
 const HOLD_OUT = 0.86;
 const RES_START = 0.58;
 const RES_SPAN = 0.34;
@@ -56,26 +57,25 @@ export function setupWhyCollective() {
     setRes(clamp01((eased - RES_START) / RES_SPAN));
   };
 
+  /* Portrait/phone: a short pin — the frame sticks vertically centred
+     (see the component's CSS) for --run of scroll, and the whole run is
+     spent there. Measured off the section rather than the sticky
+     frame, whose own position moves while it sticks. */
+  const pinEl = section.querySelector<HTMLElement>("[data-why-pin]")!;
+  const shortPin = () => {
+    const padTop = parseFloat(getComputedStyle(section).paddingTop);
+    const stickyTop = (window.innerHeight - pinEl.offsetHeight) / 2;
+    return { top: stickyTop - padTop, run: section.clientHeight - padTop - pinEl.offsetHeight };
+  };
+
   let trigger: ReturnType<typeof ScrollTrigger.create> | null = null;
   function build() {
     trigger?.kill();
     const pinned = pinnedQuery.matches;
     trigger = ScrollTrigger.create({
       trigger: section,
-      start: pinned ? "top top" : "top bottom",
-      /* Flow mode (unpinned) finishes at "bottom center", not
-         "bottom top" — a section near the foot of a short page can
-         have too little scrollable room below it for its own bottom
-         edge to ever reach the viewport's top, which left the arch
-         stranded mid-rise and "The result" never fully revealed
-         (confirmed live on a tablet-width, short-page layout: the
-         page's real max scroll capped self.progress well short of
-         1). "bottom center" mirrors the original source's own
-         unpinned formula — (vh - r.top) / (vh*0.5 + r.height) reaches
-         1 exactly when the section's bottom hits the viewport's
-         vertical centre — a shorter, always-reachable run regardless
-         of how little page remains below the section. */
-      end: pinned ? "bottom bottom" : "bottom center",
+      start: pinned ? "top top" : () => `top ${shortPin().top}px`,
+      end: pinned ? "bottom bottom" : () => `+=${shortPin().run}`,
       scrub: true,
       onUpdate,
     });

@@ -38,43 +38,8 @@ test.describe("scroll mechanics on iPad/iPhone", () => {
     await skipHeroMovie(page);
   });
 
-  // BrandInMotionCards drops its sticky pin entirely under 1000px (see
-  // BrandInMotionCards.astro's `@media (max-width: 999px)` block) in
-  // favor of a JS-driven reveal-stack — every mobile/tablet project this
-  // describe runs on is under that width, so it's not a pin candidate
-  // here at all and is checked separately below. Hero itself no longer
-  // pins at all (see hero-movie.spec.ts) so it's dropped from this list
-  // entirely rather than given a noBeforeCheck escape hatch.
-  const PINS = [
-    { name: "DayOne", wrapper: "#partnering", stage: "#partnering .pinday__stage" },
-  ];
-
-  for (const { name, wrapper, stage } of PINS) {
-    test(`${name}: sticky stage pins while its section is active, releases after`, async ({ page }) => {
-      const rect = await docRect(page, wrapper);
-      expect(rect, `${wrapper} should exist`).not.toBeNull();
-      const { top, height } = rect!;
-
-      // before entering: not yet pinned (stage sits below the viewport top)
-      await page.evaluate((y) => window.scrollTo(0, y), Math.max(0, top - 50));
-      await page.waitForTimeout(150);
-      const beforeTop = await stageTop(page, stage);
-      expect(beforeTop, `${name} should not be pinned before its section`).toBeGreaterThan(20);
-
-      // mid-section: pinned to the top of the viewport
-      await page.evaluate((y) => window.scrollTo(0, y), top + height * 0.5);
-      await page.waitForTimeout(150);
-      const midTop = await stageTop(page, stage);
-      expect(Math.abs(midTop ?? 999), `${name} should be pinned (top ~= 0) mid-section`).toBeLessThan(5);
-
-      // well past: released, scrolled normally off the top
-      await page.evaluate((y) => window.scrollTo(0, y), top + height + 300);
-      await page.waitForTimeout(150);
-      const afterTop = await stageTop(page, stage);
-      expect(afterTop, `${name} should release (top well negative) after its section`).toBeLessThan(-50);
-    });
-  }
-
+  // Day One used to pin here too; it plays on a timer now (see
+  // animation-lifecycle.spec.ts). The cards deck is the one pin left.
   test("BrandInMotionCards: pins as a deck — the heading stays visible below the nav the whole way through", async ({ page }) => {
     const errors = collectErrors(page);
     const position = await page.evaluate(

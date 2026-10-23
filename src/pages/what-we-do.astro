@@ -21,8 +21,8 @@ import ServicesAccordion from "../components/ServicesAccordion.astro";
         <strong class="opener__line wwd__head--alt">Not adapted for it.</strong>
       </h1>
       <p class="opener__line wwd__stand">
-        Strategy, creative, and execution—so, everything you need—<br />
-        <em>connected, not siloed</em>. Here&rsquo;s where we plug in.
+        Strategy, creative, and execution—so, everything you need—<em>connected,
+        not siloed</em>. Here&rsquo;s where we plug in.
       </p>
     </PageOpener>
     <MarketingForEquity />
@@ -58,6 +58,6 @@ import ServicesAccordion from "../components/ServicesAccordion.astro";
   @media (max-width: 900px) {
     .wwd__head .opener__line { font-size: clamp(44px, 11.5vw, 84px); line-height: .92; letter-spacing: -.045em; }
     .wwd__head .opener__line.wwd__head--alt { line-height: 1.18; }
-    .wwd__stand { margin-top: 24px; font-size: clamp(18px, 4.6vw, 26px); line-height: 1.35; letter-spacing: -.02em; }
+    .wwd__stand { max-width: none; margin-top: 24px; font-size: clamp(18px, 4.6vw, 26px); line-height: 1.35; letter-spacing: -.02em; }
   }
 </style>

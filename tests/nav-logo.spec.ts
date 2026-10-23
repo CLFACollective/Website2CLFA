@@ -40,3 +40,25 @@ test.describe("mobile nav logo", () => {
     await expect(page.locator(".nav__logo")).toBeHidden();
   });
 });
+
+test.describe("menu open: the logo is there, top left, and goes home", () => {
+  for (const where of ["top", "footer"] as const) {
+    test(`from the ${where} of a page`, async ({ page }) => {
+      await page.goto("/about", { waitUntil: "networkidle" });
+      if (where === "footer") {
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(400);
+      }
+      await page.locator("#menuBtn").click();
+      await page.waitForTimeout(900);
+      const logo = page.locator(".nav__logo");
+      await expect(logo).toBeVisible();
+      const box = (await logo.boundingBox())!;
+      const vw = page.viewportSize()!.width;
+      expect(box.x + box.width).toBeLessThan(vw / 2);
+      expect(box.y).toBeLessThan(80);
+      await logo.click();
+      await expect(page).toHaveURL(/\/$/);
+    });
+  }
+});

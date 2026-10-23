@@ -417,6 +417,71 @@ test.describe("MomentumGallery: the movie", () => {
       await expectResting(page);
     });
 
+    test("quotes are left-aligned and stats centred, in the movie and at rest", async ({ page }) => {
+      const aligns = (sel: string) =>
+        page.$$eval(sel, (els) => els.map((e) => getComputedStyle(e).textAlign));
+      const check = async (scope: string) => {
+        for (const a of await aligns(`${scope}.mg__slide--quote`)) expect(a, `${scope} quote`).toMatch(/^(left|start)$/);
+        for (const a of await aligns(`${scope}.mg__slide--stat`)) expect(a, `${scope} stat`).toBe("center");
+      };
+      await check("#mgScene > ");
+      await playToEnd(page);
+      if (!isDesktop(page)) await check(".mg__ov-grid ");
+    });
+
+    test("phones: jumping past mid-movie, the list growing above the reader doesn't shift what's on screen", async ({ page }) => {
+      test.skip(isDesktop(page), "desktop rests on the live slides");
+      // a reader who reaches Momentum (the movie starts), then scrolls on
+      // past it mid-movie, landing with the footer X px down the screen
+      await scrollIntoGallery(page);
+      await pollUntil(page, (st) => st.playing === true);
+      await page.waitForTimeout(ARRIVE_DUR + SETTLE); // past the brief scroll hold
+      const { x, past } = await page.evaluate(() => {
+        const f = document.querySelector<HTMLElement>(".foot")!;
+        // far enough up that the page has room below to put the footer there
+        const x = Math.max(300, innerHeight - f.offsetHeight + 50);
+        const target = f.getBoundingClientRect().top + window.scrollY - x;
+        const mBottom = document.getElementById("momentum")!.getBoundingClientRect().bottom + window.scrollY;
+        return { x, past: target >= mBottom, target };
+      });
+      test.skip(!past, "this screen can't scroll Momentum fully off the top, so it never grows above the reader");
+      await page.evaluate((x) => {
+        const f = document.querySelector(".foot")!;
+        window.scrollTo({ top: f.getBoundingClientRect().top + window.scrollY - x, behavior: "instant" as ScrollBehavior });
+      }, x);
+      await page.waitForTimeout(500);
+      expect((await getState(page)).overviewOpen, "it went to rest").toBe(true);
+      const footTop = await page.evaluate(() => document.querySelector(".foot")!.getBoundingClientRect().top);
+      expect(Math.abs(footTop - x), "the footer stayed where the reader landed").toBeLessThan(3);
+    });
+
+    test("phones: the resting list shows in full — the section grows to fit, nothing scrolls inside it", async ({ page }) => {
+      test.skip(isDesktop(page), "desktop rests on the live slides");
+      await playToEnd(page);
+      await expectResting(page);
+      const g = await page.evaluate(() => {
+        const grid = document.getElementById("mgOvGrid")!;
+        return { scroll: grid.scrollHeight, client: grid.clientHeight };
+      });
+      expect(g.scroll).toBeLessThanOrEqual(g.client + 1);
+
+      // Replay shrinks it back to one screen, with the section's top in view
+      await page.evaluate(() => {
+        const r = document.getElementById("momentum")!.getBoundingClientRect();
+        window.scrollTo(0, window.scrollY + r.top + 400);
+      });
+      await page.locator("#mgOvToggle").click();
+      await page.waitForTimeout(400);
+      const after = await page.evaluate(() => {
+        const r = document.getElementById("momentum")!.getBoundingClientRect();
+        return { top: r.top, height: r.height, vh: innerHeight, state: (document.getElementById("momentum") as any).mgApi.getState() };
+      });
+      expect(Math.abs(after.top)).toBeLessThan(2);
+      expect(after.height).toBeLessThanOrEqual(after.vh + 1);
+      expect(after.state.playing).toBe(true);
+      expect(after.state.overviewOpen).toBe(false);
+    });
+
     test("the resting state is uncovered by a growing circle with a rose ring, like the hero's", async ({ page }) => {
       // sampled in-page, per frame, from the movie's end until the reveal
       // has fully opened
@@ -610,6 +675,53 @@ test.describe("MomentumGallery: the movie", () => {
       await expectResting(page);
     });
 
+    test("mobile: the resting list shows the stats first and the quotes together at the bottom", async ({ page }) => {
+      test.skip(isDesktop(page), "the stacked list is mobile's resting state only");
+      await playToEnd(page);
+      const kinds = await page.$$eval(".mg__ov-item", (items) =>
+        items.map((it) => (it.querySelector(".mg__slide--quote") ? "quote" : "stat")),
+      );
+      const firstQuote = kinds.indexOf("quote");
+      expect(firstQuote).toBeGreaterThan(0);
+      expect(kinds.slice(firstQuote).every((k) => k === "quote"), kinds.join(",")).toBe(true);
+
+      // every quote sits the same distance below the text above it,
+      // counted from the quote's mark (its ” badge)
+      const gaps = await page.$$eval(".mg__ov-item", (items) => {
+        const rects = (it: Element, sel: string) => Array.from(it.querySelectorAll(sel)).flatMap((el) => Array.from(el.getClientRects()));
+        const out: number[] = [];
+        items.forEach((it, k) => {
+          if (k === 0 || !it.querySelector(".mg__slide--quote")) return;
+          const above = Math.max(...rects(items[k - 1], ".mfig, .mcap, h3, .mquote > span, .mquote__by").map((r) => r.bottom));
+          const mark = Math.min(...rects(it, ".mquote__badge, .mquote > span").map((r) => r.top));
+          out.push(mark - above);
+        });
+        return out;
+      });
+      expect(gaps.length).toBeGreaterThan(1);
+      for (const g of gaps) expect(Math.abs(g - gaps[0]), `quote gaps ${gaps.join(", ")}`).toBeLessThan(2);
+
+      // a quote item still previews its own slide
+      const quoteItem = page.locator(".mg__ov-item").nth(firstQuote);
+      const idx = await quoteItem.getAttribute("data-mg-index");
+      await quoteItem.click();
+      await page.waitForTimeout(300);
+      expect(await activeIndex(page)).toBe(idx);
+    });
+
+    test("mobile: list items never look like cards — no corners, no hover tint", async ({ page }) => {
+      test.skip(isDesktop(page), "the stacked list is mobile's resting state only");
+      await playToEnd(page);
+      const item = page.locator(".mg__ov-item").first();
+      await item.hover().catch(() => {});
+      const cs = await item.evaluate((el) => {
+        const c = getComputedStyle(el);
+        return { radius: c.borderTopLeftRadius, bg: c.backgroundColor };
+      });
+      expect(cs.radius).toBe("0px");
+      expect(cs.bg).toBe("rgba(0, 0, 0, 0)");
+    });
+
     test("mobile: tapping a list item previews that one slide directly", async ({ page }) => {
       test.skip(isDesktop(page), "the stacked list is mobile's resting state only");
       await playToEnd(page);
@@ -637,7 +749,7 @@ test.describe("MomentumGallery: the movie", () => {
     });
   });
 
-  test("phones: quotes fly in and hold dead centre, never running off the screen", async ({ page }) => {
+  test("phones: quotes fly in and hold dead centre, left-aligned, never running off the screen", async ({ page }) => {
     test.skip(isDesktop(page), "phone/tablet movie (CSS 3D) only");
     await page.goto("/", { waitUntil: "networkidle" });
     await skipHeroMovie(page);
@@ -654,12 +766,20 @@ test.describe("MomentumGallery: the movie", () => {
         const g = await page.evaluate((n) => {
           const el = document.querySelector<HTMLElement>(`#mgScene > .mg__slide[data-mg-index="${n}"]`)!;
           const rects = Array.from(el.querySelectorAll(".mquote > span, .mquote__by")).flatMap((s) => Array.from(s.getClientRects()));
-          const l = Math.min(...rects.map((r) => r.left)), r = Math.max(...rects.map((r) => r.right));
-          return { l, r, vw: innerWidth };
+          const lefts = rects.map((r) => r.left);
+          const l = Math.min(...lefts), r = Math.max(...rects.map((r) => r.right));
+          // the quote's own lines alone: a long attribution under a short
+          // quote can centre the pair while the quote sits off to the left
+          const lines = Array.from(el.querySelectorAll(".mquote > span")).flatMap((s) => Array.from(s.getClientRects()));
+          const lineMid = (Math.min(...lines.map((r) => r.left)) + Math.max(...lines.map((r) => r.right))) / 2;
+          return { l, r, ragged: Math.max(...lefts) - l, lineMid, vw: innerWidth };
         }, i);
         expect(g.l, `quote ${i}: left edge on screen`).toBeGreaterThanOrEqual(0);
         expect(g.r, `quote ${i}: right edge on screen`).toBeLessThanOrEqual(g.vw);
-        expect(Math.abs((g.l + g.r) / 2 - g.vw / 2), `quote ${i}: centred`).toBeLessThan(12);
+        // the text itself, not just its box — a box wider than its
+        // left-aligned lines centres while the text sits off to the left
+        expect(Math.abs(g.lineMid - g.vw / 2), `quote ${i}: the quote is centred on screen`).toBeLessThan(12);
+        expect(g.ragged, `quote ${i}: every line starts at the same left edge`).toBeLessThan(2);
       }
     }
   });

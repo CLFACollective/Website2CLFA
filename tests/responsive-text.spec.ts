@@ -26,6 +26,52 @@ async function docTop(page: import("@playwright/test").Page, selector: string) {
   }, selector);
 }
 
+test("'Here's what partnering with us is actually like.': lines don't collide (the g of partnering vs the ll of actually)", async ({ page }) => {
+  await page.goto("/");
+  const { lh, fs } = await page.$eval("h2.win__partnering-head", (el) => {
+    const cs = getComputedStyle(el);
+    return { lh: parseFloat(cs.lineHeight), fs: parseFloat(cs.fontSize) };
+  });
+  expect(lh / fs).toBeGreaterThanOrEqual(1.02);
+});
+
+test("page hero copy uses the full width on phones (no desktop measure pinching it)", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "phones");
+  for (const [path, sel] of [["/about", ".abt__stand"], ["/what-we-do", ".wwd__stand"]]) {
+    await page.goto(path);
+    const g = await page.$eval(sel, (el) => {
+      const p = el.parentElement!, cs = getComputedStyle(p);
+      const parent = p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      return { max: getComputedStyle(el).maxWidth, w: el.getBoundingClientRect().width, parent };
+    });
+    expect(g.max, sel).toBe("none");
+    expect(Math.abs(g.w - g.parent), sel).toBeLessThan(2);
+  }
+});
+
+test("What We Do opener: 'Strategy, creative, and execution…' flows as one paragraph, no forced breaks", async ({ page }) => {
+  await page.goto("/what-we-do");
+  await expect(page.locator(".wwd__stand br")).toHaveCount(0);
+});
+
+test("What We Do: the heading and the intro split 50/50, the intro stacked (question 1.2× the paragraph) and smaller than the heading", async ({ page, isMobile }) => {
+  test.skip(isMobile, "stacked on phones");
+  await page.goto("/what-we-do");
+  const g = await page.evaluate(() => {
+    const fs = (sel: string) => parseFloat(getComputedStyle(document.querySelector(sel)!).fontSize);
+    const r = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+    const head = r(".mfe__head"), intro = r(".mfe__intro"), ask = r(".mfe__ask"), lede = r(".mfe__lede");
+    const cols = getComputedStyle(document.querySelector(".mfe__top")!).gridTemplateColumns.split(" ").map(parseFloat);
+    return { ratio: fs(".mfe__ask") / fs(".mfe__lede"), headFs: fs(".mfe__head"), askFs: fs(".mfe__ask"), cols, askBottom: ask.bottom, ledeTop: lede.top, sideBySide: head.right <= intro.left };
+  });
+  expect(g.ratio).toBeCloseTo(1.2, 2);
+  expect(g.askBottom, "question on top").toBeLessThanOrEqual(g.ledeTop);
+  expect(g.sideBySide).toBe(true);
+  expect(g.cols).toHaveLength(2);
+  expect(Math.abs(g.cols[0] - g.cols[1]), "two equal columns").toBeLessThan(1);
+  expect(g.askFs, "less prominent than the heading").toBeLessThan(g.headFs * 0.6);
+});
+
 test.describe("required one-line phrases", () => {
   // Every test here scrolls, and Hero plays a locked ~9.5s intro movie
   // on load before scrolling works at all (see hero-movie.spec.ts) —

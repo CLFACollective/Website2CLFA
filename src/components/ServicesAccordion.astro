@@ -60,7 +60,7 @@ const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
               <p class="svc__panel-title" aria-hidden="true">{r.title}</p>
               <p class="svc__body">{r.body}</p>
             </div>
-            <p class="svc__display" aria-hidden="true" data-text={`${r.num} ${r.word}`}>
+            <p class="svc__display" aria-hidden="true" data-text={`${r.num} ${r.word}`} style={`--chars:${`${r.num} ${r.word}`.length};`}>
               {r.num} {r.word}
             </p>
           </div>
@@ -179,6 +179,7 @@ const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
   .svc__row[data-open] .svc__panel { grid-template-rows: 1fr; }
   .svc__panel-in {
     overflow: hidden; min-height: 0;
+    container-type: inline-size; /* .svc__display sizes itself to fit */
     visibility: hidden; transition: visibility 0s linear .55s;
   }
   .svc__row[data-open] .svc__panel-in { visibility: visible; transition-delay: 0s; }
@@ -200,11 +201,21 @@ const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
   .svc__row[data-open] .svc__body,
   .svc__row[data-open] .svc__art { opacity: 1; transform: none; }
 
+  /* Sized to fit its row: at most 100px, shrinking for a long label on a
+     narrow screen (glyphs run ≤ .66em each; .7 leaves room for the
+     stroke). It must never overflow — once it does, the outlined text
+     and the cream ::before copy that masks the stroke's inner half stop
+     lining up and the two read as garbled, overlapping lettering. */
   .svc__display {
-    margin: 0; text-align: right;
+    --pad: clamp(16px, 2.6vw, 48px); /* keeps the last letter's stroke on screen */
+    --fit: calc((100cqw - var(--pad)) / (var(--chars, 12) * .7));
+    margin: clamp(24px, 3vw, 48px) 0 0; text-align: right;
+    /* the .86 line-height puts the glyphs' bottoms (and their stroke)
+       below the line box, where .svc__panel-in's overflow clips them */
+    padding: 0 var(--pad) .12em 0;
     white-space: nowrap;
     position: relative;
-    font-size: 100px;
+    font-size: min(100px, var(--fit));
     font-weight: 800; letter-spacing: .03em; line-height: .86;
     color: transparent;
     -webkit-text-stroke: 4px var(--brown);
@@ -213,7 +224,7 @@ const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
   }
   .svc__display::before {
     content: attr(data-text);
-    position: absolute; right: 0; top: 0;
+    position: absolute; left: 0; right: var(--pad); top: 0; text-align: right;
     color: #FEFCF4;
     -webkit-text-stroke: 0;
     pointer-events: none;
@@ -253,7 +264,7 @@ const ROWS: Row[] = (data.services as Omit<Row, "num">[]).map((r, n) => ({
     .svc__panel-title { font-size: clamp(19px, 4.6vw, 26px); margin-bottom: 12px; }
     .svc__body { width: auto; font-size: 15px; }
     .svc__art { width: 110px; height: 110px; margin: 0 0 20px 24px; }
-    .svc__display { margin: 0; font-size: 44px; margin-top: 28px; -webkit-text-stroke-width: 3px; }
+    .svc__display { margin: 28px 0 0; font-size: min(44px, var(--fit)); -webkit-text-stroke-width: 3px; }
   }
 
   @media (prefers-reduced-motion: reduce) {

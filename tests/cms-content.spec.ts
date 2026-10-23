@@ -130,7 +130,6 @@ test.describe("CMS content drives the pages", () => {
     await page.goto("/");
     const els = page.locator("#bmcFan .bmc__card");
     await expect(els).toHaveCount(cards.cards.length);
-    await expect(page.locator("#bmcDots .bmc__dot")).toHaveCount(cards.cards.length);
     for (const [i, c] of cards.cards.entries()) {
       const copy = els.nth(i).locator(".bmc__copy");
       await expect(copy).toHaveText(c.text.replace(/\*/g, "").replace(/\s*\n\s*/g, " "));

@@ -1,9 +1,9 @@
 ---
 // BrandInMotionCards — up to five cards fanned on one screen, on an arc rather
-// than a stack or a line. The section pins; scroll deals the deck into
-// the fan, then walks a lead card along the curve (see cardsFan.ts).
-// On narrow screens the arc has nowhere to spread, so the deck stacks
-// and shuffles instead as the section pins.
+// than a stack or a line. The deck deals into the fan once it comes into
+// view; hovering a card lifts it and parts its neighbours (see
+// cardsFan.ts). On narrow screens the arc has nowhere to spread, so the
+// deck stacks and shuffles instead as the section pins.
 import CardIcon from "./CardIcon.astro";
 import type { IconName } from "../lib/cardIcons";
 import { italicMarkdown } from "../lib/inlineMarkdown";
@@ -44,10 +44,6 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
         ))}
       </div>
 
-      <div class="bmc__dots" id="bmcDots" aria-hidden="true">
-        {CARDS.map((_, i) => <span class="bmc__dot" data-on={i === 0 ? "true" : "false"} />)}
-      </div>
-
       <div class="bmc__aside">
         <h3 class="bmc__payoff">Sound familiar?</h3>
         <a class="bmc__cta" href="#contact">Let&rsquo;s Talk</a>
@@ -63,7 +59,9 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
 
 <style>
   .bmc { position: relative; background: #FEFCF4; color: #252525; }
-  .bmc__pin { position: relative; height: 220vh; }
+  /* desktop doesn't pin (no scroll-driven motion); below 1000px the
+     script sets the pin's height for the deck */
+  .bmc__pin { position: relative; }
   .bmc__stage {
     position: sticky; top: 0; height: 100svh; overflow: hidden;
     display: flex; flex-direction: column; align-items: stretch;
@@ -97,19 +95,6 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
     opacity: 0; transform: translateY(14px);
   }
 
-  .bmc__dots {
-    flex: 0 0 auto; display: flex; justify-content: center;
-    gap: clamp(10px, 1vw, 16px);
-    margin-top: clamp(-72px, -8vh, -36px); position: relative; z-index: 60;
-    opacity: 0; transform: translateY(8px);
-  }
-  .bmc__dot {
-    width: 12px; height: 12px; border-radius: 50%;
-    border: 1.5px solid rgba(37, 37, 37, .28); background: transparent;
-    transition: background .35s var(--ease), border-color .35s var(--ease);
-  }
-  .bmc__dot[data-on="true"] { background: #F06496; border-color: #F06496; }
-
   .bmc__fan {
     position: relative; flex: 1 1 auto; width: 100%; min-height: 0;
   }
@@ -127,9 +112,6 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
     transition: box-shadow .45s var(--ease);
   }
   .bmc__card[data-active="true"] { box-shadow: 0 24px 56px rgba(37, 37, 37, .38); }
-  @media (hover: hover) {
-    .bmc__card:hover { box-shadow: 0 24px 56px rgba(37, 37, 37, .38); }
-  }
 
   .bmc__copy {
     margin: 0; font-weight: 300; letter-spacing: -.02em; line-height: 1.14;
@@ -160,7 +142,7 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
   /* the pivot icon idles at half opacity (see CardIcon.astro) rather
      than the idle animation every other icon gets — goes fully opaque
      in focus, same "active" signal as the colour swap above, on both
-     desktop (hover or scroll-driven lead card) and mobile (slid into
+     desktop (the hovered card) and mobile (slid into
      its resting spot in the stack). */
   .bmc__card[data-active="true"] .bmc__icon :global(.ci--pivot) { opacity: 1; }
   @media (hover: hover) {
@@ -228,8 +210,6 @@ const CARDS = (data.cards as { text: string; icon: IconName; color: string }[])
     .bmc__copy { font-size: clamp(26px, 7.4vw, 40px); line-height: 1.15; padding-bottom: 12%; }
     .bmc__icon { width: clamp(52px, 15vw, 86px); }
 
-    /* the deck has no fan position to show */
-    .bmc__dots { display: none; }
     .bmc__aside { margin-top: 12px; gap: 10px; }
     .bmc__payoff { font-size: clamp(22px, 5vw, 32px); }
   }

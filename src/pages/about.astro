@@ -48,4 +48,9 @@ import WhyCollective from "../components/WhyCollective.astro";
   .abt__stand em {
     font-family: var(--hc-serif); font-style: italic; font-weight: 600; color: var(--orange);
   }
+  /* the desktop measure, in design px, shrinks with the screen — on a
+     phone it pinched the copy into a narrow column; let it flow */
+  @media (max-width: 900px) {
+    .abt__stand { max-width: none; }
+  }
 </style>

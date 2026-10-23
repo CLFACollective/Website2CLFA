@@ -54,7 +54,7 @@
        pinned frame on a short window */
     --archH: min(50vw, 88svh);
     --archRest: 82%; /* resting offset: clears the copy, leaves a sliver */
-    --track: 250svh; /* ~150svh of scrolling spent on the rise */
+    --track: 300svh; /* 200svh of run: a 60svh hold, then the rise */
     /* how far "Why a collective?" sits above the arch box's own
        centre — the arch is opaque and covers it before "The result"
        appears, so the two never share the screen */
@@ -64,12 +64,21 @@
     padding-top: clamp(28px, 4vw, 72px);
     background: var(--cream);
   }
-  /* Default is FLOW: the section is exactly arch-height and the rise
-     is spent on its own pass up the viewport. Pinning is added back
-     below, but only where it earns its keep (see the landscape-ish
-     media query further down). */
+  /* Default (portrait / phone): a short pin. The arch-height frame
+     sticks, vertically centred, while --run of cream below it scrolls
+     past — long enough to read the copy before the arch climbs over it
+     (feedback: on phones it used to be covered while it was still
+     coming into view). The landscape-ish media query further down
+     swaps this for a full-height pinned frame instead. */
+  .abt__why {
+    --run: 100svh;
+    /* height, not padding: a sticky child only travels within its
+       parent's content box */
+    height: calc(var(--archH) + var(--run));
+  }
   .abt__why-pin {
-    position: relative; height: var(--archH);
+    position: sticky; top: calc((100svh - var(--archH)) / 2);
+    height: var(--archH);
     overflow: hidden; background: var(--cream);
   }
   .abt__why-inner {

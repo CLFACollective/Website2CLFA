@@ -199,7 +199,6 @@ a { color: inherit; }
   transition: opacity .45s var(--ease);
 }
 .nav__logo.is-gone { opacity: 0; pointer-events: none; }
-body.menu-open .nav__logo.is-gone { opacity: 1; pointer-events: auto; }
 .nav__logo .clfa { width: clamp(84px, 7vw, 118px); }
 /* visibility:hidden, not display:none — the nav is a two-item flex
    row (logo, menu button) with justify-content:space-between; removing
@@ -216,6 +215,10 @@ body.menu-open .nav__logo.is-gone { opacity: 1; pointer-events: auto; }
   .nav__logo.mobile-visible { visibility: visible; }
   .nav__logo.mobile-visible.is-gone { opacity: 1; }
 }
+/* With the menu open the logo is always there, top left — it's the way
+   home. Overrides every rule above that hides it (hero.ts's desktop
+   .is-gone, the phone footer hiding in navLogoMobile.ts). */
+body.menu-open .nav__logo { visibility: visible; opacity: 1; pointer-events: auto; }
 
 /* Burger only — a word label lives for a11y, hidden visually. */
 .menu-btn {
@@ -441,9 +444,10 @@ body.hide-kickoff .kickoff { display: none; }
 /* ============================================================
    DAY ONE — rail, ball anchors each column
    ============================================================ */
-.pinday { padding: 0; height: 230vh; overflow: visible; }
+/* not pinned: the rail plays on a timer once in view (dayOne.ts) */
+.pinday { padding: 0; overflow: visible; }
 .pinday__stage {
-  position: sticky; top: 0; min-height: 100svh;
+  position: relative; min-height: 100svh;
   display: flex; align-items: center; overflow: hidden;
   padding: clamp(72px, 10vw, 170px) var(--gut); box-sizing: border-box;
   /* the dust-field cream, matching the Cards section's own #FEFCF4 —
@@ -462,8 +466,7 @@ body.hide-kickoff .kickoff { display: none; }
    doesn't need as much before its own next element). */
 .pinday .sec__head { margin-bottom: clamp(50px, 6vw, 100px); }
 @media (prefers-reduced-motion: reduce) {
-  .pinday { height: auto; }
-  .pinday__stage { position: static; min-height: 0; }
+  .pinday__stage { min-height: 0; }
 }
 
 .rail { position: relative; height: 2px; background: var(--hairline); margin: 0 0 clamp(34px, 5vw, 62px); }
@@ -551,6 +554,15 @@ body.hide-kickoff .kickoff { display: none; }
   #dayone .col h3 { font-size: 26px; margin-bottom: clamp(10px, 2.6vw, 14px); }
   #dayone .col p { font-size: 14px; line-height: 1.4; max-width: 34ch; }
   .pinday .sec__head { font-size: 36px; line-height: 1.06; letter-spacing: -.03em; }
+}
+/* each step's copy stays hidden until its dot is reached (dayOne.ts
+   adds .is-rev) — the line and the empty dots show from the start */
+@media (max-width: 799px) and (prefers-reduced-motion: no-preference) {
+  #dayone .col > * {
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .6s var(--ease), transform .6s var(--ease);
+  }
+  #dayone .col.is-rev > * { opacity: 1; transform: none; }
 }
 
 /* ============================================================
@@ -939,8 +951,8 @@ body.hide-kickoff .kickoff { display: none; }
 .mg__ov-item {
   position: relative; overflow: hidden;
   background: none; border: none; padding: 0; margin: 0; cursor: pointer;
-  border-radius: 12px;
-  transition: background .3s var(--ease);
+  /* never reads as a card: no corners, no hover tint, no tap flash */
+  -webkit-tap-highlight-color: transparent;
   /* buttons don't inherit text color by default (UA stylesheets set
      their own, e.g. `color:buttontext`) — on mobile WebKit specifically
      that default resolves to the system's blue tint color, not the
@@ -972,23 +984,12 @@ body.hide-kickoff .kickoff { display: none; }
    have nothing that extends past their own box, so they keep the
    tighter clip. */
 .mg__ov-item:has(.mquote__badge) { overflow: visible; }
-@media (hover: hover) {
-  .mg__ov-item:hover { background: rgba(35, 35, 35, .05); }
-}
 /* position/top/left/transform-origin/transform are all set inline, per
    clone, in JS — see buildOverviewCards's own comment for why this is
    transform:scale and not the simpler-sounding zoom. */
 .mg__ov-clone { pointer-events: none; }
-/* The stacked list centers quote content instead of carrying
-   over .mg__slide--quote's left-aligned convention: in a small,
-   isolated single-column card, ragged-left quote text with nothing
-   filling the rest of the row reads as mis-centered rather than as a
-   deliberate editorial layout. Two classes' worth of specificity beats
-   .mg__slide--quote's own align-items:flex-start without needing
-   !important. */
-.mg__ov-clone.mg__slide--quote {
-  align-items: center; text-align: center;
-}
+/* quotes stay left-aligned in the list too (stats stay centred) */
+.mg__ov-clone.mg__slide--quote { align-items: flex-start; text-align: left; }
 
 
 /* mobile/touch: no WebGL, a plain CSS 3D transform stack instead */
@@ -1002,13 +1003,30 @@ body.hide-kickoff .kickoff { display: none; }
      already sit at the scene's centre, not its corner. */
   .mg__slide { width: min(320px, 82vw); top: 50%; left: 50%; }
   .mg__slide--wide { width: min(400px, 88vw); }
-  /* quotes fly in and hold dead centre, centred text (left-aligned
-     text in a near-screen-wide box read as sliding off to the left);
-     a little narrower than the stats so their zoom has room
-     (momentumGallery.ts's quoteFitScale) */
-  #mgScene > .mg__slide--quote { width: min(300px, 76vw); align-items: center; text-align: center; }
-  #mgScene > .mg__slide--quote.mg__slide--wide { width: min(340px, 80vw); }
-  #mgScene > .mg__slide--quote .mquote > span { margin-left: auto; margin-right: auto; }
+  /* quotes fly in and hold dead centre as a block, text left-aligned
+     like every quote on the site. The box shrinks to its text, so
+     centring the box centres what you see (a fixed-width box with
+     left-aligned lines read as drifting left). max-content, not
+     fit-content: the slide is anchored at left:50%, and fit-content
+     would only give it the half of the screen right of that. A little
+     narrower than the stats at most, so their zoom has room
+     (quoteFitScale). */
+  #mgScene > .mg__slide--quote { width: max-content; max-width: min(300px, 76vw); align-items: flex-start; text-align: left; }
+  #mgScene > .mg__slide--quote.mg__slide--wide { max-width: min(340px, 80vw); }
+  /* the quote's own lines set that width, not its attribution: a long
+     attribution ("Client, Head of Marketing Center of Excellence") under
+     a short quote widened the box and left the quote off to the left.
+     width:0 + min-width:100% keeps it out of the sizing and wraps it to
+     the lines' width instead. */
+  #mgScene > .mg__slide--quote .mquote__by { width: 0; min-width: 100%; }
+
+  /* At rest the stacked list sets the section's height: the stage grows
+     to fit every item, rather than holding one screen with the list
+     scrolling inside it (momentumGallery.ts refreshes ScrollTrigger and
+     brings the section's top back into view when it shrinks again) */
+  #momentum[data-mg-rest] .pin__stage { height: auto; min-height: 100svh; }
+  #momentum[data-mg-rest] .mg__overview { position: relative; inset: auto; padding-bottom: 72px; }
+  #momentum[data-mg-rest] .mg__ov-grid { max-height: none; overflow: visible; }
 }
 
 /* ============================================================
@@ -1065,12 +1083,14 @@ body.hide-kickoff .kickoff { display: none; }
    it, so this rule was dead code. */
 /* Figma node 3318:1953 — 152.6px, not 88px, with matching line-height
    (137.38/152.6 = .9) and letter-spacing (-6.869/152.6 = -.045em)
-   ratios. */
-h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: .9; letter-spacing: -.045em; }
+   ratios — except line-height: at Figma's .9 the "g" in "partnering"
+   ran into the "ll" of "actually" on the line below, so it's opened up
+   to clear the descender. */
+h2.win__partnering-head { font-size: clamp(32px, 10.5vw, 152.6px); line-height: 1.04; letter-spacing: -.045em; }
 .win__partnering-head .bd { color: #FFA235; letter-spacing: 0; }
 @media (max-width: 799px) {
   .win--flat .win__copy { align-items: center; text-align: center; }
-  .win__partnering-head { font-size: 36px !important; line-height: 1.06; letter-spacing: -.04em; }
+  .win__partnering-head { font-size: 36px !important; line-height: 1.2; letter-spacing: -.04em; }
 }
 
 /* ============================================================

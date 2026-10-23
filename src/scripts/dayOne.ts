@@ -1,40 +1,25 @@
 import { useGsap, prefersReducedMotion } from "./gsapSetup";
 
+const DOT_DUR = 0.6; // s — the ball's travel to each stop
+
 /**
- * Day One — the pinned section holds full-screen while a ball travels
- * along a rail, parking on three stops with a plateau at each (not a
- * plain linear glide), lighting up a column of copy as it arrives.
- *
- * The plateau shape is a piecewise remap (KX -> KY below); GSAP drives
- * it as a scrub tied to the section's own scroll distance via
- * ScrollTrigger, with a quickSetter writing the rail's --rp custom
- * property each tick.
+ * Day One — once the section comes into view, a ball travels along a
+ * rail to each of three stops in turn (DOT_DUR per stop), lighting up a
+ * column of copy as it arrives. Plays once per page load: not tied to
+ * scroll, and scrolling back up doesn't replay it. Phones hide the rail
+ * and light their vertical timeline's dots on the same beat.
  */
 export function setupDayOne() {
   const section = document.getElementById("partnering");
   const rail = document.getElementById("rail");
   if (!section || !rail || prefersReducedMotion()) return;
 
-  const { gsap, ScrollTrigger } = useGsap();
+  const { gsap } = useGsap();
   const railStops = Array.from(rail.querySelectorAll<HTMLElement>(".rail__stop"));
   const cols = Array.from(document.querySelectorAll<HTMLElement>("#dayone .col"));
 
+  // matches .rail__stop's left positions; the ball stops at the third
   const DOT_POS = [1 / 6, 3 / 6, 5 / 6];
-  const KX = [0, 0.12, 0.3, 0.42, 0.6, 0.72, 0.9, 1];
-  /* the ball/fill never travels past the third stop — it holds there
-     for the rest of the section's scroll rather than continuing on to
-     the rail's own right edge, which sits well past that last circle. */
-  const KY = [0, 1 / 6, 1 / 6, 3 / 6, 3 / 6, 5 / 6, 5 / 6, 5 / 6];
-
-  const remap = (u: number) => {
-    for (let k = 1; k < KX.length; k++) {
-      if (u <= KX[k]) {
-        const t = (u - KX[k - 1]) / (KX[k] - KX[k - 1]);
-        return KY[k - 1] + t * (KY[k] - KY[k - 1]);
-      }
-    }
-    return 1;
-  };
 
   const setRp = gsap.quickSetter(rail, "--rp") as (v: number) => void;
 
@@ -76,35 +61,35 @@ export function setupDayOne() {
   const ball = rail.querySelector<HTMLElement>(".rail__ball");
   if (ball) pulseHalo(ball);
 
-  const pulsing = new Set<HTMLElement>();
+  const reach = (k: number) => {
+    cols.forEach((c, i) => c.classList.toggle("on", i === k));
+    cols[k]?.classList.add("is-rev");
+    cols[k]?.querySelector("p")?.classList.add("revealed");
+    const stop = railStops[k];
+    if (stop) {
+      stop.classList.add("is-past");
+      pulseHalo(stop, Math.random() * 0.8);
+    }
+  };
 
-  ScrollTrigger.create({
-    trigger: section,
-    start: "top top",
-    end: "bottom bottom",
-    scrub: true,
-    onUpdate: (self) => {
-      const u = Math.min(1, Math.max(0, (self.progress - 0.12) / 0.62));
-      const rp = remap(u);
-      setRp(rp);
-
-      let active = -1;
-      for (let k = 0; k < 3; k++) if (rp >= DOT_POS[k] - 0.002) active = k;
-      cols.forEach((c, i) => {
-        c.classList.toggle("on", i === active);
-        if (i <= active) {
-          c.classList.add("is-rev");
-          c.querySelector("p")?.classList.add("revealed");
-        }
-      });
-      railStops.forEach((s, i) => {
-        const reached = rp >= DOT_POS[i] - 0.002;
-        s.classList.toggle("is-past", reached);
-        if (reached && !pulsing.has(s)) {
-          pulsing.add(s);
-          pulseHalo(s, Math.random() * 0.8);
-        }
-      });
-    },
+  const state = { rp: 0 };
+  const tl = gsap.timeline({ paused: true });
+  DOT_POS.forEach((pos, k) => {
+    tl.to(state, { rp: pos, duration: DOT_DUR, ease: "power1.inOut", onUpdate: () => setRp(state.rp) })
+      .call(reach, [k]);
   });
+
+  // #dayone (the copy) rather than the rail, which phones hide; most of
+  // it in view, so on a phone's stacked timeline the later steps don't
+  // reveal below the fold
+  const startIO = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      startIO.disconnect();
+      tl.play();
+    },
+    { threshold: 0.6 },
+  );
+  const copy = document.getElementById("dayone");
+  if (copy) startIO.observe(copy);
 }

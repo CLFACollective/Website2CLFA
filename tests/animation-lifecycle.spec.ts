@@ -145,45 +145,54 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
     expect(await isStatic(page, readHalo)).toBe(true);
   });
 
-  test("Day One: copy columns stay hidden until their own dot is reached, then arrive centered under it", async ({ page }) => {
+  test("Day One: each step's copy is hidden from the start and shows as its dot is reached (desktop and phones)", async ({ page }) => {
+    // effective opacity of each step's heading: its own times the column's
+    const shown = () =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("#dayone .col")).map((c) => {
+          const h = c.querySelector("h3")!;
+          return parseFloat(getComputedStyle(c).opacity) * parseFloat(getComputedStyle(h).opacity);
+        }),
+      );
+    const reached = () => page.$$eval("#dayone .col", (cs) => cs.map((c) => c.classList.contains("is-rev")));
+
+    for (const o of await shown()) expect(o, "hidden before the section is in view").toBe(0);
+    await page.evaluate(() => document.getElementById("dayone")!.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(150);
+    for (const o of await shown()) expect(o, "still hidden before the first dot").toBe(0);
+
+    // dots land at 0.6s, 1.2s, 1.8s — in between, the earlier steps show and the later don't
+    await page.waitForTimeout(900);
+    const mid = await reached();
+    expect(mid[0]).toBe(true);
+    expect(mid[2]).toBe(false);
+
+    await page.waitForTimeout(1800);
+    expect(await reached()).toEqual([true, true, true]);
+    for (const o of await shown()) expect(o, "all shown once played").toBeGreaterThan(0.95);
+  });
+
+  test("Day One: the dots play once in view, 0.6s each, revealing each column centered under its dot", async ({ page }) => {
     // desktop rail only — mobile's vertical timeline is a different,
     // left-aligned layout with its own always-visible columns.
     const railVisible = await page.locator(".rail").isVisible().catch(() => false);
     test.skip(!railVisible, "rail is desktop-only");
 
-    const rect = await page.evaluate(() => {
-      const el = document.getElementById("partnering")!;
-      const r = el.getBoundingClientRect();
-      return { top: r.top + window.scrollY, height: r.height, vh: window.innerHeight };
-    });
-    // ScrollTrigger's progress is 0 at "top top" and 1 at "bottom
-    // bottom" — the scrollable range that spans is the trigger's own
-    // height MINUS the viewport (the last screenful is already "bottom
-    // bottom" the moment the section's bottom edge appears), not its
-    // full height.
-    const scrollToFrac = async (p: number) => {
-      await page.evaluate((y) => window.scrollTo(0, y), rect.top + (rect.height - rect.vh) * p);
-      // the reveal is a .7s CSS transition off the class GSAP's
-      // scroll-jump-triggered onUpdate adds instantly — waiting for
-      // the jump alone isn't enough, this also waits out the transition
-      await page.waitForTimeout(900);
-    };
     const colOpacities = () =>
       page.evaluate(() =>
         Array.from(document.querySelectorAll<HTMLElement>("#dayone .col")).map((c) => parseFloat(getComputedStyle(c).opacity)),
       );
+    const pastStops = () => page.locator(".rail__stop.is-past").count();
 
-    // early — only the first stop has been reached
-    await scrollToFrac(0.25);
-    const early = await colOpacities();
-    expect(early[0], "first column should already be revealed").toBeGreaterThan(0.9);
-    expect(early[1], "second column shouldn't have arrived yet").toBeLessThan(0.1);
-    expect(early[2], "third column shouldn't have arrived yet").toBeLessThan(0.1);
+    expect(await pastStops(), "nothing plays before the section is in view").toBe(0);
+    await page.evaluate(() => document.getElementById("dayone")!.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(200);
+    expect(await pastStops(), "the first stop takes 0.6s to reach").toBe(0);
 
-    // fully through — all three revealed, each centered under its own dot
-    await scrollToFrac(0.98);
-    const late = await colOpacities();
-    expect(late.every((o) => o > 0.9), "all three columns should be revealed by the end").toBe(true);
+    // three stops at 0.6s each, plus the columns' .7s CSS fade
+    await page.waitForTimeout(2600);
+    expect(await pastStops()).toBe(3);
+    expect((await colOpacities()).every((o) => o > 0.9), "all three columns revealed").toBe(true);
 
     const offsets = await page.evaluate(() => {
       const paras = Array.from(document.querySelectorAll<HTMLElement>("#dayone .col p"));
@@ -195,6 +204,14 @@ test.describe("off-screen animations pause (GSAP-driven — value-sampled)", () 
       });
     });
     for (const offset of offsets) expect(offset, "each column should be centered under its dot").toBeLessThan(20);
+
+    // scrolling away and back doesn't replay it — everything stays lit
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(300);
+    await page.evaluate(() => document.getElementById("dayone")!.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(150);
+    expect(await pastStops()).toBe(3);
+    expect((await colOpacities()).every((o) => o > 0.9)).toBe(true);
   });
 
   test("Hero's SCROLL cue pulse freezes once scrolled far away, resumes back at top", async ({ page }) => {

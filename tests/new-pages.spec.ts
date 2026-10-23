@@ -109,6 +109,21 @@ test.describe("Services accordion (What We Do) — single-open", () => {
     await expect(row2.locator(".svc__button")).toHaveAttribute("aria-expanded", "true");
     await expect(row1.locator(".svc__button")).toHaveAttribute("aria-expanded", "false");
   });
+
+  test("every row's big outlined label (e.g. '02 GO-TO-MARKET') fits on screen without overflowing", async ({ page }) => {
+    // overflowing pulls the outline and its cream mask copy apart into garbled double lettering
+    await page.goto("/what-we-do");
+    const fits = await page.$$eval("#services .svc__display", (els) =>
+      els.map((el) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        const ink = r.getBoundingClientRect();
+        const box = el.getBoundingClientRect();
+        return { text: (el as HTMLElement).dataset.text, fits: el.scrollWidth <= el.clientWidth + 1 && ink.right <= innerWidth };
+      }),
+    );
+    for (const f of fits) expect(f.fits, f.text).toBe(true);
+  });
 });
 
 test.describe("FAQ accordion — independent, any number open at once", () => {
@@ -125,6 +140,19 @@ test.describe("FAQ accordion — independent, any number open at once", () => {
 });
 
 test.describe("Contact form submits to Netlify Forms", () => {
+  test("'What's your situation?' shows its whole placeholder and grows instead of scrolling", async ({ page }) => {
+    await page.goto("/contact");
+    const box = page.locator("#ctc-situation");
+    const fits = () => box.evaluate((el: HTMLTextAreaElement) => el.scrollHeight <= el.clientHeight + 1);
+    expect(await fits(), "placeholder isn't cut off").toBe(true);
+
+    const before = (await box.boundingBox())!.height;
+    await box.fill(Array.from({ length: 8 }, (_, i) => `Line ${i + 1} about our brand and timeline.`).join("\n"));
+    await page.waitForTimeout(100);
+    expect(await fits(), "no scrolling inside the box").toBe(true);
+    expect((await box.boundingBox())!.height).toBeGreaterThan(before);
+  });
+
   test("form carries Netlify's detection attributes", async ({ page }) => {
     await page.goto("/contact");
     const form = page.locator("#ctcForm");
@@ -195,40 +223,6 @@ test.describe("reduced motion: every new animation resolves to its resting state
   });
 });
 
-test.describe("What We Do: conveyor card placement", () => {
-  test("at the belt's midpoint the Brand infrastructure card overlaps the orange headline line by ~105 design px, and every card fits on screen", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "the conveyor layout only applies above 900px");
-    await page.goto("/what-we-do");
-    await page.evaluate(() => {
-      const s = document.getElementById("equity")!;
-      window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) / 2);
-    });
-    await page.waitForTimeout(800);
-    const g = await page.evaluate(() => {
-      const s = document.getElementById("equity")!;
-      // the designed arrangement: zero belt displacement
-      s.style.setProperty("--d", "0");
-      s.style.setProperty("--dabs", "0");
-      const u = s.querySelector<HTMLElement>(".mfe__frame")!.clientWidth / 1920;
-      const lines = s.querySelector(".mfe__head strong")!.getClientRects();
-      const cards = Array.from(s.querySelectorAll(".mfe__card")).map((c) => c.getBoundingClientRect());
-      return {
-        u,
-        orangeBottom: lines[lines.length - 1].bottom,
-        brandTop: cards[2].top,
-        topMost: Math.min(...cards.map((c) => c.top)),
-        maxBottom: Math.max(...cards.map((c) => c.bottom)),
-        vh: innerHeight,
-      };
-    });
-    expect(g.topMost, "Brand infrastructure is the top-most card").toBeCloseTo(g.brandTop, 0);
-    const overlap = (g.orangeBottom - g.brandTop) / g.u; // design px
-    expect(overlap, "Brand's top edge reaches into the orange line's box").toBeGreaterThan(85);
-    expect(overlap, "...by about 105 design px, not more").toBeLessThan(125);
-    expect(g.maxBottom, "the lowest card isn't cut off by the stage").toBeLessThanOrEqual(g.vh);
-  });
-});
-
 test.describe("GSAP-driven scroll values genuinely change (value-sampling, not getAnimations())", () => {
   test("What We Do: opener's --out advances as the page scrolls past it", async ({ page }) => {
     await page.goto("/what-we-do");
@@ -242,57 +236,42 @@ test.describe("GSAP-driven scroll values genuinely change (value-sampling, not g
     expect(after).not.toBe(before);
   });
 
-  test("What We Do: the conveyor's --d changes as the pinned section scrolls (desktop only)", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "desktop", "the conveyor only pins above 900px");
-    await page.goto("/what-we-do");
-    const top = await page.evaluate(() => document.getElementById("equity")!.getBoundingClientRect().top + window.scrollY);
-    await page.evaluate((y) => window.scrollTo(0, y), top + 50);
-    await page.waitForTimeout(200);
-    const before = await readVar(page, "#equity", "--d");
-    await page.evaluate((y) => window.scrollTo(0, y), top + 2000);
-    await page.waitForTimeout(700);
-    const after = await readVar(page, "#equity", "--d");
-    expect(after).not.toBe(before);
-  });
-
-  test("About: WhyCollective's --in and --res advance as the arch rises", async ({ page }) => {
-    // the arch's rise is spent over a pinned scroll track on a
-    // landscape-ish frame ("top top" → "bottom bottom" of the tall
-    // --track wrapper), or the section's own pass through the
-    // viewport on a portrait/phone one ("top bottom" → "bottom
-    // center" — deliberately short of "bottom top", see
-    // whyCollective.ts's own comment on why) — the two ranges sit at
-    // completely different scrollY values, so the actual range is
-    // computed per mode rather than assuming a fixed offset past
-    // arrival works for both.
+  test("About: WhyCollective holds 'Why a collective?' for a beat, then the arch rises and 'The result' shows", async ({ page }) => {
+    // Landscape-ish frame: the run is the tall --track wrapper ("top
+    // top" → "bottom bottom"). Portrait/phone: a short pin — the frame
+    // sticks vertically centred for --run of scroll (mirrored from
+    // whyCollective.ts's shortPin()).
     await page.goto("/about");
-    const vh = page.viewportSize()!.height;
-    const { pinned, sectionTop, sectionHeight } = await page.evaluate(() => {
+    const { start, end } = await page.evaluate(() => {
       const el = document.querySelector("[data-page-why]")!;
       const r = el.getBoundingClientRect();
-      return {
-        pinned: window.matchMedia("(min-width: 641px) and (min-aspect-ratio: 7/5)").matches,
-        sectionTop: r.top + window.scrollY,
-        sectionHeight: r.height,
-      };
+      const vh = innerHeight;
+      const top = r.top + scrollY;
+      if (matchMedia("(min-width: 641px) and (min-aspect-ratio: 7/5)").matches)
+        return { start: top, end: top + r.height - vh };
+      const cs = getComputedStyle(el);
+      const pin = el.querySelector<HTMLElement>("[data-why-pin]")!;
+      const padTop = parseFloat(cs.paddingTop);
+      const s = top - ((vh - pin.offsetHeight) / 2 - padTop);
+      return { start: s, end: s + el.clientHeight - padTop - pin.offsetHeight };
     });
-    const rangeStart = pinned ? sectionTop : Math.max(0, sectionTop - vh);
-    const rangeEnd = pinned ? sectionTop + sectionHeight - vh : sectionTop + sectionHeight - vh / 2;
-    const range = rangeEnd - rangeStart;
+    const at = async (p: number) => {
+      await page.evaluate((y) => window.scrollTo(0, y), start + (end - start) * p);
+      await page.waitForTimeout(500);
+    };
 
-    await page.evaluate((y) => window.scrollTo(0, y), rangeStart + range * 0.02);
-    await page.waitForTimeout(250);
-    const inBefore = await readVar(page, "[data-page-why]", "--in");
+    // arrived, and a little past: the arch hasn't moved, the heading is in full view
+    await at(0.2);
+    expect(Number(await readVar(page, "[data-page-why]", "--in"))).toBe(0);
+    const h = await page.locator(".abt__why-h").boundingBox();
+    const vh = page.viewportSize()!.height;
+    expect(h!.y).toBeGreaterThanOrEqual(0);
+    expect(h!.y + h!.height).toBeLessThanOrEqual(vh);
 
-    await page.evaluate((y) => window.scrollTo(0, y), rangeStart + range * 0.75);
-    await page.waitForTimeout(700);
-    const inAfter = await readVar(page, "[data-page-why]", "--in");
-    expect(inAfter).not.toBe(inBefore);
-    // --res (the cream "result" copy) only turns on once --in has
-    // climbed past RES_START — not asserting an exact value, just
-    // that it's a real, non-zero number once deep into the range.
-    const res = await readVar(page, "[data-page-why]", "--res");
-    expect(Number(res)).toBeGreaterThan(0);
+    // through the run: risen, and the result copy showing
+    await at(1);
+    expect(Number(await readVar(page, "[data-page-why]", "--in"))).toBeGreaterThan(0.99);
+    expect(Number(await readVar(page, "[data-page-why]", "--res"))).toBeGreaterThan(0.99);
   });
 
   test("About: the 'READY TO MOVE' marquee is genuinely animating (GSAP xPercent)", async ({ page }) => {

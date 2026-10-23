@@ -376,14 +376,13 @@ export function setupHero() {
   const snapBackToTop = () => window.scrollTo(0, 0);
   window.addEventListener("scroll", snapBackToTop);
 
-  /* Phones: scrolling down ends the movie. A swipe up (or, on a narrow
-     or touch screen, a wheel scroll) jumps straight to the finished
-     frame and unlocks scrolling in the same moment — so the swipe that
-     ended it carries on scrolling the page (checked with real touch
-     input: the first swipe moves the page). Desktop keeps the full
-     movie, scroll-locked. */
+  /* Scrolling down ends the movie, on every screen size. A swipe up, a
+     wheel scroll down, or a scroll-down key jumps straight to the
+     finished frame and unlocks scrolling in the same moment — so the
+     swipe that ended it carries on scrolling the page (checked with
+     real touch input: the first swipe moves the page). */
   const SKIP_SWIPE = 40; // px of upward finger travel that counts as a scroll down
-  const skippable = window.matchMedia("(max-width: 999px), (pointer: coarse)");
+  const SKIP_KEYS = new Set(["ArrowDown", "PageDown", "End", " "]);
   const skip = () => {
     if (!tl.isActive() || tl.progress() >= 1) return;
     tl.progress(1);
@@ -394,10 +393,17 @@ export function setupHero() {
     if (touchY === null) return;
     if (touchY - (e.touches[0]?.clientY ?? touchY) > SKIP_SWIPE) { touchY = null; skip(); }
   };
-  const onWheel = (e: WheelEvent) => { if (skippable.matches && e.deltaY > 0) skip(); };
+  const onWheel = (e: WheelEvent) => { if (e.deltaY > 0) skip(); };
+  // Space on a focused button/link activates it rather than scrolling
+  const onKeyDown = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null;
+    if (e.key === " " && t?.closest("button, a, input, textarea, select, [contenteditable]")) return;
+    if (SKIP_KEYS.has(e.key)) skip();
+  };
   window.addEventListener("touchstart", onTouchStart, { passive: true });
   window.addEventListener("touchmove", onTouchMove, { passive: true });
   window.addEventListener("wheel", onWheel, { passive: true });
+  window.addEventListener("keydown", onKeyDown);
 
   // Exposed for automated tests, which otherwise have to burn this
   // movie's real ~9.5s runtime on every single test that just needs

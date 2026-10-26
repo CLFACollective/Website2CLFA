@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "headline": "Meet the collective.",
+    "headlineAlt": "Not the committee.",
+    "standfirst": "CLFA Collective is a network, *not a hierarchy*. But it started with two people who’ve been in every room this industry has to offer."
+  },
+  "team": [
+    {
+      "name": "Cathy L. Fink",
+      "role": "The CLF in CLFA",
+      "email": "cathy@clfacollective.com",
+      "photo": "/img/team/cathy.avif",
+      "linkedin": "https://www.linkedin.com/"
+    },
+    {
+      "name": "Michelle Anderson",
+      "role": "The A in CLFA",
+      "email": "michelle@clfacollective.com",
+      "photo": "/img/team/michelle.avif",
+      "linkedin": "https://www.linkedin.com/"
+    }
+  ],
+  "why": {
+    "heading": "Why a collective?",
+    "body": "Cathy & Michelle knew their clients demanded something agencies weren’t serving: adaptable teams right-sized for every job, every challenge, every single time."
+  },
+  "result": {
+    "heading": "The result",
+    "body": "You get the team you actually need—calibrated, senior, and ready to move—without paying for the parts you don’t."
+  }
+}

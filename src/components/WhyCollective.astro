@@ -10,27 +10,22 @@
 // arch's rise, --res the cream copy's reveal once the arch has
 // climbed far enough to cover the heading behind it). The "READY TO
 // MOVE" marquee at the foot reuses marquee.ts, same doubled-track
-// technique as LogoScroller.astro.
+// technique as LogoScroller.astro. Both blocks' copy comes from
+// src/data/about.json (edited in the CMS).
+import about from "../data/about.json";
 ---
 
 <div class="abt__why" data-page-why>
   <div class="abt__why-pin" data-why-pin>
     <div class="abt__why-inner">
-      <h2 class="abt__why-h">Why a collective?</h2>
-      <p class="abt__why-p">
-        Cathy &amp; Michelle knew their clients demanded something agencies
-        weren&rsquo;t serving: adaptable teams right-sized for every job, every
-        challenge, every single time.
-      </p>
+      <h2 class="abt__why-h">{about.why.heading}</h2>
+      <p class="abt__why-p">{about.why.body}</p>
     </div>
 
     <div class="abt__arch" data-cursor="invert">
       <div class="abt__result">
-        <h2>The result</h2>
-        <p>
-          You get the team you actually need&mdash;calibrated, senior, and ready
-          to move&mdash;without paying for the parts you don&rsquo;t.
-        </p>
+        <h2>{about.result.heading}</h2>
+        <p>{about.result.body}</p>
       </div>
     </div>
 

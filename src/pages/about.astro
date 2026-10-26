@@ -5,6 +5,8 @@ import Footer from "../components/Footer.astro";
 import PageOpener from "../components/PageOpener.astro";
 import TeamGrid from "../components/TeamGrid.astro";
 import WhyCollective from "../components/WhyCollective.astro";
+import about from "../data/about.json";
+import { italicMarkdown } from "../lib/inlineMarkdown";
 ---
 
 <Layout
@@ -16,13 +18,10 @@ import WhyCollective from "../components/WhyCollective.astro";
   <main id="main" tabindex="-1">
     <PageOpener id="about">
       <h1 class="abt__head">
-        <span class="opener__line">Meet the collective.</span>
-        <strong class="opener__line abt__head--alt">Not the committee.</strong>
+        <span class="opener__line">{about.hero.headline}</span>
+        <strong class="opener__line abt__head--alt">{about.hero.headlineAlt}</strong>
       </h1>
-      <p class="opener__line abt__stand">
-        CLFA Collective is a network, <em>not a hierarchy</em>. But it started with two
-        people who&rsquo;ve been in every room this industry has to offer.
-      </p>
+      <p class="opener__line abt__stand" set:html={italicMarkdown(about.hero.standfirst)} />
     </PageOpener>
     <TeamGrid />
     <WhyCollective />

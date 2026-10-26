@@ -222,6 +222,65 @@ collections:
                 step: 0.1
                 hint: Optional. 1 is normal; raise it for an icon that looks small.
 
+  # ------------------------------------------------- Meet the collective
+  - name: about
+    label: Meet the collective page
+    icon: groups
+    editor:
+      preview: false
+    files:
+      - name: about
+        label: Page content
+        file: src/data/about.json
+        format: json
+        fields:
+          - name: hero
+            label: Top of the page
+            widget: object
+            fields:
+              - { name: headline, label: Headline, widget: string, hint: "First line, e.g. Meet the collective." }
+              - { name: headlineAlt, label: Headline (orange line), widget: string, hint: "Second line, bold orange, e.g. Not the committee." }
+              - name: standfirst
+                label: Paragraph below
+                widget: text
+                hint: Wrap words in *single asterisks* for the orange italic (e.g. *not a hierarchy*).
+          - name: team
+            label: Team
+            label_singular: Person
+            collapsed: true
+            widget: list
+            min: 1
+            summary: "{{fields.name}}"
+            hint: Drag to reorder.
+            fields:
+              - { name: name, label: Name, widget: string }
+              - { name: role, label: Line below the name, widget: string, hint: "e.g. The CLF in CLFA" }
+              - { name: email, label: Email, widget: string, hint: Shown on the photo when hovered. }
+              - name: photo
+                label: Photo
+                widget: image
+                media_folder: /public/img/team
+                public_folder: /img/team
+                hint: A square-ish portrait works best (shown about 400 × 410 px).
+              - name: linkedin
+                label: LinkedIn URL
+                widget: string
+                required: false
+                hint: Optional. Leave blank to hide the LinkedIn icon.
+                pattern: ["^(https://.*)?$", "Use the full address, starting with https://"]
+          - name: why
+            label: "\"Why a collective?\" section"
+            widget: object
+            fields:
+              - { name: heading, label: Heading, widget: string }
+              - { name: body, label: Paragraph, widget: text }
+          - name: result
+            label: "\"The result\" section (pink arch)"
+            widget: object
+            fields:
+              - { name: heading, label: Heading, widget: string }
+              - { name: body, label: Paragraph, widget: text }
+
   # ---------------------------------------------------------------- FAQs
   - name: faqs
     label: FAQs page

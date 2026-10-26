@@ -6,10 +6,10 @@
 // mailto link and never display:none, so it stays in the tab order
 // and reads normally to a screen reader even before it's visually
 // revealed.
-const TEAM = [
-  { name: "Cathy L. Fink", role: "The CLF in CLFA", email: "cathy@clfacollective.com", photo: "/img/team/cathy.avif" },
-  { name: "Michelle Anderson", role: "The A in CLFA", email: "michelle@clfacollective.com", photo: "/img/team/michelle.avif" },
-];
+// The members come from src/data/about.json (edited in the CMS); a
+// blank LinkedIn address hides that member's icon.
+import about from "../data/about.json";
+const TEAM: { name: string; role: string; email: string; photo: string; linkedin?: string }[] = about.team;
 ---
 
 <section class="abt__team">
@@ -22,14 +22,14 @@ const TEAM = [
         <a class="abt__pill" href={`mailto:${m.email}`}>{m.email}</a>
         <p class="abt__name">{m.name}</p>
         <p class="abt__role">{m.role}</p>
-        <a class="abt__li" href="https://www.linkedin.com/" rel="noreferrer" aria-label={`${m.name} on LinkedIn`}>
+        {m.linkedin && <a class="abt__li" href={m.linkedin} rel="noreferrer" aria-label={`${m.name} on LinkedIn`}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="currentColor"
               d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05a3.74 3.74 0 0 1 3.37-1.85c3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.12 20.45H3.55V9h3.57v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"
             ></path>
           </svg>
-        </a>
+        </a>}
       </li>
     ))}
   </ul>

@@ -13,6 +13,12 @@ const nav: {
   links: { href: string; menuLabel: string; footerLabel?: string; inMenu?: boolean; inFooter?: boolean }[];
   linkedin: string;
 } = data("navigation");
+const about: {
+  hero: { headline: string; headlineAlt: string; standfirst: string };
+  team: { name: string; role: string; email: string; photo: string; linkedin?: string }[];
+  why: { heading: string; body: string };
+  result: { heading: string; body: string };
+} = data("about");
 const faqs: { groups: { title: string; items: { question: string; answer: string; tail?: string }[] }[] } = data("faqs");
 
 /**
@@ -99,6 +105,34 @@ test.describe("CMS content drives the pages", () => {
       await expect(rows.nth(i).locator(".svc__button > span").first()).toHaveText(s.title);
       await expect(rows.nth(i).locator(".svc__display")).toHaveAttribute("data-text", `${String(i + 1).padStart(2, "0")} ${s.word}`);
     }
+  });
+
+  test("about: the opener, each team member, and the Why / Result copy", async ({ page }) => {
+    await page.goto("/about");
+    await expect(page.locator(".abt__head .opener__line").first()).toHaveText(about.hero.headline);
+    await expect(page.locator(".abt__head--alt")).toHaveText(about.hero.headlineAlt);
+    const stand = page.locator(".abt__stand");
+    await expect(stand).toHaveText(about.hero.standfirst.replace(/\*/g, "").replace(/\s*\n\s*/g, " "));
+    const em = about.hero.standfirst.match(/\*(.+?)\*/)?.[1];
+    if (em) await expect(stand.locator("em")).toHaveText(em);
+
+    const members = page.locator(".abt__member");
+    await expect(members).toHaveCount(about.team.length);
+    for (const [i, m] of about.team.entries()) {
+      const el = members.nth(i);
+      await expect(el.locator(".abt__name")).toHaveText(m.name);
+      await expect(el.locator(".abt__role")).toHaveText(m.role);
+      await expect(el.locator("img")).toHaveAttribute("src", m.photo);
+      await expect(el.locator(".abt__pill")).toHaveAttribute("href", `mailto:${m.email}`);
+      // a blank LinkedIn address hides the icon
+      if (m.linkedin) await expect(el.locator(".abt__li")).toHaveAttribute("href", m.linkedin);
+      else await expect(el.locator(".abt__li")).toHaveCount(0);
+    }
+
+    await expect(page.locator(".abt__why-h")).toHaveText(about.why.heading);
+    await expect(page.locator(".abt__why-p")).toHaveText(about.why.body);
+    await expect(page.locator(".abt__result h2")).toHaveText(about.result.heading);
+    await expect(page.locator(".abt__result p")).toHaveText(about.result.body);
   });
 
   test("faqs: every group and question, answers split into paragraphs", async ({ page }) => {

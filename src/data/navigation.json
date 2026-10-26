@@ -1,9 +1,33 @@
 {
   "links": [
-    { "href": "/what-we-do", "menuLabel": "What we do", "footerLabel": "What we do", "inMenu": true, "inFooter": true },
-    { "href": "/about", "menuLabel": "Meet the collective", "footerLabel": "Who we are", "inMenu": true, "inFooter": true },
-    { "href": "/faqs", "menuLabel": "FAQs", "footerLabel": "FAQs", "inMenu": true, "inFooter": true },
-    { "href": "/contact", "menuLabel": "Let’s go", "footerLabel": "Contact", "inMenu": true, "inFooter": true }
+    {
+      "href": "/what-we-do",
+      "menuLabel": "What we do",
+      "footerLabel": "What we do",
+      "inMenu": true,
+      "inFooter": true
+    },
+    {
+      "href": "/about",
+      "menuLabel": "Meet the collective",
+      "footerLabel": "Who we are",
+      "inMenu": true,
+      "inFooter": true
+    },
+    {
+      "href": "/faqs",
+      "menuLabel": "FAQs",
+      "footerLabel": "FAQs",
+      "inMenu": true,
+      "inFooter": true
+    },
+    {
+      "href": "/contact",
+      "menuLabel": "Let’s go",
+      "footerLabel": "Contact",
+      "inMenu": true,
+      "inFooter": true
+    }
   ],
-  "linkedin": "https://www.linkedin.com/"
+  "linkedin": "https://www.linkedin.com/company/clfa-collective/"
 }

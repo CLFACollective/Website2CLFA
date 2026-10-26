@@ -31,7 +31,7 @@
     },
     {
       "type": "stat",
-      "prefix": "",
+      "prefix": "$",
       "value": 4,
       "suffix": "M",
       "caption": "Sales pipeline in 4 months",

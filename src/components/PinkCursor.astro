@@ -23,14 +23,17 @@
     pointer-events: none;
     will-change: transform;
     transform: translate(-200px, -200px);
-    box-shadow: 0 0 0 0 rgba(254, 252, 244, 0);
+    /* ring colour tracks the dot: pink dot → pink ring, white (inverted)
+       dot → cream ring — cursor.ts sets --ring alongside the background. */
+    --ring: rgba(240, 105, 150, .55);
+    box-shadow: 0 0 0 0 transparent;
     transition: box-shadow .18s ease-out;
   }
-  /* a visible ring grown around the dot over small interactive targets
-     that otherwise give no hover feedback under this custom cursor —
-     see cursor.ts's data-cursor="ring" handling. */
+  /* a visible ring grown around the dot over any link or button (and
+     anything marked data-cursor="ring"), since this custom cursor
+     otherwise gives no pointer-style hover feedback — see cursor.ts. */
   #pink-cursor.pink-cursor--ring {
-    box-shadow: 0 0 0 7px rgba(254, 252, 244, .55);
+    box-shadow: 0 0 0 7px var(--ring);
   }
   @media (pointer: fine) {
     #pink-cursor { display: block; }

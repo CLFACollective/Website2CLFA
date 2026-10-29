@@ -16,6 +16,9 @@ function withinCircle(el: Element, x: number, y: number): boolean {
   return dx * dx + dy * dy <= radius * radius;
 }
 
+/** What counts as "a link" for the cursor's hover ring. */
+const RING_TARGETS = 'a[href], button, [role="button"], summary, label[for], [data-cursor="ring"]';
+
 /**
  * PinkCursor — the fine-pointer replacement for the system cursor.
  *
@@ -61,12 +64,13 @@ export function mountPinkCursor() {
       onInvert = !!under?.closest('[data-cursor="invert"]');
     }
     dot.style.background = onInvert ? "#FFFCF5" : "#F06996";
+    dot.style.setProperty("--ring", onInvert ? "rgba(254, 252, 244, .55)" : "rgba(240, 105, 150, .55)");
 
-    // a plain hover affordance for small interactive targets that don't
-    // otherwise change appearance under this custom cursor (e.g. Hero's
-    // Replay button, easy to miss whether you're actually on it) — see
-    // #pink-cursor.pink-cursor--ring in PinkCursor.astro.
-    dot.classList.toggle("pink-cursor--ring", !!under?.closest('[data-cursor="ring"]'));
+    // the hover affordance the system pointer would otherwise give: a ring
+    // in the dot's own colour over any link or button (plus anything
+    // opted in with data-cursor="ring") — see #pink-cursor.pink-cursor--ring
+    // in PinkCursor.astro.
+    dot.classList.toggle("pink-cursor--ring", !!under?.closest(RING_TARGETS));
   };
 
   window.addEventListener("mousemove", onMove);
